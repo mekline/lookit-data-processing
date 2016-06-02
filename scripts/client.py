@@ -11,9 +11,8 @@ load_dotenv(dotenv_path)
 OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')
 SENDGRID_KEY = os.environ.get('SENDGRID_KEY')
 
-JAM_URL = 'https://staging-metadata.osf.io'
-JAM_NAMESPACE = 'experimenter'
-
+JAM_URL = os.environ.get('JAMDB_URL')
+JAM_NAMESPACE = os.environ.get('JAMDB_NAMESPACE')
 
 class EmailPreferences(object):
 
@@ -272,26 +271,3 @@ class ExperimenterClient(object):
                 sendgrid.batch_unsubscribe_from(group, batch_unsubscribes)
         if account_updates:
             self.update_accounts(account_updates)
-
-
-def test():
-    client = ExperimenterClient(access_token=OSF_ACCESS_TOKEN).authenticate()
-    exps = client.fetch_experiments()
-    for exp in exps:
-        exp['sessions'] = client.fetch_sessions_for_experiment(exp)
-
-    exp = exps[3]
-    sess = exp['sessions'][0]
-    res = client.set_session_feedback(sess, "Some test feedback")
-    print """
-    Feedback set to: {}
-    on session: {}
-    of experiment: {}
-    """.format(
-        res.json()['data']['attributes']['feedback'],
-        sess['id'].split('.')[-1],
-        exp['attributes']['title']
-    )
-
-
-test() if __name__ == '__main__' else None
