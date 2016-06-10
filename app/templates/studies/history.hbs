@@ -7,15 +7,12 @@
                 <div id="past-studies">
                     <p class="study-detail-caption">Here you can view your studies and see comments left by researchers:</p>
                     <div class="row">
-                        {{#each model as |experiment|}}
-                          {{study-feedback experiment=experiment.experiment sessions=experiment.sessions}}
-                        {{/each}}
+                      {{#each model as |experimentSession|}}
+                        {{study-feedback experiment=experimentSession.experiment sessions=experimentSession.sessions account=account}}
+		      {{/each}}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-
-

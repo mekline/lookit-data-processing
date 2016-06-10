@@ -14,12 +14,13 @@ export default Ember.Route.extend(AuthenticatedRouteMixin, {
     },
     beforeModel(transition) {
         if (transition.queryParams.access_token) {
-            this.get('session')
+            return this.get('session')
                 .authenticate('authenticator:jam-jwt', {}, transition.queryParams.access_token)
                 .then(() => {
                     window.location.hash = '';
+		    return this._super(...arguments);
                 });
         }
-        this._super(...arguments);
+	return this._super(...arguments);
     }
 });

@@ -3,10 +3,11 @@ import Ember from 'ember';
 import AuthenticatedRouteMixin from 'ember-simple-auth/mixins/authenticated-route-mixin';
 
 import ExpPlayerRouteMixin from 'exp-player/mixins/exp-player-route';
+import WarnOnExitRouteMixin from 'exp-player/mixins/warn-on-exit-route';
 
 const { service } = Ember.inject;
 
-export default Ember.Route.extend(AuthenticatedRouteMixin, ExpPlayerRouteMixin, {
+export default Ember.Route.extend(AuthenticatedRouteMixin, ExpPlayerRouteMixin, WarnOnExitRouteMixin, {
     sessionAccount: service('session-account'),
 
     _getExperiment(params) {

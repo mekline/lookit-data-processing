@@ -3,7 +3,6 @@ import Ember from 'ember';
 
 export default Ember.Component.extend({
     session: null,
-    sessionAccount: Ember.inject.service('session-account'),
 
     showFeedback: false,
     feedbackText: 'Show Feedback',
@@ -12,19 +11,14 @@ export default Ember.Component.extend({
 
     profileName: null,
 
-    /*
-        On component creation, fetch the username associated with a specific profile
-     */
     init() {
-        this._super(...arguments);
-
-        this.get('sessionAccount').loadCurrentUser((account) => {
-            let profile = account.profileById(this.get('session.profileId'));
-            this.set('profileName', `${profile.firstName}`); // TODO: Name format should disambiguate
-        });
+	this._super(...arguments);
+	this.get('session').getProfile().then((profile) => {
+	    this.set('profileName', profile.get('firstName'));
+	});
     },
 
-    actions: {
+    arguments: {
         toggleFeedback: function() {
             this.toggleProperty('showFeedback');
             if (this.get('showFeedback')) {

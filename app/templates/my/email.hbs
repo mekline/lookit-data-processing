@@ -1,36 +1,44 @@
+{{#if suppressions}}
 <div>
   <div>
     <p>I would like to be contacted when:</p>
     <br>
     {{#bs-form}}
       {{#bs-form-group}}
-        {{
-        bs-form-element controlType="checkbox"
-        value=model.emailPreferencesNextSession
-        label="It's time for another session of a study we are currently participating in"
-        }}
-        {{
-        bs-form-element controlType="checkbox"
-        value=model.emailPreferencesNewStudies
-        label="A new study is available for one of my children"
-        }}
-        {{
-        bs-form-element controlType="checkbox"
-        value=model.emailPreferencesResultsPublished
-        label="The results of a study we participated in are published"
-        }}
-        <div class="form-inline">
-          <div class="form-group">
-            <label>
-              A researcher may also email you personally if we have questions about your responses (for example, if you report two different birthdates for a child and we're not sure whether he's 3 or 5) or if you report a technical problem. Check here to opt out:&nbsp;&nbsp;&nbsp; {{input type="checkbox" checked=model.emailPreferencesOptOut}}
-            </label>
-          </div>
-        </div>
-        <br>
-        {{#bs-button type="success" action="saveEmailPreferences"}}
-        Save
-        {{/bs-button}}
+	{{#each suppressions as |group|}}
+	  {{#if (not (eq group.attr 'optOut'))}}
+	    {{
+              bs-form-element controlType="checkbox"
+              value=group.subscribed
+              label=group.description
+              }}
+	  {{else}}
+	    <hr>
+            <div class="form-inline">
+              <div class="form-group">
+		<label>
+		  {{group.description}}&nbsp;&nbsp;&nbsp; {{input type="checkbox" checked=group.subscribed}}
+		</label>
+              </div>
+            </div>
+	  {{/if}}
+	{{/each}}
+	<br>
+	  {{#if canSave}}
+            {{#bs-button type="success" action=(action 'saveEmailPreferences' model.account)}}
+              Save
+            {{/bs-button}}
+	  {{else}}
+	    {{#bs-button class="disabled" type="success" disabled=true}}
+	      Saving
+	    {{/bs-button}}
+	  {{/if}}	  
       {{/bs-form-group}}
     {{/bs-form}}
   </div>
 </div>
+{{else}}
+<div>
+  <p> Loading notification preferences... </p>
+</div>
+{{/if}}

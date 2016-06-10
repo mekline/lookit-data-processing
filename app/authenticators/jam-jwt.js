@@ -2,6 +2,8 @@ import Ember from 'ember';
 import ENV from 'lookit-base/config/environment';
 import BaseAuthenticator from 'ember-simple-auth/authenticators/base';
 
+import { jwt_decode } from 'ember-cli-jwt-decode';
+
 import moment from 'moment';
 
 const {
@@ -19,8 +21,11 @@ export default BaseAuthenticator.extend({
     },
     authenticate(attrs, token) {
 	if (token) {
+	    var payload = jwt_decode(token);
+	    var accountId = payload.sub.split('-').pop();
 	    return new Ember.RSVP.Promise(resolve => {
 		resolve({
+		    id: accountId,
 		    token: token
 		});
 	    });
