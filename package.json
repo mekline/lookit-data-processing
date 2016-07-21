@@ -74,6 +74,7 @@
     "ember-bootstrap-datetimepicker": "1.0.4",
     "ember-cp-validations": "2.9.2",
     "ember-data-url-templates": "^0.1.0",
+    "ember-radio-buttons": "^4.0.1",
     "eonasdan-bootstrap-datetimepicker": "4.15.35",
     "eonasdan-bootstrap-datetimepicker-npm": "^4.17.37",
     "request-promise": "^2.0.1"

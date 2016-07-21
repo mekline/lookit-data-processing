@@ -70,9 +70,9 @@
       {{/bs-form-group}}
       {{#bs-form-group}}
         <label>What category(ies) does your family identify as?</label>
-        <div onchange={{action "selectRaceIdentification"}} id="raceIdentification">
-          {{#each raceCategories as |raceCategory|}}
-          <label class="checkbox">
+        <div onchange={{action 'selectRaceIdentification' value='target'}} id="raceIdentification">
+            {{#each raceCategories as |raceCategory|}}
+              <label class="checkbox">
             <input type="checkbox" value={{raceCategory}} checked={{include model.demographicsRaceIdentification raceCategory}}> {{raceCategory}}
           </label>
           {{/each}}

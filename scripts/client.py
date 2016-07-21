@@ -11,30 +11,16 @@ load_dotenv(dotenv_path)
 OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')
 SENDGRID_KEY = os.environ.get('SENDGRID_KEY')
 
-JAM_URL = os.environ.get('JAMDB_URL')
-JAM_NAMESPACE = os.environ.get('JAMDB_NAMESPACE')
-
-class EmailPreferences(object):
-
-    ASM_MAPPING = {
-        'Next Session': 'nextSession',
-        'New Studies': 'newStudies',
-        'Results Published': 'resultsPublished'
-    }
-
-    def __init__(self, nextSession, newStudies, resultsPublished):
-        self.nextSession = nextSession
-        self.newStudies = newStudies
-        self.resultsPublished = resultsPublished
+JAM_URL = os.environ.get('JAM_URL') or 'https://staging-metadata.osf.io'
+JAM_NAMESPACE = os.environ.get('JAM_NAMESPACE') or 'experimenter'
 
 
 class Account(object):
 
-    def __init__(self, id, name, email, emailPreferences):
+    def __init__(self, id, name, email):
         self.id = id
         self.name = name
         self.email = email
-        self.emailPreferences = emailPreferences
 
     @classmethod
     def from_data(cls, data):
@@ -43,59 +29,14 @@ class Account(object):
             id=data['id'],
             name=attrs.get('name', ''),
             email=attrs.get('email'),
-            emailPreferences=EmailPreferences(
-                nextSession=attrs.get('emailPreferencesNextSession', False),
-                newStudies=attrs.get('emailPreferencesNewStudies', False),
-                resultsPublished=attrs.get(
-                    'emailPreferencesResultsPublished', False
-                )
-            )
         )
 
-    @classmethod
-    def update_email_preference_op(self, preference, value):
-        return {
-            op: 'replace',
-            path: '/{0}'.format(preference),
-            value: value
-        }
 
 class SendGrid(object):
 
     def __init__(self, apikey=None):
         self.sg = sendgrid.SendGridAPIClient(
             apikey=apikey or SENDGRID_KEY
-        )
-
-    def groups(self):
-        res = self.sg.client.asm.groups.get()
-        return {
-            EmailPreferences.ASM_MAPPING[group['name']]: group
-            for group in json.loads(res.response_body)
-        }
-
-    def unsubscribes_for(self, group):
-        return json.loads(
-            self.sg.client.asm.groups._(
-                group['id']
-            ).suppressions.get().response_body
-        ) or []
-
-    def unsubscribe_from(self, group, email):
-        return self.batch_unsunscribe_from(group, [email])
-
-    def batch_unsubscribe_from(self, group, emails):
-        return json.loads(
-            self.sg.client.asm.groups._(group['id']).suppressions.post(
-                request_body={"recipient_emails": emails}
-            ).response_body
-        )
-
-    def subscribe_to(self, group, email):
-        return json.loads(
-            self.sg.client.asm.groups._(group['id']).suppressions._(
-                email
-            ).delete().response_body
         )
 
 
@@ -117,7 +58,12 @@ class ExperimenterClient(object):
     def _fetch_all(self, response):
         res_json = response.json()
 
-        data = res_json['data']
+        try:
+            data = res_json['data']
+        except KeyError:
+            return {
+                'data': []
+            }
 
         total = res_json['meta']['total']
         per_page = res_json['meta']['perPage']
@@ -192,6 +138,27 @@ class ExperimenterClient(object):
             }])
         )
 
+    def fetch_account(self, account_id):
+        url = '{}/v1/id/documents/{}.accounts.{}'.format(
+            self.BASE_URL,
+            self.NAMESPACE,
+            account_id
+        )
+        res = self._make_request('get', url)
+        if res.json().get('data'):
+            return res.json()['data']
+        return None
+
+    def get_demographics_for_account(self, account_id):
+        account = self.fetch_account(account_id)
+        if account:
+            return {
+                key: value
+                for key, value in account['attributes'].items()
+                if 'demographics' in key
+            }
+        return None
+
     def fetch_accounts(self):
         url = '{}/v1/id/collections/{}.accounts/documents/'.format(
             self.BASE_URL,
@@ -220,54 +187,33 @@ class ExperimenterClient(object):
                 data=ops
             )
 
-    def set_email_preferences(self):
-        """
-        For the 'first' sync. Assumes subscription groups are empty
-        """
-        sendgrid = SendGrid()
-        groups = sendgrid.groups()
-        accounts = list(self.fetch_accounts)
-        for id, group in groups.iteritems():
-            batch_unsubscribes = []
-            for account in accounts:
-                preference = getattr(account.emailPreferences, id, False)
-                if not preference:
-                    batch_unsubscribes.append(account.email)
-            if batch_unsubscribes:
-                sendgrid.batch_unsubscribe_from(group, batch_unsubscribes)
 
-    def sync_email_preferences(self):
-        """
-        For all syncs after the initial one. Unsubscribes captured in sendgrid
-        always get preference.
+def test():
+    client = ExperimenterClient(access_token=OSF_ACCESS_TOKEN).authenticate()
+    exps = client.fetch_experiments()
+    for exp in exps:
+        exp['sessions'] = client.fetch_sessions_for_experiment(exp)
 
-        TODO
-        """
-        sendgrid = SendGrid()
-        groups = sendgrid.groups()
-        accounts = list(self.fetch_accounts())
-        account_updates = {}
-        for id, group in groups.iteritems():
-            unsubscribes = sendgrid.unsubscribes_for(group)
-            batch_unsubscribes = []
-            for account in accounts:
-                preference = getattr(account.emailPreferences, id, False)
-                if account.email in unsubscribes:
-                    if preference:
-                        updates = account_updates.get(account.id, [])
-                        updates.append(Account.update_email_preference_op(
-                            id,
-                            False
-                        ))
-                else:
-                    if not preference:
-                        batch_unsubscribes.append(account.email)
-                # if account.email in unsubscribes:
-                #        sendgrid.subscribe_to(group, account.email)
-                # else:
-                #    if account.email not in unsubscribes:
-                #        batch_unsubscribes.append(account.email)
-            if batch_unsubscribes:
-                sendgrid.batch_unsubscribe_from(group, batch_unsubscribes)
-        if account_updates:
-            self.update_accounts(account_updates)
+    exp = exps[3]
+    sess = exp['sessions'][0]
+    res = client.set_session_feedback(sess, "Some test feedback")
+    print """
+    Feedback set to: {}
+    on session: {}
+    of experiment: {}
+    """.format(
+        res.json()['data']['attributes']['feedback'],
+        sess['id'].split('.')[-1],
+        exp['attributes']['title']
+    )
+
+    account_id = 'sam'
+    print """
+    Demographics for {}:
+    {}
+    """.format(account_id, json.dumps(
+        client.get_demographics_for_account(account_id),
+        indent=4
+    ))
+
+test() if __name__ == '__main__' else None

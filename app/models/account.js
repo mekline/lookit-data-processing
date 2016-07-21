@@ -38,7 +38,7 @@ export default Account.extend({
     demographicsLanguagesSpokenAtHome: DS.attr('string'),
     demographicsNumberOfGuardians: DS.attr('string'),
     demographicsNumberOfGuardiansExplanation: DS.attr('string'),
-    demographicsRaceIdentification: DS.attr('string'),
+    demographicsRaceIdentification: DS.attr(),
     demographicsAge: DS.attr('string'),
     demographicsGender: DS.attr('string'),
     demographicsEducationLevel: DS.attr('string'),
