@@ -1,0 +1,59 @@
+scripts: coding workflow
+(https://github.com/CenterForOpenScience/lookit/tree/develop/scripts)
+
+Initial installation:
+
+	- Get token
+	- Install pyenv (https://github.com/yyuu/pyenv) - due to issues with regular python
+	  Follow all instructions there, use homebrew
+		ERROR: The Python zlib extension was not compiled. Missing the zlib?
+
+		Please consult to the Wiki page to fix the problem.
+		https://github.com/yyuu/pyenv/wiki/Common-build-problems
+
+	  Needed to use CFLAGS="-I$(xcrun --show-sdk-path)/usr/include" pyenv install -v 2.7.11 to install
+
+	- Create virtualenv in scripts dir
+
+	  virtualenv -p ~/.pyenv/versions/2.7.11/bin/python2.7 venv
+	  source venv/bin/activate
+	  pip install -r requirements.txt
+
+To start using:
+
+	* Create a file .env in this directory like this, substituting in a reasonable base location for the video/batch/session/data/coding directories.
+
+	OSF_ACCESS_TOKEN=<OSF ACCESS TOKEN HERE!>
+
+	OSF_CLIENT_ID=<application_client_id>
+	OSF_SCOPE=osf.users.all_read
+	OSF_URL=https://staging-accounts.osf.io
+
+	WOWZA_PHP='{}'
+	WOWZA_ASP='{}'
+
+	JAMDB_URL=https://staging-metadata.osf.io
+	JAMDB_NAMESPACE=experimenter
+
+	VIDEO_DIR='/Users/kms/lookitcoding/video'
+	BATCH_DIR='/Users/kms/lookitcoding/batches'
+	SESSION_DIR='/Users/kms/lookitcoding/sessions'
+	DATA_DIR='/Users/kms/lookitcoding/data'
+	CODING_DIR='/Users/kms/lookitcoding/coding'
+	CODERS="['Jean', 'Audrey', 'Kim']"
+
+	* source venv/bin/activate
+	in order to get into the virtual environment; then can call python scripts.
+
+	(At one point needed to run: pip install -U python-dotenv)
+
+Setting up automation, on OSX:
+
+	- Edit the .plist file to use the correct path to updateLookit.sh (in this directory), to set the working directory to this directory, and to use .err/.out files in this directory. (Replace /Users/kms/lookitkim/scripts/ with this directory wherever you see it.)
+	- Copy the .plist file into $HOME/Library/LaunchAgents
+	- Make sure updateLookit.sh is executable: chmod +x updateLookit.sh (from this directory)
+	- Start the process: launchctl load com.lookit.update.plist
+	- You can stop using launchctl unload com.lookit.update.plist.
+
+	- You can see the output and any errors in autoSync.err and autoSync.out.
+	- It's important that ffmpeg and ffprobe are installed in usr/local/bin. If not, you can set the path to ffmpeg at the top of coding.py and set the path to ffprobe in videoutils.py, but we should come up with a better way to allow variation in these paths.
