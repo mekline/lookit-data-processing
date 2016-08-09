@@ -2,10 +2,12 @@ import sys
 import os
 import json
 
+from mappings import MAPPINGS
+
 import pymongo
 
 def convert_childs(account_id, records):
-    if not records:
+    if not records or not records.count():
         return []
 
     ret = []
@@ -58,50 +60,69 @@ def convert_childs(account_id, records):
 
     return ret
 
+def convert_demographic(demo):
+    ret = {}
+    for key, mapping in MAPPINGS.items():
+        value = demo.get(key)
+        if value is None:
+            continue
+        if isinstance(mapping, list):
+            for item in mapping:
+                if 'ref' in item:
+                    ret[item['to']] = item['ref'][value.strip()]
+                else:
+                    ret[item['to']] = value
+        else:
+            if 'ref' in mapping:
+                try:
+                    ret[mapping['to']] = mapping['ref'][value.strip()]
+                except Exception as e:
+                    print e
+                    import ipdb; ipdb.set_trace()
+            else:
+                ret[mapping['to']] = value
+    return ret
+
 def convert_users(db):
     ret = []
     for record in db.details.find():
+        email = record.get('email_label')
         demographic = db.demographic.find_one({
-            'email_label': record['email_label']
+            'email_label': email
         }) or {}
 
         childs = db.childs.find({
-            'parent_id': record['pid']
+            'parent_id': email
         })
 
-        ret.append(
-            dict(
-                id=str(record.get('_id')),
-                name=record.get('name'),
-                email=record.get('id'),
-                emailPreferenceNextSession=True,
-                emailPreferenceNewStudies=('updates' in record.get('preference', [])),
-                emailPreferenceResultsPublished=('results' in record.get('preference', [])),
+        demographic = convert_demographic(demographic)
+        demographic['demographicsNumberOfBooks'] = None
 
-                demographicsNumberOfChildren=demographic.get('siblings'),
-                demographicsChildBirthdays=[],  # TODO worth migrating?
-                demographicsLanguagesSpokenAtHome=demographic.get('language'),
-                demographicsNumberOfGuardians=demographic.get('guardians'),
-                demographicsNumberOfGuardiansExplanation='',  # TODO?
-                demographicsRaceIdentification=demographic.get('race'),
-                demographicsAge=demographic.get('age'),
-                demographicsGender=demographic.get('gender'),
-                demographicsEducationLevel=demographic.get('education-you'),
-                demographicsSpouseEducationLevel=demographic.get('education-spouse'),
-                demographicsAnnualIncome=demographic.get('family-income'),
-                demographicsWillingToBeContactedForSimilarStudies=True,  # TOOD merge with email prefs?
-                demographicsCanScheduleAnAppointment=False,  # TODO default?
-                demographicsNumberOfBooks=None,  # TODO?
-                demographicsAdditionalComments='',
-
-                # TODO get usernames
-                profiles=convert_childs(str(record['_id']), childs)
-            )
+        id = email.split('@')[0]
+        attrs = dict(
+            id=id,
+            name=record.get('name'),
+            email=email,
+            emailPreferenceNextSession=True,
+            emailPreferenceNewStudies=('updates' in record.get('preference', [])),
+            emailPreferenceResultsPublished=('results' in record.get('preference', [])),
+            profiles=convert_childs(str(id), childs)
         )
+        attrs.update(demographic)
+        ret.append(attrs)
     return ret
 
 def migrate(db, outputdir):
     accounts = convert_users(db)
+    profileIds = {}
+    for account in accounts:
+        aid = account['id']
+        if aid not in profileIds:
+            profileIds[aid] = 1
+        else:
+            count = profileIds[aid]
+            account['id'] = aid + '_' + str(count)
+            profileIds[aid] = profileIds[aid] + 1    
     with open(os.path.join(outputdir, 'accounts.json'), 'w') as fp:
         json.dump(accounts, fp, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -110,22 +131,27 @@ def main():
         inputdir = sys.argv[1]
     except IndexError:
         print "Please supply a path to the mongo backup to be restored and migrated, e.g.:"
-        print "./migrate.py --in=<PATH> --out=<PATH>"
+        print "./migrate.py --in=<PATH> --out=<PATH> --dbname=<DBNAME>"
         sys.exit(1)
     try:
         outputdir = sys.argv[2]
     except IndexError:
         print "Please supply a path to the desired output directory (of the migrated JSON), e.g.:"
-        print "./migrate.py --in=<PATH> --out=<PATH>"
+        print "./migrate.py --in=<PATH> --out=<PATH> --dbname=<DBNAME>"
+        sys.exit(1)
+    try:
+        dbname = sys.argv[3]
+    except IndexError:
+        print "Please supply the database name of the dumped db, e.g.:"
+        print "./migrate.py --in=<PATH> --out=<PATH> --dbname=<DBNAME>"
         sys.exit(1)
 
-    db_name = os.path.basename(inputdir)
 
     client = pymongo.MongoClient('localhost', 27017)
     try:
-        db = client[db_name]
+        db = client[dbname]
     except KeyError:
-        print "No database named {} found.".format(db_name)
+        print "No database named {} found.".format(dbname)
     else:
         migrate(db, outputdir)
 

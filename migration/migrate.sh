@@ -9,6 +9,9 @@ while [ $# -gt 0 ]; do
     --out=*)
       OUTPUTDIR="${1#*=}"
       ;;
+    --dbname=*)
+      DBNAME="${1#*=}"
+      ;;
     *)
       printf "***************************\n"
       printf "* Error: Invalid argument.*\n"
@@ -20,5 +23,6 @@ done
 
 echo "Input mongo dump: ${INPUTDIR}";
 echo "Output directory: ${OUTPUTDIR}";
+echo "DB name: ${DBNAME}";
 
-eval "mongorestore --drop ${INPUTDIR} && python migrate.py ${INPUTDIR} ${OUTPUTDIR}"
+eval "mongorestore --drop ${INPUTDIR} && python migrate.py ${INPUTDIR} ${OUTPUTDIR} ${DBNAME}"

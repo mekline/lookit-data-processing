@@ -30,8 +30,13 @@
           {{/tool-tipster}}
         </label>
         <div class="input-group">
-          {{pikaday-input value=profile.birthday format="MM/DD/YYYY" yearRange="1990,currentYear" class="form-control" maxDate=today readonly=profile.profileId}}
-          <span class="input-group-addon">{{moment-from-now profile.birthday hideSuffix=true}} old</span>
+	    {{#if profile.profileId}}
+	      {{input class="form-control" readonly=true value=(moment-format profile.birthday 'MM/DD/YYYY') }}
+	      <span class="input-group-addon">{{moment-from-now profile.birthday hideSuffix=true}} old</span>
+            {{else}}
+              {{pikaday-input value=profile.birthday format="MM/DD/YYYY" yearRange="1990,currentYear" class="form-control" maxDate=today}}
+              <span class="input-group-addon">{{moment-from-now profile.birthday hideSuffix=true}} old</span>
+	    {{/if}}
         </div>
       </div>
       <br>
@@ -89,7 +94,9 @@
     </div>
   {{/bs-modal-body}}
   {{#bs-modal-footer as |footer|}}
-    {{#bs-button click=(action 'showDelete') type="default"}}Cancel{{/bs-button}}
-    {{#bs-button type="danger" click=(action 'delete' profile)}}Remove child{{/bs-button}}
+      <div class="btn-group">
+	  {{#bs-button click=(action 'showDelete') type="default"}}Cancel{{/bs-button}}
+	  {{#bs-button type="danger" click=(action 'delete' profile)}}Remove child{{/bs-button}}
+      </div>
   {{/bs-modal-footer}}
 {{/bs-modal}}

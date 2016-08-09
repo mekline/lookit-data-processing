@@ -124,24 +124,6 @@
         </select>
       {{/bs-form-group}}
       {{#bs-form-group}}
-        <label>If you had been contacted on the phone by a local university about participating in studies like this, would you have been interested</label>
-        <select onchange={{action (mut model.demographicsWillingToBeContactedForSimilarStudies) value="target.value"}} class="form-control" >
-          <option value="" disabled selected hidden>Please Choose...</option>
-          {{#each yesNoOptions as |yesNoOption|}}
-          <option value={{yesNoOption}} selected={{eq model.demographicsWillingToBeContactedForSimilarStudies yesNoOption}}>{{yesNoOption}}</option>
-          {{/each}}
-        </select>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>Would you have been able to schedule an appointment during the workweek to bring one of your children ~5 miles for this study?</label>
-        <select onchange={{action (mut model.demographicsCanScheduleAnAppointment) value="target.value"}} class="form-control" >
-          <option value="" disabled selected hidden>Please Choose...</option>
-          {{#each yesNoOptions as |yesNoOption|}}
-          <option value={{yesNoOption}} selected={{eq model.demographicsCanScheduleAnAppointment yesNoOption}}>{{yesNoOption}}</option>
-          {{/each}}
-        </select>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
         <label>About how many children's books are there in your home?</label>
         {{bs-input type="number" value=model.demographicsNumberOfBooks min=0}}
 	{{#if (not (gte model.demographicsNumberOfBooks 0)) }}
@@ -153,7 +135,7 @@
         {{bs-textarea value=model.demographicsAdditionalComments}}
       {{/bs-form-group}}
       <br />
-      {{#bs-button type="success" action="saveDemographicsPreferences" disabled=(not isValid)}}Save{{/bs-button}}
+      {{#bs-button type="success" action="saveDemographicsPreferences" disabled=(not isValid) class="pull-right"}}Save{{/bs-button}}
     {{/bs-form}}
   </div>
 </div>

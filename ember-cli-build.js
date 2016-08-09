@@ -7,10 +7,10 @@ module.exports = function(defaults) {
   var app = new EmberApp(defaults, {
     sourcemaps: {enabled: true},
     minifyJS: {
-        enabled: EmberApp.env() !== 'development'
+        enabled: false // EmberApp.env() === 'production'
     },
     minifyCSS: {
-        enabled: EmberApp.env() !== 'development'
+        enabled: false // EmberApp.env() === 'production'
     },
     emberWowza: {
       // Config for video recorder config

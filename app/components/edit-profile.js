@@ -19,9 +19,9 @@ export default Ember.Component.extend({
         return false;
     }),
     genderOptions: [
-        'Male',
-        'Female',
-        'Other or prefer not to answer'
+        'male',
+        'female',
+        'other or prefer not to answer'
     ],
     ageAtBirthOptions: Ember.computed(function() {
         var options = ['Not sure or prefer not to answer'];
