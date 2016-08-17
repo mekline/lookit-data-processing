@@ -4041,3 +4041,5 @@ lookit2016.pem
 scripts/coding.pyc
 scripts/lookitpaths.pyc
 scripts/updatefromlookit.pyc
+.env-prod
+.env-staging
