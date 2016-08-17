@@ -1,7 +1,7 @@
 scripts: coding workflow
 (https://github.com/CenterForOpenScience/lookit/tree/develop/scripts)
 
-Initial installation:
+Initial installation so client.py can work:
 
 	- Get token
 	- Install pyenv (https://github.com/yyuu/pyenv) - due to issues with regular python
@@ -42,10 +42,20 @@ To start using:
 	CODING_DIR='/Users/kms/lookitcoding/coding'
 	CODERS="['Jean', 'Audrey', 'Kim']"
 
+	May also need to run: pip install -U python-dotenv
+
+	* Install AWS command-line tools:
+        http://docs.aws.amazon.com/cli/latest/userguide/installing.html
+        sudo pip install awscli
+
+        aws configure
+           enter keys (saved; can make new keys from AWS console)
+           region: us-east-1
+
+    * pip install numpy
+
 	* source venv/bin/activate
 	in order to get into the virtual environment; then can call python scripts.
-
-	(At one point needed to run: pip install -U python-dotenv)
 
 Setting up automation, on OSX:
 
@@ -57,3 +67,109 @@ Setting up automation, on OSX:
 
 	- You can see the output and any errors in autoSync.err and autoSync.out.
 	- It's important that ffmpeg and ffprobe are installed in usr/local/bin. If not, you can set the path to ffmpeg at the top of coding.py and set the path to ffprobe in videoutils.py, but we should come up with a better way to allow variation in these paths.
+
+#    Set up .env file
+#    Install AWS command-line tools:
+#       http://docs.aws.amazon.com/cli/latest/userguide/installing.html
+#       sudo pip install awscli
+#    aws configure
+#       enter keys (saved; can make new keys from AWS console)
+#       region: us-east-1
+#    pip install numpy
+
+
+------------------- Local data storage overview -------------------------------
+Local data storage overview
+
+.env file defines:
+	Video directory (where raw videos live)
+	Batch video directory (where batched videos live)
+	Coding directory (where human-readable spreadsheets live)
+    Coder names
+	Data directory (everything below is data)
+
+Coding: dict with sessionKey as keys, values are dicts with structure:
+	Consent
+	coderComments
+	    coderName
+  videosExpected: list of video filenames expected, based on session data
+  videosFound: list of video filenames actually found; list of lists
+      corresponding to videosExpected
+
+Accounts: dict with usernames as keys; example of value:
+u'samchrisnger': {   u'attributes': {   u'demographicsAdditionalComments': None,
+                                            u'demographicsAge': None,
+                                            u'demographicsAnnualIncome': None,
+                                            u'demographicsCanScheduleAnAppointment': None,
+                                            u'demographicsEducationLevel': None,
+                                            u'demographicsGender': None,
+                                            u'demographicsLanguagesSpokenAtHome': u'',
+                                            u'demographicsNumberOfBooks': None,
+                                            u'demographicsNumberOfChildren': u'0',
+                                            u'demographicsNumberOfGuardians': None,
+                                            u'demographicsNumberOfGuardiansExplanation': None,
+                                            u'demographicsRaceIdentification': None,
+                                            u'demographicsSpouseEducationLevel': None,
+                                            u'demographicsWillingToBeContactedForSimilarStudies': None,
+                                            u'email': u's.chrisinger@gmail.com',
+                                            u'emailPreferencesNewStudies': False,
+                                            u'emailPreferencesResearcherQuestions': False,
+                                            u'emailPreferencesResultsPublished': False,
+                                            u'mustResetPassword': False,
+                                            u'password': u'$2b$12$eEGfB9n.ToKtSDnEVBjkeurXSt/Lj308jHFguNBM3QuhZa1.la1Ga',
+                                            u'profiles': [   {   u'ageAtBirth': u'Over 24 Weeks',
+                                                                 u'birthday': u'2015-11-13T05:00:00.000Z',
+                                                                 u'firstName': u'Sam',
+                                                                 u'gender': u'Male',
+                                                                 u'profileId': u'samchrisnger.pnazo'}],
+                                            u'username': u'samchrisnger'},
+                         u'id': u'experimenter.accounts.samchrisnger',
+                         u'meta': {   u'created-by': u'jam-experimenter:accounts-samchrisnger',
+                                      u'created-on': u'2016-03-17T15:21:30.792581',
+                                      u'modified-by': u'jam-experimenter:accounts-samchrisnger',
+                                      u'modified-on': u'2016-03-17T15:36:36.355045',
+                                      u'permissions': u'ADMIN'},
+                         u'relationships': {   u'history': {   u'links': {   u'related': u'http://staging-metadata.osf.io/v1/id/documents/experimenter.accounts.samchrisnger/history',
+                                                                             u'self': u'http://staging-metadata.osf.io/v1/id/documents/experimenter.accounts.samchrisnger/history'}}},
+                         u'type': u'documents'}}
+
+
+Sessions: array of dicts each with the following structure (directly from server):
+	Attributes
+		Feedback
+		Sequence
+		expData
+			[frame-name]
+				eventTimings
+					eventType (nextFrame, ...)
+					timestamp
+				formData
+					[custom-field]
+		experimentId
+		profileId (username.child)
+		conditions
+		completed
+		hasReadFeedback
+	meta
+		created-on
+	id (=sessionKey)
+
+Batch: keys are unique batch IDs
+	batchFile: filename of batch
+	videos: ordered list of (sessionId, videoname) pairs
+	codedBy: set of coder names
+
+Videos: keys are filenames (.flv)
+  shortName - subset of video name as used by sessions
+  framerate
+  duration
+  expId
+  sessionKey
+  inBatches (key=batchId)
+     position
+  mp4Path_[suffix] - relative, from SESSION_DIR. '' if not created yet.
+  mp4Dur_[suffix] - duration of the mp4 in seconds; -1 if not created yet; 0 if could not
+    be created.
+
+Note: suffix is 'whole' or 'trimmed'; these fields are created when updating video
+    data, although others could also be added.

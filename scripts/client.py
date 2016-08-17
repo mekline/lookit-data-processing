@@ -196,24 +196,25 @@ def test():
 
     exp = exps[3]
     sess = exp['sessions'][0]
-    res = client.set_session_feedback(sess, "Some test feedback")
-    print """
-    Feedback set to: {}
-    on session: {}
-    of experiment: {}
-    """.format(
-        res.json()['data']['attributes']['feedback'],
-        sess['id'].split('.')[-1],
-        exp['attributes']['title']
-    )
+    print sess
+    #res = client.set_session_feedback(sess, "Some test feedback")
+    #print """
+    #Feedback set to: {}
+    #on session: {}
+    #of experiment: {}
+    #""".format(
+    #    res.json()['data']['attributes']['feedback'],
+    #    sess['id'].split('.')[-1],
+    #    exp['attributes']['title']
+    #)
 
-    account_id = 'sam'
-    print """
-    Demographics for {}:
-    {}
-    """.format(account_id, json.dumps(
-        client.get_demographics_for_account(account_id),
-        indent=4
-    ))
+    #account_id = 'sam'
+    #print """
+    #Demographics for {}:
+   # {}
+    #""".format(account_id, json.dumps(
+   #     client.get_demographics_for_account(account_id),
+   #     indent=4
+   # ))
 
 test() if __name__ == '__main__' else None

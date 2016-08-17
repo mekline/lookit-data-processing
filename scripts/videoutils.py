@@ -25,6 +25,7 @@ def get_video_details(vidName, whichAttr, fullpath=False):
         width - width in pixels
         nframes - number of frames
         vidduration - duration of video stream in seconds
+        audduration - duration of audio stream in seconds
 
         Returns a single value if whichAttr is a string, or a list of values
         corresponding to those requested if whichAttr is a list of strings.
@@ -47,6 +48,7 @@ def get_video_details(vidName, whichAttr, fullpath=False):
     ffprobeOutput = sp.check_output(args).decode('utf-8')
     ffprobeOutput = json.loads(ffprobeOutput)
 
+
     # Loop through attributes and collect specific information
     attributes = []
     for attr in whichAttr:
@@ -57,8 +59,8 @@ def get_video_details(vidName, whichAttr, fullpath=False):
             returnVal = float(ffprobeOutput['format']['bit_rate'])
         elif attr == 'starttime':
             returnVal = float(ffprobeOutput['format']['start_time'])
-        # Attributes that require a video stream...
-        elif attr in ['nframes', 'height', 'width', 'vidduration']:
+        # Attributes that require a video/audio stream...
+        elif attr in ['nframes', 'height', 'width', 'vidduration', 'audduration']:
             audioStream = -1
             videoStream = -1
             for iStream in range(len(ffprobeOutput['streams'])):
@@ -69,6 +71,7 @@ def get_video_details(vidName, whichAttr, fullpath=False):
             if videoStream == -1 or audioStream == -1:
                 warn('Missing audio or video stream for video {}'.format(vidName))
                 returnVal = 0
+                attributes.append(returnVal)
                 continue
 
             if attr == 'nframes':
@@ -83,6 +86,8 @@ def get_video_details(vidName, whichAttr, fullpath=False):
                 returnVal = float(ffprobeOutput['streams'][videoStream]['height'])
             elif attr == 'vidduration':
                 returnVal = float(ffprobeOutput['streams'][videoStream]['duration'])
+            elif attr == 'audduration':
+                returnVal = float(ffprobeOutput['streams'][audioStream]['duration'])
         else:
             raise ValueError('Unrecognized attribute requested')
         attributes.append(returnVal)
@@ -90,6 +95,8 @@ def get_video_details(vidName, whichAttr, fullpath=False):
     # Return just a string if there's only one return value in the list
     if len(attributes) == 1:
         attributes = attributes[0]
+
+    print attributes
 
     return attributes
 
