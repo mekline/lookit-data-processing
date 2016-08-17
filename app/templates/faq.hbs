@@ -78,8 +78,8 @@
                 <div>
                     <p>
                         We do not publish or use identifying information about individual children or families. We never
-                        use children's names in our research, and we use birthdates only to figure out how old children
-                        are at the time of the study. Your video is transmitted over a secure https connection to our
+                        publish children's names or birthdates (birthdates are used only to figure out how old children
+                        are at the time of the study). Your video is transmitted over a secure https connection to our
                         lab and kept on a password-protected server. See 'Who will see our video?'
                     </p>
                 </div>
@@ -140,11 +140,11 @@
                     <p>
                         If for some reason you do not select a privacy level, we treat the data as 'Private' and
                         do not share with Databrary. Participants also have the option to withdraw all video
-                        besides consent at the end of the study, in
-                        case total privacy is necessary (for instance, because someone was discussing state secrets
+                        besides consent at the end of the study if necessary (for instance, because someone was discussing state secrets
                         in the background). Privacy settings for completed sessions cannot be changed retroactively.
                         If you have any questions or concerns about privacy, please contact our team at <a
                             href="mailto:lookit@mit.edu">lookit@mit.edu</a>.
+
                     </p>
                 </div>
             {{/bs-accordion-item}}
@@ -164,10 +164,8 @@
                         </div>
                     </div>
                     <p>
-                        Here is an example of a few children watching our calibration video--it's easy to
-                        see that they look to one side and then the other. Your child's decisions about where to look can give us
-                        lots of information about what he or she understands. Here are some of the techniques our lab
-                        uses to learn more about how children learn.
+                        Here's an example of a few children watching our calibration video--it's easy to
+                        see that they look to one side and then the other.
                     </p>
                     <div class="row">
                         <div class="col-sm-10 col-sm-offset-1 col-md-8 col-md-offset-2 col-lg-6 col-lg-offset-3">
@@ -292,8 +290,8 @@
             {{#bs-accordion-item title='When will we see the results of the study?'}}
                 <div>
                     <p>
-                        The process of publishing a scientific study can take one to two years, and a paper usually puts
-                        together the results of several different studies. You can check the Lookit home page for updates on papers, or set your communication
+                        The process of publishing a scientific study, from starting data collection to seeing the paper in a journal,
+                        can take several years. You can check the Lookit home page for updates on papers, or set your communication
                         preferences to be notified when we have results from studies you participated in.
                     </p>
                 </div>
@@ -302,7 +300,7 @@
                 <div>
                     <p>
                         Certainly--thanks for your dedication! You may see a warning that you have already participated
-                        in the study when you go to try it again. You don't need to note separately that you tried the
+                        in the study when you go to try it again. You don't need to tell us that you tried the
                         study before; we'll have a record of your previous participation.
                     </p>
                 </div>
@@ -316,10 +314,20 @@
                     </p>
                 </div>
             {{/bs-accordion-item}}
+            {{#bs-accordion-item title="My child was born prematurely. Should we use his/her adjusted age?"}}
+                <div>
+                    <p>
+                        For study eligibility, we usually use the child's chronological age (time since birth), even for
+                        premature babies. We ask for the child's gestational age at birth when you register a child so that
+                        we can also use the adjusted age in our analysis. If adjusted age is important for a particular study,
+                        we will make that clear in the study description.
+                    </p>
+                </div>
+            {{/bs-accordion-item}}
             {{#bs-accordion-item title="Our family speaks a language other than English at home. Can my child participate?"}}
                 <div>
                     <p>
-                        Sure! Right now, the instructions for children and parents are written only in English, so some
+                        Sure! Right now, instructions for children and parents are written only in English, so some
                         of them may be confusing to a child who does not hear English regularly. However, you're welcome
                         to try any of the studies and translate for your child if you can. If it matters for the study
                         whether your child speaks any languages besides English, we'll ask specifically. You can also
@@ -413,6 +421,22 @@
 	{{!--
         <h3>Technical</h3>
         {{#bs-accordion}}
+
+ {{#bs-accordion-item title="What browsers are supported?"}}
+                <div>
+                    <p>
+                        Lookit supports recent versions of Chrome, Firefox, and Safari. We are not currently able to support Internet Explorer.
+                    </p>
+                </div>
+            {{/bs-accordion-item}}
+
+             {{#bs-accordion-item title="Can we do a study on my phone or tablet?"}}
+                <div>
+                    <p>
+                    Not yet! Because we're measuring kids' looking patterns, we need a reasonably stable view of their eyes and a big enough screen that we can tell whether they're looking at the left or the right side of it. We're excited about the potential for touchscreen studies that allow us to observe infants and toddlers exploring, though!
+                    </p>
+                </div>
+            {{/bs-accordion-item}}
 
         {{/bs-accordion}}
 	--}}
