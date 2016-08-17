@@ -4037,3 +4037,7 @@ scripts/testvideo/set2/v5.flv
 scripts/testvideo/set2/v6.flv
 scripts/autoSync.err
 scripts/autoSync.out
+lookit2016.pem
+scripts/coding.pyc
+scripts/lookitpaths.pyc
+scripts/updatefromlookit.pyc
