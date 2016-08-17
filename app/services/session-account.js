@@ -15,6 +15,14 @@ export default Ember.Service.extend({
     session: service('session'),
     store: service(),
 
+    _setAccount() {
+        const accountId = this.get('session.data.authenticated.id');
+        if (!Ember.isEmpty(accountId)) {
+            this.get('store').findRecord('account', accountId).then((account) => {
+                this.set('account', account);
+            });
+        }
+    },
     init() {
         var session = this.get('session');
         session.on('invalidationSucceeded', () => {
@@ -23,28 +31,18 @@ export default Ember.Service.extend({
                 profile: null
             });
         });
+        session.addObserver('isAuthenticated', this, this._setAccount);
+        if (session.get('isAuthenticated')) {
+            this._setAccount();
+        }
     },
 
     loadCurrentUser() {
-        return new RSVP.Promise((resolve, reject) => {
+        return new RSVP.Promise((resolve) => {
             if (!this.get('session.isAuthenticated')) {
                 return resolve(null);
             }
-
-            var account = this.get('account');
-            if (account) {
-                return resolve(account);
-            }
-
-            const accountId = this.get('session.data.authenticated.id');
-            if (!Ember.isEmpty(accountId)) {
-                return this.get('store').findRecord('account', accountId).then((account) => {
-                    this.set('account', account);
-                    resolve(account);
-                }, reject);
-            } else {
-                return resolve();
-            }
+            return resolve(this.get('account'));
         });
     },
     setProfile: function(profile) {

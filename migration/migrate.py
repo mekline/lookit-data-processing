@@ -2,16 +2,23 @@ import sys
 import os
 import json
 
+import pymongo
+import dateparser
+
 from mappings import MAPPINGS
 
-import pymongo
 
-def convert_childs(account_id, records):
+def convert_childs(account_id, records, parent):
     if not records or not records.count():
         return []
 
     ret = []
 
+    child_birthdays = parent.get('dob', [])
+    if not isinstance(child_birthdays, list):
+        child_birthdays = [child_birthdays]
+
+    child_birthdays = [dateparser.parse(d).isoformat() for d in child_birthdays]
     for childs in records:
         child_ids = childs.get('child', [])
         child_names = childs.get('child_name', [])
@@ -23,7 +30,7 @@ def convert_childs(account_id, records):
                 child = {
                     'profileId': "{}.{}".format(account_id, child_ids[i]),
                     'firstName': child_names[i],
-                    'birthday': None,  # TODO
+                    'birthday': child_birthdays[i],
                     'gestationalAgeAtBirth': child_g_ages[i],
                     'gender': child_genders[i],
                     'deleted': False,
@@ -44,6 +51,7 @@ def convert_childs(account_id, records):
                 'firstName': child_names,
                 'birthday': None,  # TODO
                 'gestationalAgeAtBirth': child_g_ages,
+                'birthday': child_birthdays[0],
                 'gender': child_genders,
                 'deleted': False,
             }
@@ -59,6 +67,7 @@ def convert_childs(account_id, records):
             ret.append(child)
 
     return ret
+
 
 def convert_demographic(demo):
     ret = {}
@@ -78,10 +87,11 @@ def convert_demographic(demo):
                     ret[mapping['to']] = mapping['ref'][value.strip()]
                 except Exception as e:
                     print e
-                    import ipdb; ipdb.set_trace()
             else:
                 ret[mapping['to']] = value
+    ret['unmigratedSiblingages'] = demo.get('siblingages')
     return ret
+
 
 def convert_users(db):
     ret = []
@@ -98,19 +108,25 @@ def convert_users(db):
         demographic = convert_demographic(demographic)
         demographic['demographicsNumberOfBooks'] = None
 
-        id = email.split('@')[0]
+        aid = email.split('@')[0].replace('.', '')
+        if len(aid) < 3:
+            aid = aid.ljust(2, '1').ljust(3, '2')
+
         attrs = dict(
-            id=id,
+            id=aid,
+            migratedFrom=str(record.get('_id')),
             name=record.get('name'),
             email=email,
             emailPreferenceNextSession=True,
             emailPreferenceNewStudies=('updates' in record.get('preference', [])),
             emailPreferenceResultsPublished=('results' in record.get('preference', [])),
-            profiles=convert_childs(str(id), childs)
+            profiles=convert_childs(str(aid), childs, record),
+            unmigratedDob=record.get('dob')
         )
         attrs.update(demographic)
         ret.append(attrs)
     return ret
+
 
 def migrate(db, outputdir):
     accounts = convert_users(db)
@@ -122,13 +138,14 @@ def migrate(db, outputdir):
         else:
             count = profileIds[aid]
             account['id'] = aid + '_' + str(count)
-            profileIds[aid] = profileIds[aid] + 1    
+            profileIds[aid] = profileIds[aid] + 1
     with open(os.path.join(outputdir, 'accounts.json'), 'w') as fp:
         json.dump(accounts, fp, sort_keys=True, indent=4, separators=(',', ': '))
 
+
 def main():
     try:
-        inputdir = sys.argv[1]
+        sys.argv[1]
     except IndexError:
         print "Please supply a path to the mongo backup to be restored and migrated, e.g.:"
         print "./migrate.py --in=<PATH> --out=<PATH> --dbname=<DBNAME>"
@@ -145,7 +162,6 @@ def main():
         print "Please supply the database name of the dumped db, e.g.:"
         print "./migrate.py --in=<PATH> --out=<PATH> --dbname=<DBNAME>"
         sys.exit(1)
-
 
     client = pymongo.MongoClient('localhost', 27017)
     try:

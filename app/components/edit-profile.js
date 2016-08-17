@@ -13,10 +13,7 @@ export default Ember.Component.extend({
     account: null,
     isDirty: Ember.computed.alias('profile.hasDirtyAttributes'),
     isValid: Ember.computed('profile.firstName', 'profile.birthday', 'profile.gender', 'profile.ageAtBirth', function() {
-        if (!Ember.isEmpty(this.get('profile.firstName')) && !Ember.isEmpty(this.get('profile.birthday')) && !Ember.isEmpty(this.get('profile.gender')) && !Ember.isEmpty(this.get('profile.ageAtBirth'))) {
-            return true;
-        }
-        return false;
+        return  (!Ember.isEmpty(this.get('profile.firstName')) && !Ember.isEmpty(this.get('profile.birthday')) && !Ember.isEmpty(this.get('profile.gender')) && !Ember.isEmpty(this.get('profile.ageAtBirth')));
     }),
     genderOptions: [
         'male',

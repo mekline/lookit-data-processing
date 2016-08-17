@@ -45,9 +45,11 @@ class ExperimenterClient(object):
     BASE_URL = JAM_URL
     NAMESPACE = JAM_NAMESPACE
 
-    def __init__(self, access_token=None, jwt=None):
+    def __init__(self, access_token=None, jwt=None, url=None, namespace=None):
         self.access_token = access_token
         self.jwt = jwt
+        self.BASE_URL = url or self.BASE_URL
+        self.NAMESPACE = namespace or self.NAMESPACE
 
     def _make_request(self, method, *args, **kwargs):
         headers = kwargs.get('headers', {})
@@ -98,7 +100,9 @@ class ExperimenterClient(object):
         )
         return type(self)(
             access_token=self.access_token,
-            jwt=res.json()['data']['attributes']['token']
+            jwt=res.json()['data']['attributes']['token'],
+            url=self.BASE_URL,
+            namespace=self.NAMESPACE
         )
 
     def fetch_experiments(self):
@@ -145,9 +149,19 @@ class ExperimenterClient(object):
             account_id
         )
         res = self._make_request('get', url)
+        if res.status_code != 200:
+            return None
         if res.json().get('data'):
             return res.json()['data']
         return None
+
+    def delete_account(self, account):
+        url = '{}/v1/namespaces/{}/collections/accounts/documents/{}'.format(
+            self.BASE_URL,
+            self.NAMESPACE,
+            account.id.split('.')[-1]
+        )
+        return self._make_request('delete', url)
 
     def get_demographics_for_account(self, account_id):
         account = self.fetch_account(account_id)
@@ -159,10 +173,11 @@ class ExperimenterClient(object):
             }
         return None
 
-    def fetch_accounts(self):
-        url = '{}/v1/id/collections/{}.accounts/documents/'.format(
+    def fetch_accounts(self, query=None):
+        url = '{}/v1/id/collections/{}.accounts/{}'.format(
             self.BASE_URL,
-            self.NAMESPACE
+            self.NAMESPACE,
+            '_search?' + query if query else 'documents'
         )
         return filter(
             lambda a: bool(a.email),
@@ -190,31 +205,31 @@ class ExperimenterClient(object):
 
 def test():
     client = ExperimenterClient(access_token=OSF_ACCESS_TOKEN).authenticate()
+    '''
     exps = client.fetch_experiments()
     for exp in exps:
         exp['sessions'] = client.fetch_sessions_for_experiment(exp)
 
     exp = exps[3]
     sess = exp['sessions'][0]
-    print sess
-    #res = client.set_session_feedback(sess, "Some test feedback")
-    #print """
-    #Feedback set to: {}
-    #on session: {}
-    #of experiment: {}
-    #""".format(
-    #    res.json()['data']['attributes']['feedback'],
-    #    sess['id'].split('.')[-1],
-    #    exp['attributes']['title']
-    #)
-
-    #account_id = 'sam'
-    #print """
-    #Demographics for {}:
-   # {}
-    #""".format(account_id, json.dumps(
-   #     client.get_demographics_for_account(account_id),
-   #     indent=4
-   # ))
-
+    res = client.set_session_feedback(sess, "Some test feedback")
+    print """
+    Feedback set to: {}
+    on session: {}
+    of experiment: {}
+    """.format(
+        res.json()['data']['attributes']['feedback'],
+        sess['id'].split('.')[-1],
+        exp['attributes']['title']
+    )
+    '''
+    account_id = 'sam'
+    print """
+    Demographics for {}:
+    {}
+    """.format(account_id, json.dumps(
+        client.get_demographics_for_account(account_id),
+        indent=4
+    ))
+0
 test() if __name__ == '__main__' else None

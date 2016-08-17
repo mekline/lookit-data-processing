@@ -1,4 +1,3 @@
-<!--<p>(main navigation section, on all pages)</p>-->
 <nav class="navbar navbar-fixed-top">
   <div class="container">
     <div class="navbar-header">
@@ -19,12 +18,14 @@
         <li>{{#link-to "scientists"}}The Scientists{{/link-to}}</li>
         <li>{{#link-to "resources"}}Resources{{/link-to}}</li>
         <li>{{#link-to "contact"}}Contact Us{{/link-to}}</li>
-    {{#if session.isAuthenticated}}
-        <li>{{#link-to 'my'}}Hi {{accountName}}{{/link-to}}</li>
-        <li><a onclick={{action 'logout'}}>Logout</a></li>
-    {{else}}
-        <li>{{#link-to 'login'}}Login{{/link-to}}</li>
-    {{/if}}
+	{{#if session.isAuthenticated}}
+	    {{#if accountName}}
+		<li>{{#link-to 'my'}}Hi {{accountName}}{{/link-to}}</li>
+	    {{/if}}
+            <li><a onclick={{action 'logout'}}>Logout</a></li>
+	{{else}}
+            <li>{{#link-to 'login'}}Login{{/link-to}}</li>
+	{{/if}}
       </ul>
     </div><!--/.nav-collapse -->
   </div>

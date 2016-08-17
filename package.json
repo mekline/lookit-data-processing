@@ -57,8 +57,6 @@
     "ember-simple-auth": "1.0.1",
     "ember-toastr": "1.4.0",
     "ember-truth-helpers": "1.2.0",
-    "ivy-tabs": "github:ivyapp/ivy-tabs",
-    "ivy-videojs": "0.6.2",
     "loader.js": "^4.0.0",
     "moment": "2.11.2",
     "moment-timezone": "0.5.0"

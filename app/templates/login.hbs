@@ -26,28 +26,34 @@
 <div class="lookit-row login-row">
     <div class="container">
         <div class="row">
-            <div class="login-item col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3">
-              {{jam-auth login=(action 'authenticate')}}
-              <hr>
-	      <p>Not already a user? Create a Lookit account.</p>
-	      {{jam-create create=(action 'createAccount')}}
-	      <hr>
-		<p>Forgot your password?</p>
-		{{#if (not resetSent)}}
-		<form class="clearfix">
-		  <label>Username</label>
-		  {{input value=resetId class="form-control" type="text"}}
-		  <br>
-		  <div class="pull-right">
-		    <button disabled={{not resetId.length}} class="btn btn-info" {{action 'resetPassword'}} >Send password reset</button>
-		  </div>
-		</form>
-		{{else}}
-		<span class="text-muted text-success">
-		  Password reset sent, please check your email.
-		</span>
-		{{/if}}
-            </div>
+            {{#if (not isIE)}}
+                <div class="login-item col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3">
+                    {{jam-auth login=(action 'authenticate')}}
+                    <hr>
+                    <p>Not already a user? Create a Lookit account.</p>
+                    {{jam-create create=(action 'createAccount')}}
+                    <hr>
+                    <p>Forgot your password?</p>
+                    {{#if (not resetSent)}}
+                        <form class="clearfix">
+                            <label>Username</label>
+                            {{input value=resetId class="form-control" type="text"}}
+                            <br>
+                                <div class="pull-right">
+                                    <button disabled={{not resetId.length}} class="btn btn-info" {{action 'resetPassword'}} >Send password reset</button>
+                                </div>
+                        </form>
+                    {{else}}
+                        <span class="text-muted text-success">
+                            Password reset sent, please check your email.
+                        </span>
+                    {{/if}}
+                </div>
+            {{else}}
+                <div class="login-item col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3">
+		    <p> We're sorry, but Internet Explorer is incompatible with some of the features of this website. We recommend using <a href="https://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or <a href="https://www.google.com/chrome">Google Chrome</a> instead.</p>
+                </div>
+            {{/if}}
         </div>
     </div>
 </div>

@@ -12,8 +12,8 @@ export default Ember.Component.extend({
     authenticate() {
         this.get('login')({
             provider: 'self',
-            username: this.get('username'),
-            password: this.get('password'),
+            username: this.get('username').trim(),
+            password: this.get('password').trim(),
             namespace: this.get('namespace'),
             collection: this.get('collection')
         });

@@ -7,13 +7,14 @@ export default Ember.Controller.extend({
     queryParams: ['ref'],
     session: Ember.inject.service('session'),
 
+    isIE: /(MSIE|rv:11.0)/i.test(navigator.userAgent),
+
     invalidAuth: false,
     userConflict: false,
     creatingUser: false,
 
     resetId: null,
     resetSent: false,
-
     actions: {
         authenticate(attrs) {
             this.get('session')

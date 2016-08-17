@@ -54,7 +54,7 @@
       <div>
         <label>Gestational Age at Birth</label>
         <select onchange={{action (mut profile.ageAtBirth) value="target.value"}} class="form-control">
-          <option disabled hidden>Please Choose...</option>
+          <option disabled selected>Please Choose...</option>
           {{#each ageAtBirthOptions as |ageAtBirthOption|}}
             <option value={{ageAtBirthOption}} selected={{eq profile.ageAtBirth ageAtBirthOption}}>{{ageAtBirthOption}}</option>
           {{/each}}

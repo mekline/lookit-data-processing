@@ -176,6 +176,9 @@ label.account-row {
 .account-row.pull-right {
     padding-top:30px;
 }
+.account-row a {
+    overflow: hidden !important;
+}
 button.account-row {
     width: 180px;
 }

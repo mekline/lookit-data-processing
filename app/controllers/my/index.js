@@ -7,6 +7,8 @@ export default Ember.Controller.extend({
     _error: null,
     newPass: null,
     confirmPass: null,
+    sessionAccount: Ember.inject.service(),
+    account: Ember.computed.alias('sessionAccount.account'),
     toast: Ember.inject.service(),
 
     passMatch: function() {
@@ -18,16 +20,16 @@ export default Ember.Controller.extend({
 
     actions: {
         save() {
-            this.get('model').save().then(() => {
+            this.get('account').save().then(() => {
                 this.toast.info('Account updated successfully.');
             });
         },
         cancel() {
-            this.get('model').rollbackAttributes();
+            this.get('account').rollbackAttributes();
         },
         updatePassword() {
-            this.set('model.password', bcrypt.hashSync(this.get('newPass'), 10).replace('$2a$', '$2b$'));
-            this.get('model').save().then(() => {
+            this.set('account.password', bcrypt.hashSync(this.get('newPass'), 10).replace('$2a$', '$2b$'));
+            this.get('account').save().then(() => {
                 this.set('_error', null);
                 this.set('newPass', null);
                 this.set('confirmPass', null);

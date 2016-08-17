@@ -4,10 +4,10 @@
   <br>
   <br>
   {{#bs-collapse collapsed=notAddingNew}}
-    {{edit-profile account=model profile=profile onAdd=(action 'profileAdded') onCancelAdd=(action 'cancelAddProfile')}}
+    {{edit-profile account=account profile=profile onAdd=(action 'profileAdded') onCancelAdd=(action 'cancelAddProfile')}}
   {{/bs-collapse}}
-  {{#each model.activeProfiles as |child|}}
-    {{edit-profile profile=child account=model}}
+  {{#each account.activeProfiles as |child|}}
+      {{edit-profile profile=child account=account}}
   {{/each}}
 </div>
 </div>

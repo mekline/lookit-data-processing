@@ -1,6 +1,6 @@
 <div class="lookit-row lookit-page-title">
     <div class="container">
-        <h2> Participate in "{{model.experiment.title}}" {{link-to  "Back to list" 'studies' class="btn btn-lg btn-primary pull-right"}}</h2>
+        <h2> Participate in "{{model.title}}" {{link-to  "Back to list" 'studies' class="btn btn-lg btn-primary pull-right"}}</h2>
     </div>
 </div>
 <div class="lookit-row study-detail-row">
@@ -9,8 +9,8 @@
       <div class="col-md-10 col-md-offset-1">
         <div class="row">
           <div class="col-xs-12">
-            {{#if model.experiment.thumbnail}}
-              <img class="study-detail-thumbnail" src="{{model.experiment.thumbnail.raw}}" />
+            {{#if model.thumbnail}}
+              <img class="study-detail-thumbnail" src="{{model.thumbnail.raw}}" />
             {{else}}
             <div class="study-detail-placeholder">
               <i class="fa fa-picture-o "></i>
@@ -24,42 +24,45 @@
             <p class="study-detail-caption"> Thank you for your interest in this study! We'll help you learn more and get started. </p>
             <p>
               <strong>Eligibility criteria:</strong>
-              {{model.experiment.eligibilityString}}
+              {{model.eligibilityString}}
             </p>
             <p>
               <strong>Age range:</strong>
-              {{model.experiment.ageRange}}
+              {{model.ageRange}}
             </p>
             <p>
               <strong>Duration: </strong>
-              {{model.experiment.duration}}
+              {{model.duration}}
             </p>
             <p>
               <strong>What happens: </strong>
-              {{model.experiment.whatHappens}}
+              {{model.whatHappens}}
             </p>
             <p>
               <strong>What are we studying?: </strong>
-              {{model.experiment.purpose}}
+              {{model.purpose}}
             </p>
           </div>
           <div class="col-md-3">
-            {{#if (not model.account) }}
+            {{#if (not account) }}
               {{link-to 'Log in to participate' 'login' (query-params ref=route) class="btn btn-lg btn-default"}}
-            {{else if (not model.account.profiles)}}
+            {{else if (not account.profiles)}}
               {{link-to 'Add child profile to participate' 'my.children' class="btn btn-lg btn-default"}}
-            {{else if (not model.account.hasCompletedSurvey) }}
+            {{else if (not account.hasCompletedSurvey) }}
               {{link-to 'Complete demographic survey to participate' 'my.demographics' class="btn btn-lg btn-default"}}
             {{else}}
               <div class="form-group">
                 <label>Select a child:</label>
                 <select onchange={{action (mut selectedChildId) value="target.value"}} >
                   <option value="">None Selected</option>
-                  {{#each model.account.activeProfiles as |child|}}
+                  {{#each account.activeProfiles as |child|}}
                   <option value={{child.profileId}} >{{child.firstName}}</option>
                   {{/each}}
                 </select>
               </div>
+	      {{#if (and selectedChild (not isAgeEligible))}}
+		  <p class="text-warning"> Your child is outside of the reccomended age range for this study. Feel free to take the study anyway, but we won't be able to use the collected data in our research.</p>
+	      {{/if}}
               <button disabled={{if (not selectedChildId) true false}} class="btn btn-lg btn-primary {{if (not selectedChildId) 'disabled'}}" onclick={{action 'pickChild'}}>Participate now!</button>
             {{/if}}
           </div>

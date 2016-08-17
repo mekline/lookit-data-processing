@@ -18,7 +18,7 @@ export default Ember.Component.extend({
 	});
     },
 
-    arguments: {
+    actions: {
         toggleFeedback: function() {
             this.toggleProperty('showFeedback');
             if (this.get('showFeedback')) {
