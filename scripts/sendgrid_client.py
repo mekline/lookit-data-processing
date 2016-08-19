@@ -12,7 +12,7 @@ class EmailPreferences(object):
         'Next Session': 'nextSession',
         'New Studies': 'newStudies',
         'Results Published': 'resultsPublished',
-        'Opt Out': 'optOut'
+        'Personal communication': 'optOut'
     }
 
     def __init__(self, nextSession, newStudies, resultsPublished):
@@ -30,7 +30,7 @@ class SendGrid(object):
         self.smtp = sendgrid.SendGridClient(
             apikey or conf.SENDGRID_KEY
         )
-        self.from_addr = from_addr or 'Test client <test-client@foo.com>'
+        self.from_addr = from_addr or 'Lookit team <lookit@mit.edu>'
 
     def groups(self):
         res = self.sg.client.asm.groups.get()
@@ -82,6 +82,7 @@ def test(recipient_email, subscribe=True, unsubscribe=False):
         print "Emails currently in the unsubscribe group '{}':".format(group['name'])  # noqa
         print "{}".format(', '.join(sg.unsubscribes_for(group)))
         print "-------------------"
+
         print "{}ubscribing {}".format('S' if not unsubscribe else 'Uns', recipient_email)  # noqa
         if not unsubscribe:
             sg.subscribe_to(group, recipient_email)

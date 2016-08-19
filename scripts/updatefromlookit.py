@@ -14,6 +14,7 @@ def sync_S3(pull=False):
 	This only gets the video files; details are not stored in the video database.'''
 	if pull:
 		pull_from_wowza()
+		print('Pulled videos from Wowza')
 
 	origVideos = paths.get_videolist()
 	sp.check_call(['aws', 's3', 'sync', 's3://mitLookit', paths.VIDEO_DIR, '--only-show-errors', '--metadata-directive', 'COPY'])
@@ -26,7 +27,7 @@ def sync_S3(pull=False):
 def pull_from_wowza():
 	'''Sync wowza data with S3 so we get up-to-date data from S3'''
 	thisDir = os.path.dirname(os.path.realpath(__file__))
-	sp.call(['ssh', '-i', os.path.join(thisDir, 'mit-wowza.pem'), 'ec2-user@lookit-streaming.mit.edu', 'aws', 's3', 'sync', '/home/ec2-user/content', 's3://mitLookit'])
+	sp.call(['ssh', '-i', os.path.join(thisDir, 'lookit2016.pem'), 'ec2-user@lookit-streaming.mit.edu', 'aws', 's3', 'sync', '/home/ec2-user/content', 's3://mitLookit'])
 
 def update_session_data(experimentId, display=False):
 	'''Get session data from the server for this experiment ID and save'''
@@ -52,13 +53,11 @@ def update_account_data():
 	allAccounts = {}
 	for acc in accounts:
 		fullId = acc.id
-		print acc
 		pieces = fullId.split('.')
 		username = pieces[-1]
 		print username
 		accData = client.fetch_account(username)
 		allAccounts[username] = accData
-		print type(username)
 	backup_and_save(paths.ACCOUNT_FILENAME, allAccounts)
 
 def show_all_experiments():

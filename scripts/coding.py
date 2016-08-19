@@ -630,7 +630,7 @@ def batch_videos(expId, batchLengthMinutes=5, codingCriteria={'consent':['yes'],
     two places:
         - batch data: adds new mapping batchKey :
             {'batchFile': batchFilename,
-             'videos': [(sessionKey, flvName), ...] }
+             'videos': [(sessionKey, flvName, duration), ...] }
         - videoData: add videoData[flvName]['inBatches'][batchId] = index in
             batch
 
@@ -666,8 +666,9 @@ def batch_videos(expId, batchLengthMinutes=5, codingCriteria={'consent':['yes'],
     currentBatch = []
     currentBatchLen = 0
     for (sessKey, vid) in vidsToProcess:
-        currentBatch.append((sessKey, vid))
-        currentBatchLen += videoData[vid]['mp4Dur_trimmed']
+        dur = videoData[vid]['mp4Dur_trimmed']
+        currentBatch.append((sessKey, vid, dur))
+        currentBatchLen += dur
         if currentBatchLen > batchLengthMinutes * 60:
             batches.append(currentBatch)
             batchDurations.append(currentBatchLen)
@@ -715,7 +716,7 @@ def add_batch(expId, batchFilename, videos):
     expId: experiment id, string
         (ex.: 574db6fa3de08a005bb8f844)
     batchFilename: filename of batch video file within batch dir (not full path)
-    videos: ordered list of (sessionId, videoFilename) pairs.
+    videos: ordered list of (sessionId, videoFilename, duration) tuples.
         sessionId is an index into the coding directory, videoFilename
         is the individual filename (not full path).
 
@@ -739,12 +740,23 @@ def add_batch(expId, batchFilename, videos):
 
 
     # Add references to this batch in each videoData record affected
-    for (iVid, (sessionId, videoname)) in enumerate(videos):
+    for (iVid, (sessionId, videoname, dur)) in enumerate(videos):
         videoData[videoname]['inBatches'][batId] = iVid
 
     # Save batch and video data
     backup_and_save(paths.batch_filename(expId), batches)
     backup_and_save(paths.VIDEO_FILENAME, videoData)
+
+def batch_id_for_filename(expId, batchFilename):
+    '''Returns the batch ID for a given experiment & batch filename.'''
+
+    batches = load_batch_data(expId)
+    if not len(batchFilename):
+        raise ValueError('remove_batch: must provide either batchId or batchFilename')
+    for id in batches.keys():
+        if batches[id]['batchFile'] == batchFilename:
+            return id
+    raise ValueError('remove_batch: no batch found for filename {}'.format(batchFilename))
 
 def remove_batch(expId, batchId='', batchFilename='', deleteVideos=False):
     '''Remove a batched video from the data files (batch and video data).
@@ -783,14 +795,7 @@ def remove_batch(expId, batchId='', batchFilename='', deleteVideos=False):
 
     # Use filename if provided instead of batchId
     if not len(batchId):
-        if not len(batchFilename):
-            raise ValueError('remove_batch: must provide either batchId or batchFilename')
-        for id in batches.keys():
-            if batches[id]['batchFile'] == batchFilename:
-                batchId = id
-                print 'Found batch for filename {}: {}'.format(batchFilename, batchId)
-        if not len(batchId):
-            raise ValueError('remove_batch: no batch found for filename {}'.format(batchFilename))
+        batchId = batch_id_for_filename(expId, batchFilename)
 
     # Remove this batch from batch data
     videos = batches[batchId]['videos']
@@ -798,7 +803,7 @@ def remove_batch(expId, batchId='', batchFilename='', deleteVideos=False):
     del batches[batchId]
 
     # Remove references to this batch in each videoData record affected
-    for (iVid, (sessionId, videoname)) in enumerate(videos):
+    for (iVid, (sessionId, videoname, dur)) in enumerate(videos):
         del videoData[videoname]['inBatches'][batchId]
 
     # Backup and save batch and video data
@@ -812,6 +817,33 @@ def remove_batch(expId, batchId='', batchFilename='', deleteVideos=False):
         if os.path.exists(batchPath):
             sp.call('rm ' + batchPath, shell=True)
             print 'Deleted batch video'
+
+def get_batch_info(expId='', batchId='', batchFilename=''):
+    '''Given either a batchId or batch filename, return batch data for this
+    batch. Must supply either expId or batchFilename.
+
+    Returns the dictionary associated with this batch, with field:
+        batchFile - filename of batch, within BATCH_DIR
+        videos - list of (sessionKey, videoFilename, duration) tuples in order
+            videos appear in batch
+        codedBy - list of coders who have coded this batch
+
+    '''
+
+    # Load the batch data for this experiment
+    if len(expId):
+        batches = load_batch_data(expId)
+    elif len('batchFilename'):
+        expId = batchFilename.split('_')[0]
+        batches = load_batch_data(expId)
+    else:
+        raise ValueError('get_batch_info: must supply either batchFilename or expId')
+
+    # Use filename if provided instead of batchId
+    if not len(batchId):
+        batchId = batch_id_for_filename(expId, batchFilename)
+
+    return batches[batchId]
 
 def coderFields():
     '''Return a list of coder-specific fields to create/expect in coding data
@@ -884,21 +916,18 @@ def export_accounts():
     accs = []
     headers = set()
     allheaders = set()
-    #i = 0
     for (userid, acc) in accountsRaw.items():
-        #i += 1
-        #if i > 10:
-        #    continue
         thisAcc = acc['attributes']
+        thisAcc['username'] = userid
         profiles = thisAcc['profiles']
         del thisAcc['profiles']
         del thisAcc['password']
         headers = headers | set(thisAcc.keys())
+        iCh = 0
         for pr in profiles:
-            iCh = 0
             for (k,v) in pr.items():
                 thisAcc['child' + str(iCh) + '.' + k] = v
-                iCh += 1
+            iCh += 1
         for k in thisAcc.keys():
             if type(thisAcc[k]) is unicode:
                 thisAcc[k] = thisAcc[k].encode('utf-8')
@@ -1015,8 +1044,16 @@ def generate_codesheet(expId, coderName, showOtherCoders=True, showAllHeaders=Fa
     else:
         headerList = headerStart
 
+
+
     for (key, val) in filter.items():
         codingList = [sess for sess in codingList if key in sess.keys() and sess[key]==val]
+
+
+    for record in codingList:
+        for k in record.keys():
+            if type(record[k]) is unicode:
+                record[k] = record[k].encode('utf-8')
 
     # Back up any existing coding file by the same name & save
     codesheetPath = paths.codesheet_filename(expId, coderName)
@@ -1159,9 +1196,11 @@ def send_feedback(expId):
 
     print "Sent updated feedback to server for exp {}".format(expId)
 
+
+
 if __name__ == '__main__':
 
-    physID = '57586a553de08a005bb8fb7f'
+    physID = '57a212f23de08a003c10c6cb'
     testID = '57a0e5723de08a003c0fdd8e' # test study for audrey
 
     IDs = [testID]
@@ -1197,19 +1236,26 @@ if __name__ == '__main__':
         DISP = True
         update_session_data(id, display=DISP)
         update_coding(id, display=DISP)
-        newVideos = sync_S3(pull=True)
-        sessionsAffected, improperFilenames, unmatched = update_video_data(whichStudies=[id], reprocess=False, resetPaths=False, display=DISP)
-        assert len(unmatched) == 0
-        update_videos_found(id)
-        concatenate_session_videos(id, 'all', display=True, replace=True)
-        make_mp4s_for_study(id, sessionsToProcess='missing', display=True, trimming=5, suffix='trimmed')
+        #newVideos = sync_S3(pull=True)
+        #sessionsAffected, improperFilenames, unmatched = update_video_data(whichStudies=[id], reprocess=False, resetPaths=False, display=DISP)
+        #assert len(unmatched) == 0
+        #update_videos_found(id)
+        #concatenate_session_videos(id, 'all', display=True, replace=False)
+        #make_mp4s_for_study(id, sessionsToProcess='missing', display=True, trimming=5, suffix='trimmed')
         #batch_videos(id, batchLengthMinutes=5, codingCriteria={'consent':['orig'], 'usable':['']})
         #update_account_data()
         #export_accounts()
-        generate_codesheet(id, 'Kim')
+        generate_codesheet(id, 'Kim', showAllHeaders=True)
         #commit_coding(id, 'Kim')
 
         print "done!"
+
+    elif 'getVideos' in cmds:
+        newVideos=sync_S3(pull=True)
+
+    elif 'testAccounts' in cmds:
+        #update_account_data()
+        export_accounts()
 
     elif 'testBatch' in cmds:
         studyID = testID
@@ -1230,8 +1276,12 @@ if __name__ == '__main__':
         commit_global(id, 'Kim', ['consent', 'feedback'])
 
     elif 'testRemoveBatch' in cmds:
-        remove_batch(testID, batchId='all', batchFilename='57a0e5723de08a003c0fdd8e_H6IFH.mp4', deleteVideos=True)
+        remove_batch(testID, batchId='all', batchFilename='', deleteVideos=True)
 
     elif 'testFeedback' in cmds:
         id = sys.argv[2]
         send_feedback(id)
+
+    elif 'getBatchData' in cmds:
+        batchFilename = sys.argv[2]
+        printer.pprint(get_batch_info(batchFilename=batchFilename))

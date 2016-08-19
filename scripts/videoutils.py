@@ -96,8 +96,6 @@ def get_video_details(vidName, whichAttr, fullpath=False):
     if len(attributes) == 1:
         attributes = attributes[0]
 
-    print attributes
-
     return attributes
 
 
