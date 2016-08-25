@@ -38,6 +38,11 @@ def codesheet_filename(expId, coderName):
     '''Return full path to the .csv coding file for experiment expId & coderName'''
     return os.path.join(CODING_DIR, expId + '_' + coderName + '.csv')
 
+def batchsheet_filename(expId, coderName):
+    '''Return full path to the .csv batch file for experiment expId & coderName'''
+    return os.path.join(CODING_DIR, expId + '_batches_' + coderName + '.csv')
+
+
 def accountsheet_filename():
     '''Return full path to the .csv account file'''
     return os.path.join(CODING_DIR, 'accounts.csv')

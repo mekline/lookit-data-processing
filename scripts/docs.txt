@@ -1,6 +1,25 @@
 scripts: coding workflow
 (https://github.com/CenterForOpenScience/lookit/tree/develop/scripts)
 
+---
+
+To use the coding functions, first navigate to this directory (scripts) by opening the
+Terminal program and typing cd [path to scripts], e.g.
+cd /Volumes/NovelToy2/CurrentProjects/Lookit/scripts/
+
+For instructions on how to use coding.py, type
+    python coding.py --help
+from this directory.
+
+---
+TODO:
+- Get account data more efficiently
+- Add some basic security to functionality beyond coding (make it harder for people to break things);
+maybe use separate API keys, maybe password-protecting, maybe split up functions
+- Clean up ffmpeg path
+
+---
+
 Initial installation so client.py can work:
 
 	- Get token
@@ -66,17 +85,9 @@ Setting up automation, on OSX:
 	- You can stop using launchctl unload com.lookit.update.plist.
 
 	- You can see the output and any errors in autoSync.err and autoSync.out.
-	- It's important that ffmpeg and ffprobe are installed in usr/local/bin. If not, you can set the path to ffmpeg at the top of coding.py and set the path to ffprobe in videoutils.py, but we should come up with a better way to allow variation in these paths.
-
-#    Set up .env file
-#    Install AWS command-line tools:
-#       http://docs.aws.amazon.com/cli/latest/userguide/installing.html
-#       sudo pip install awscli
-#    aws configure
-#       enter keys (saved; can make new keys from AWS console)
-#       region: us-east-1
-#    pip install numpy
-
+	- It's important that ffmpeg and ffprobe are installed in usr/local/bin.
+	If not, you can set the path to ffmpeg at the top of coding.py and set the path to
+	ffprobe in videoutils.py, but we should come up with a better way to allow variation in these paths.
 
 ------------------- Local data storage overview -------------------------------
 Local data storage overview
