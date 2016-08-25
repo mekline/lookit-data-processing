@@ -27,7 +27,7 @@ education = {
     'Some (or attending) college': 'some or attending college',
     'Some (or attending) high school': 'some or attending high school',
     'Prefer not to answer': None,
-     u'Baz\u0131 (veya kat\u0131l\u0131yor) \xfcniversite': 'some ore attending college'
+     u'Baz\u0131 (veya kat\u0131l\u0131yor) \xfcniversite': 'some or attending college'
 }
 
 gender = {

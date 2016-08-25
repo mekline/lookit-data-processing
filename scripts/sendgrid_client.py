@@ -12,13 +12,14 @@ class EmailPreferences(object):
         'Next Session': 'nextSession',
         'New Studies': 'newStudies',
         'Results Published': 'resultsPublished',
-        'Personal communication': 'optOut'
+        'Personal communication': 'personalCommunication'
     }
 
-    def __init__(self, nextSession, newStudies, resultsPublished):
+    def __init__(self, nextSession, newStudies, resultsPublished, personalCommunication):  # noqa
         self.nextSession = nextSession
         self.newStudies = newStudies
         self.resultsPublished = resultsPublished
+        self.personalCommunication = personalCommunication
 
 
 class SendGrid(object):
@@ -34,10 +35,12 @@ class SendGrid(object):
 
     def groups(self):
         res = self.sg.client.asm.groups.get()
-        return {
-            EmailPreferences.ASM_MAPPING[group['name']]: group
-            for group in json.loads(res.response_body)
-        }
+        ret = {}
+        for group in json.loads(res.response_body):
+            name = group['name']
+            if EmailPreferences.ASM_MAPPING.get(name):
+                ret[EmailPreferences.ASM_MAPPING.get(name)] = group
+        return ret
 
     def unsubscribes_for(self, group):
         return json.loads(

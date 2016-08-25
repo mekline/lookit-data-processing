@@ -4,7 +4,7 @@
   <br>
   <br>
   {{#bs-collapse collapsed=notAddingNew}}
-    {{edit-profile account=account profile=profile onAdd=(action 'profileAdded') onCancelAdd=(action 'cancelAddProfile')}}
+      {{edit-profile account=account profile=childProfile onAdd=(action 'profileAdded') onCancelAdd=(action 'cancelAddProfile')}}
   {{/bs-collapse}}
   {{#each account.activeProfiles as |child|}}
       {{edit-profile profile=child account=account}}

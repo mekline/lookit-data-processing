@@ -6,6 +6,12 @@ import pymongo
 import dateparser
 
 from mappings import MAPPINGS
+child_gender_mappings = {
+    'boy': 'male',
+    'girl': 'female',
+    'other': 'other or prefer not to answer'
+}
+child_gender_default = child_gender_mappings['other']
 
 
 def convert_childs(account_id, records, parent):
@@ -32,7 +38,7 @@ def convert_childs(account_id, records, parent):
                     'firstName': child_names[i],
                     'birthday': child_birthdays[i],
                     'gestationalAgeAtBirth': child_g_ages[i],
-                    'gender': child_genders[i],
+                    'gender': child_gender_mappings.get(child_genders[i], child_gender_default),
                     'deleted': False,
                 }
                 dupes = [item for item in ret if item['profileId'] == child['profileId']]
@@ -52,7 +58,7 @@ def convert_childs(account_id, records, parent):
                 'birthday': None,  # TODO
                 'gestationalAgeAtBirth': child_g_ages,
                 'birthday': child_birthdays[0],
-                'gender': child_genders,
+                'gender': child_gender_mappings.get(child_genders, child_gender_default),
                 'deleted': False,
             }
             dupes = [item for item in ret if item['profileId'] == child['profileId']]
@@ -117,11 +123,14 @@ def convert_users(db):
             migratedFrom=str(record.get('_id')),
             name=record.get('name'),
             email=email,
-            emailPreferenceNextSession=True,
-            emailPreferenceNewStudies=('updates' in record.get('preference', [])),
-            emailPreferenceResultsPublished=('results' in record.get('preference', [])),
             profiles=convert_childs(str(aid), childs, record),
-            unmigratedDob=record.get('dob')
+            unmigratedDob=record.get('dob'),
+            emailPreferences=dict(
+                nextSession=True,
+                newStudies=('updates' in record.get('preference', [])),
+                resultsPublished=('results' in record.get('preference', [])),
+                personalCommunication=('researchers' in record.get('preference', []))
+            )
         )
         attrs.update(demographic)
         ret.append(attrs)

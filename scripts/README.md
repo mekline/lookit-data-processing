@@ -32,6 +32,12 @@ JAM_URL=https://metadata.osf.io
 JAM_NAMESPACE=lookit
 ```
 
+Each the scripts accept an argument to point to a specific .env file (e.g. '.env-stage' or '.env-prod'). For example:
+
+```bash
+python client.py -c .env-stage
+```
+
 ##### Install
 
 1. Create a virtualenvironment using a python 2.7.X executable

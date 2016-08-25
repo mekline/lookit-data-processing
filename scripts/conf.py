@@ -1,8 +1,12 @@
 import os
-
+import argparse
 from dotenv import load_dotenv
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--config', type=str)
+args = parser.parse_args()
+
+dotenv_path = os.path.join(os.path.dirname(__file__), args.config or '.env')
 load_dotenv(dotenv_path)
 
 OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')

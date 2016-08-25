@@ -5,12 +5,15 @@ import requests
 import random
 import string
 import bcrypt
+from copy import deepcopy
+
+from sync_sendgrid import sync_account
 
 
 def rand(N):
     return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(N))
 
-accounts = json.load(open('./output/accounts.json', 'r'))
+accounts = json.load(open('./migration/output/accounts.json', 'r'))
 
 
 def create(host=None, namespace=None, debug=False, verbosity=None):
@@ -39,6 +42,9 @@ def create(host=None, namespace=None, debug=False, verbosity=None):
             )
         )
 
+        email_prefs = deepcopy(account['emailPreferences'])
+        del account['emailPreferences']
+
         res = requests.post(url, json={
             'data': {
                 'id': '{}.accounts.{}'.format(namespace, aid),
@@ -54,6 +60,9 @@ def create(host=None, namespace=None, debug=False, verbosity=None):
                 ipdb.set_trace()  # noqa
             else:
                 print res.json()
+        else:
+            sync_account(account, email_prefs)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

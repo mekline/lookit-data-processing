@@ -11,6 +11,6 @@ This directory contains code to migrate accounts from the old database schema to
 
 ### Running
 
-`./migrate.sh --in=<PATH_TO_MONGODUMP> --out=./output`
+`./migrate.sh --in=<PATH_TO_MONGODUMP> --out=./output --dbname=users`
 
 which creates an accounts.json file in the output directory.
