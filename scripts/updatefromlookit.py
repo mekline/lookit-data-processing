@@ -1,5 +1,6 @@
 import os
-from client import Account, SendGrid, ExperimenterClient
+from client import Account, ExperimenterClient
+#from sendgrid_client import SendGrid
 from utils import indent, printer
 import subprocess as sp
 from warnings import warn

@@ -33,6 +33,11 @@ def batch_filename(expId):
     return os.path.join(os.environ.get('DATA_DIR'), 'batch_data_' + \
         expId + '.bin')
 
+def vcode_filename(batchFilename, coderName):
+    '''Return full path to expected VCode file for a given batch & coder'''
+    batchStub, ext = os.path.splitext(batchFilename)
+    return os.path.join(CODING_DIR, coderName, batchStub + '-evts.txt')
+
 
 def codesheet_filename(expId, coderName):
     '''Return full path to the .csv coding file for experiment expId & coderName'''

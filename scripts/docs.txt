@@ -72,6 +72,7 @@ To start using:
            region: us-east-1
 
     * pip install numpy
+    * pip install scipy
 
 	* source venv/bin/activate
 	in order to get into the virtual environment; then can call python scripts.
@@ -88,6 +89,26 @@ Setting up automation, on OSX:
 	- It's important that ffmpeg and ffprobe are installed in usr/local/bin.
 	If not, you can set the path to ffmpeg at the top of coding.py and set the path to
 	ffprobe in videoutils.py, but we should come up with a better way to allow variation in these paths.
+
+
+------------------- Setting up for data analysis ------------------------------
+* Install MacPorts.
+
+* Outside of the venv, set up numpy/scipy/matplotlib/ipython stack:
+sudo port install py27-numpy py27-scipy py27-matplotlib py27-ipython +notebook py27-pandas py27-sympy py27-nose
+(follow additional warnings/instructions during install)
+
+* Get pip for the version of python used by ipython:
+download get-pip.py from https://packaging.python.org/installing/
+sudo python2.7 get-pip.py
+
+* Install packages on this version as needed with this pip:
+sudo python2.7 -m pip install requests
+sudo python2.7 -m pip install -U python-dotenv
+
+* Create an ipython notebook in the scripts directory; it should now be able to import
+coding.py.
+ipython notebook
 
 ------------------- Local data storage overview -------------------------------
 Local data storage overview

@@ -1,7 +1,8 @@
 import os
 import errno
 import pickle
-from client import Account, SendGrid, ExperimenterClient
+from client import Account, ExperimenterClient
+#from sendgrid_client import SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, flatten_dict, backup, backup_and_save_dict
 import uuid
 import subprocess as sp
@@ -15,6 +16,9 @@ import csv
 import random
 import string
 import argparse
+import unittest
+import numpy as np
+import vcode
 
 class Experiment(object):
     '''TODO: DOC'''
@@ -1295,6 +1299,36 @@ class Experiment(object):
 
         print "Sent updated feedback to server for exp {}".format(self.expId)
 
+    def read_batch_coding(self):
+        '''TODO: DOC'''
+        for (batchID, batch) in self.batchData.items():
+            theseCoders = batch['codedBy']
+            printer.pprint([batch['batchFile'], theseCoders])
+            # Extract list of lengths to use for demarcating trials
+            vidLengths = [v[2] for v in batch['videos']]
+            for coderName in theseCoders:
+                vcodeFilename = paths.vcode_filename(batch['batchFile'], coderName)
+                # Check that the VCode file exists
+                if not os.path.isfile(vcodeFilename):
+                    warn('Expected Vcode file {} for coder {} not found'.format(os.path.basename(vcodeFilename), coderName))
+                    continue
+                # Read in file
+                (durations, leftLookTime, rightLookTime, oofTime) = \
+                    vcode.read_preferential(vcodeFilename, interval=[], videoLengths=vidLengths)
+                # Save data
+                vcodeData = {'durations': durations, 'leftLookTime': leftLookTime,
+                    'rightLookTime': rightLookTime, 'oofTime': oofTime}
+
+                if 'vcode' in batch.keys():
+                    batch['vcode'][coderName] = vcodeData
+                else:
+                    batch['vcode'] = {coderName: vcodeData}
+                self.batchData[batchID] = batch
+
+        # Save batch and video data
+        backup_and_save(paths.batch_filename(self.expId), self.batchData)
+
+
 
 
 
@@ -1449,6 +1483,9 @@ To check for issues with batch concatenation, where total file length != sum of 
     Look at a batch sheet -- compare minutesSum (sum of individual file lengths) and
     minutesActual (duration of video stream of batch mp4).
 
+To look for and process VCode files for batch videos:
+    python coding.py updatevcode --study STUDY
+
 Partial updates:
 
     To get updated account data:
@@ -1480,7 +1517,11 @@ Partial updates:
         and videos are converted to mp4 and concatenated by session, with the results stored
         under sessions/STUDYID. (Existing videos are not overwritten.)'''
 
+
+
 if __name__ == '__main__':
+
+
 
     studyNicknames = {'phys': '57a212f23de08a003c10c6cb',
                       'test': '57adc3373de08a003fb12aad'}
@@ -1504,7 +1545,10 @@ if __name__ == '__main__':
                'processvideo': ['study'],
                'update': ['study'],
                'makebatches': ['study'],
-               'removebatch': ['study']} # must provide batchID or batchFile
+               'removebatch': ['study'],  # must provide batchID or batchFile
+               'exportmat': ['study'],
+               'updatevcode': ['study'],
+               'tests': []}
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Coding operations for Lookit data',
@@ -1519,6 +1563,7 @@ if __name__ == '__main__':
         action='append', default=['consent', 'feedback'])
     parser.add_argument('--batchID', help='Batch ID to remove, or "all" (used for removebatch only)')
     parser.add_argument('--batchFile', help='Batch filename to remove (used for removebatch only)')
+
     args = parser.parse_args()
 
     # Additional input-checking for fields required for specific actions
@@ -1606,3 +1651,20 @@ if __name__ == '__main__':
     elif args.action == 'removebatch':
         print 'Removing batch(es)...'
         exp.remove_batch(batchId=args.batchID, batchFilename=args.batchFile, deleteVideos=True)
+
+    elif args.action == 'exportmat':
+        coding_export = {}
+        for k in exp.coding.keys():
+            safeKey = k.replace('.', '_')
+            coding_export[safeKey] = exp.coding[k]
+        scipy.io.savemat(os.path.join(paths.DATA_DIR, exp.expId + '_coding.mat'), coding_export)
+
+        batches_export = {}
+        for k in exp.batchData.keys():
+            safeKey = 'b' + k
+            batches_export[safeKey] = exp.batchData[k]
+        scipy.io.savemat(os.path.join(paths.DATA_DIR, exp.expId + '_batches.mat'), batches_export)
+
+    elif args.action == 'updatevcode':
+        exp.read_batch_coding()
+
