@@ -180,6 +180,26 @@ class ExperimenterClient(object):
                 data=ops
             )
 
+    def set_password_reset_template(self, template_id):
+        url = '{}/v1/id/collections/{}.accounts'.format(
+            self.BASE_URL,
+            self.NAMESPACE
+        )
+        self._make_request(
+            'patch',
+            url,
+            headers={
+                'content-type': 'application/vnd.api+json; ext=jsonpatch',
+            },
+            json=[
+                {
+                    'op': 'replace',
+                    'path': '/plugins/user/template',
+                    'value': template_id
+                }
+            ]
+        )
+
 
 def test():
     client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()  # noqa

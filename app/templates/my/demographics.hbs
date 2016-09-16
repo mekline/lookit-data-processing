@@ -115,7 +115,7 @@
         </select>
       {{/bs-form-group}}
       {{#bs-form-group}}
-        <label>What is your approximate family yearly income?</label>
+        <label>What is your approximate family yearly income (in US dollars)?</label>
         <select onchange={{action (mut account.demographicsAnnualIncome) value="target.value"}} class="form-control" >
           <option value="" disabled selected hidden>Please Choose...</option>
           {{#each annualIncomeOptions as |annualIncomeOption|}}

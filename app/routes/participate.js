@@ -13,10 +13,10 @@ export default Ember.Route.extend(AuthenticatedRouteMixin, ExpPlayerRouteMixin, 
     _getExperiment(params) {
         return this.store.findRecord('experiment', Ember.get(params, 'experiment_id'));
     },
-    model (params) {
+    beforeModel (transition) {
         if (!this.get('sessionAccount.profile')) {
-            this.transitionTo('studies.detail', Ember.get(params, 'experiment_id'));
+            this.transitionTo('studies.detail', transition.params.participate.experiment_id);
         }
-        return this._super(params);
+        return this._super(...arguments);
     }
 });

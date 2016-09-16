@@ -17,7 +17,7 @@ export default Ember.Controller.extend({
     resetSent: false,
     actions: {
         authenticate(attrs) {
-            this.get('session')
+            return this.get('session')
                 .authenticate('authenticator:jam-jwt', attrs)
                 .then(() => this.get('ref') ? this.transitionToRoute(...this.get('ref').split(':')) : null)
                 .catch(() => this.send('toggleInvalidAuth'));

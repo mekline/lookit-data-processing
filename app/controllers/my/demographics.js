@@ -75,11 +75,11 @@ export default Ember.Controller.extend({
         'not applicable - no spouse or partner'
     ],
     annualIncomeOptions: Ember.computed(function() {
-        var ret = ['0', '$5000', '$1000', '$15000'];
+        var ret = ['0', '5000', '10000', '15000'];
         for (var i = 20; i < 200; i += 10) {
             ret.push(`${i * 1000}`);
         }
-        ret.push('over $200000');
+        ret.push('over 200000');
         ret.push('prefer not to answer');
 
         return ret;

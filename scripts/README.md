@@ -20,16 +20,16 @@ Create a new file name .env in this directory. It should look like:
 
 ```
 OSF_ACCESS_TOKEN=<your-staging-access-token>
-JAM_URL=https://staging-metadata.osf.io
-JAM_NAMESPACE=experimenter
+JAMDB_URL=https://staging-metadata.osf.io
+JAMDB_NAMESPACE=experimenter
 ```
 
 or
 
 ```
 OSF_ACCESS_TOKEN=<your-access-token>
-JAM_URL=https://metadata.osf.io
-JAM_NAMESPACE=lookit
+JAMDB_URL=https://metadata.osf.io
+JAMDB_NAMESPACE=lookit
 ```
 
 Each the scripts accept an argument to point to a specific .env file (e.g. '.env-stage' or '.env-prod'). For example:

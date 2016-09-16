@@ -7,10 +7,10 @@ module.exports = function(defaults) {
   var app = new EmberApp(defaults, {
     sourcemaps: {enabled: true},
     minifyJS: {
-        enabled: false // EmberApp.env() === 'production'
+        enabled: EmberApp.env() === 'production'
     },
     minifyCSS: {
-        enabled: false // EmberApp.env() === 'production'
+        enabled: EmberApp.env() === 'production'
     },
     emberWowza: {
       // Config for video recorder config
@@ -19,7 +19,10 @@ module.exports = function(defaults) {
       php: JSON.parse(process.env.WOWZA_PHP)
     },
     'ember-bootstrap': {
-      importBootstrapFont: false
+      importBootstrapFont: true
+    },
+    'ember-bootstrap-datetimepicker': {
+      importBootstrapCSS: false
     }
   });
 
