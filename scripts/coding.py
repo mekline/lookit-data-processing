@@ -63,9 +63,13 @@ class Experiment(object):
 
     @classmethod
     def load_session_data(cls, expId):
-        '''Return saved session data for this experiment. Error if no saved data.'''
-        with open(paths.session_filename(expId),'rb') as f:
-            exp = pickle.load(f)
+        '''Return saved session data for this experiment, or [] if none saved'''
+        sessionFile = paths.session_filename(expId)
+        if os.path.exists(sessionFile):
+            with open(paths.session_filename(expId),'rb') as f:
+                exp = pickle.load(f)
+        else:
+            exp = []
         return exp
 
     @classmethod
@@ -311,10 +315,11 @@ class Experiment(object):
             del thisAcc['password']
             headers = headers | set(thisAcc.keys())
             iCh = 0
-            for pr in profiles:
-                for (k,v) in pr.items():
-                    thisAcc['child' + str(iCh) + '.' + k] = v
-                iCh += 1
+            if profiles:
+                for pr in profiles:
+                    for (k,v) in pr.items():
+                        thisAcc['child' + str(iCh) + '.' + k] = v
+                    iCh += 1
             for k in thisAcc.keys():
                 if type(thisAcc[k]) is unicode:
                     thisAcc[k] = thisAcc[k].encode('utf-8')
@@ -916,7 +921,10 @@ class Experiment(object):
         '''Return a new instance of an empty coding dict'''
         emptyRecord = {'consent': 'orig',
                 'usable': '',
+                'withdrawn': None,
                 'feedback': '',
+                'ageRegistration': -1,
+                'ageExitsurvey': -1,
                 'videosExpected': [],
                 'videosFound': []}
         for field in self.coderFields:
@@ -936,6 +944,7 @@ class Experiment(object):
                 code[missingKey] = empty[missingKey]
                 updated = True
 
+        # Create empty coding records for all the new session IDs & update coding dict
         sessIds = [self.sessions['sessions'][iSess]['id'] for iSess in \
                         range(len(self.sessions['sessions']))]
         newIds = list(set(sessIds) - set(self.coding.keys()))
@@ -943,6 +952,8 @@ class Experiment(object):
 
         self.coding.update(newCoding)
 
+        # For all sessions, update some critical information - videos expected,
+        # withdrawn status, age
         for iSess in range(len(self.sessions['sessions'])):
             sessId = self.sessions['sessions'][iSess]['id']
             expData = self.sessions['sessions'][iSess]['attributes']['expData']
@@ -950,6 +961,33 @@ class Experiment(object):
             for (frameId, frameData) in expData.iteritems():
                 if 'videoId' in frameData.keys():
                   self.coding[sessId]['videosExpected'].append(frameData['videoId'])
+
+            withdrawSegment = 'exit-survey'
+            exitbirthdate = []
+            for (k,v) in expData.items():
+                if k[-len(withdrawSegment):] == withdrawSegment:
+                    if 'withdrawal' in v.keys():
+                        self.coding[sessId]['withdrawn'] = v['withdrawal']
+                    if 'birthDate' in v.keys():
+                        exitbirthdate = v['birthDate']
+
+            session = self.sessions['sessions'][iSess]
+            testdate = session['meta']['created-on']
+
+            # Get the (registered) birthdate
+            profile = session['attributes']['profileId']
+            (username, child) = profile.split('.')
+            acc = self.accounts[username]
+            childData = [pr for pr in acc['attributes']['profiles'] if pr['profileId']==profile]
+            birthdate = childData[0]['birthday']
+
+            testdate = datetime.datetime.strptime(testdate[:10], '%Y-%m-%d')
+            birthdate = datetime.datetime.strptime(birthdate[:10], '%Y-%m-%d')
+            if exitbirthdate:
+                exitbirthdate = datetime.datetime.strptime(exitbirthdate[:10], '%Y-%m-%d')
+                self.coding[sessId]['ageExitsurvey'] = float((testdate - exitbirthdate).days) * 12.0/365
+
+            self.coding[sessId]['ageRegistration'] = float((testdate - birthdate).days) * 12.0/365
 
         backup_and_save(paths.coding_filename(self.expId), self.coding)
 
@@ -983,14 +1021,17 @@ class Experiment(object):
                             'minutesSum': sum([v[2] for v in bat['videos']])/60,
                             'minutesActual': bat.get('duration', -60)/60,
                             'addedOn': bat['addedOn'],
-                            'batchFile': bat['batchFile']}
+                            'batchFile': bat['batchFile'],
+                            'allCoders': ' '.join(bat['codedBy'])}
 
             for c in coders:
                 batchEntry['codedBy-' + c] = 'yes' if c in bat['codedBy'] else 'no'
 
+
+
             batchList.append(batchEntry)
 
-        headers = ['batchFile', 'addedOn', 'id', 'minutesSum', 'minutesActual']
+        headers = ['batchFile', 'addedOn', 'id', 'minutesSum', 'minutesActual', 'allCoders']
         for c in coders:
             headers.append('codedBy-' + c)
 
@@ -1068,10 +1109,14 @@ class Experiment(object):
         	be unique endings within sessions. (Using just the ending allows
         	for variation in which segment the field is associated with.)
 
-        filter: dictionary of header:value pairs that should be required in
-        	order for the session to be included in the codesheet. (Most
-        	common usage is {'consent':'yes'} to show only records we have
-        	already confirmed consent for.)
+        filter: dictionary of header:[value1, value2, ...] pairs that should be required in
+        	order for the session to be included in the codesheet. Only records
+        	with a value in the list for this header will be shown. (Most
+        	common usage is {'consent':['yes']} to show only records we have
+        	already confirmed consent for.) This is applied AFTER flattening
+        	the dict and looking for includeFields above, so it's possible to use
+        	just the ending of a field if it's also in includeFields. Use 'None' in the
+        	lists to allow records that don't have this key.
 
         '''
 
@@ -1121,7 +1166,8 @@ class Experiment(object):
 
         # Organize the headers we actually want to put in the file - headerStart will come
         # first, then alphabetized other headers if we're using them
-        headerStart = ['id', 'meta.created-on', 'child.profileId', 'consent', 'usable', 'feedback']
+        headerStart = ['id', 'meta.created-on', 'child.profileId', 'consent', 'usable', 'withdrawn', 'feedback',
+            'ageRegistration', 'ageExitsurvey']
 
         # Insert this and other coders' data here if using
         if coderName == 'all':
@@ -1149,8 +1195,9 @@ class Experiment(object):
             headerList = headerStart
 
         # Filter to show only data that should go in sheet
-        for (key, val) in filter.items():
-            codingList = [sess for sess in codingList if key in sess.keys() and sess[key]==val]
+        for (key, vals) in filter.items():
+            codingList = [sess for sess in codingList if (key in sess.keys() and sess[key] in vals) or
+                (key not in sess.keys() and None in vals)]
 
         # Reencode anything in unicode
         for record in codingList:
@@ -1524,10 +1571,24 @@ if __name__ == '__main__':
 
 
     studyNicknames = {'phys': '57a212f23de08a003c10c6cb',
-                      'test': '57adc3373de08a003fb12aad'}
+                      'test': '57adc3373de08a003fb12aad',
+                      'pilot': '57dae6f73de08a0056fb4165'}
     # TODO: select fields to display
     includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
-                            '57adc3373de08a003fb12aad': []}
+                            '57adc3373de08a003fb12aad': [],
+                            '57dae6f73de08a0056fb4165': ['exit-survey.withdrawal',
+                                                         'exit-survey.useOfMedia',
+                                                         'exit-survey.databraryShare',
+                                                         'mood-survey.active',
+                                                         'mood-survey.childHappy',
+                                                         'mood-survey.rested',
+                                                         'mood-survey.healthy',
+                                                         'mood-survey.doingBefore',
+                                                         'mood-survey.lastEat',
+                                                         'mood-survey.napWakeUp',
+                                                         'mood-survey.ontopofstuff',
+                                                         'mood-survey.parentHappy',
+                                                         'mood-survey.energetic']}
 
     trimLength = 20
     batchLengthMinutes = 5
@@ -1584,14 +1645,15 @@ if __name__ == '__main__':
         print 'Sending feedback...'
         exp.send_feedback()
 
-    elif args.action == 'fetchcodesheet':
+    elif args.action == 'fetchcodesheet': # TODO: change back to consent: yes
         print 'Fetching codesheet...'
-        exp.generate_codesheet(args.coder, filter={'consent':'yes'}, showAllHeaders=False,
+        exp.generate_codesheet(args.coder, filter={'consent':['orig'], 'exit-survey.withdrawal': [False, None]}, showAllHeaders=False,
             includeFields=includeFields)
 
     elif args.action == 'fetchconsentsheet':
         print 'Fetching consentsheet...'
-        exp.generate_codesheet(args.coder, filter={}, showAllHeaders=True)
+        exp.generate_codesheet(args.coder, filter={}, showAllHeaders=True,
+            includeFields=includeFields)
 
     elif args.action == 'commitcodesheet':
         print 'Committing codesheet...'
@@ -1631,8 +1693,8 @@ if __name__ == '__main__':
         exp.concatenate_session_videos('all', display=True, replace=False)
 
     elif args.action == 'update':
-        print 'Starting Lookit update, {:%Y-%m-%d%H:%M:%S}'.format(datetime.datetime.now())
-        update_account_data()
+        print 'Starting Lookit update, {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
+        #update_account_data()
         exp.accounts = exp.load_account_data()
         newVideos = sync_S3(pull=True)
         exp.update_session_data()
@@ -1646,7 +1708,7 @@ if __name__ == '__main__':
     elif args.action == 'makebatches': # TODO: update criteria
         print 'Making batches...'
         exp.make_mp4s_for_study(sessionsToProcess='missing', display=True, trimming=trimLength, suffix='trimmed')
-        exp.batch_videos(batchLengthMinutes=batchLengthMinutes, codingCriteria={'consent':['orig'], 'usable':['']})
+        exp.batch_videos(batchLengthMinutes=batchLengthMinutes, codingCriteria={'consent':['orig'], 'usable':[''], 'withdrawn':[None, False]})
 
     elif args.action == 'removebatch':
         print 'Removing batch(es)...'
