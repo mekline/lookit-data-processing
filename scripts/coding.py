@@ -1330,7 +1330,7 @@ class Experiment(object):
         self.sessions = self.load_session_data(self.expId)
 
         # Set up connection to JamDB
-        client = ExperimenterClient(access_token=paths.OSF_ACCESS_TOKEN).authenticate()
+        client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
 
         # For each session, look at old and new feedback; update if needed
         for sessKey in self.coding.keys():
@@ -1533,6 +1533,9 @@ To check for issues with batch concatenation, where total file length != sum of 
 To look for and process VCode files for batch videos:
     python coding.py updatevcode --study STUDY
 
+To switch between prod and staging:
+
+
 Partial updates:
 
     To get updated account data:
@@ -1572,11 +1575,25 @@ if __name__ == '__main__':
 
     studyNicknames = {'phys': '57a212f23de08a003c10c6cb',
                       'test': '57adc3373de08a003fb12aad',
-                      'pilot': '57dae6f73de08a0056fb4165'}
+                      'pilot': '57dae6f73de08a0056fb4165',
+                      'prodpilot':'57bc591dc0d9d70055f775db'}
     # TODO: select fields to display
     includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
                             '57adc3373de08a003fb12aad': [],
                             '57dae6f73de08a0056fb4165': ['exit-survey.withdrawal',
+                                                         'exit-survey.useOfMedia',
+                                                         'exit-survey.databraryShare',
+                                                         'mood-survey.active',
+                                                         'mood-survey.childHappy',
+                                                         'mood-survey.rested',
+                                                         'mood-survey.healthy',
+                                                         'mood-survey.doingBefore',
+                                                         'mood-survey.lastEat',
+                                                         'mood-survey.napWakeUp',
+                                                         'mood-survey.ontopofstuff',
+                                                         'mood-survey.parentHappy',
+                                                         'mood-survey.energetic'],
+                            '57bc591dc0d9d70055f775db': ['exit-survey.withdrawal',
                                                          'exit-survey.useOfMedia',
                                                          'exit-survey.databraryShare',
                                                          'mood-survey.active',

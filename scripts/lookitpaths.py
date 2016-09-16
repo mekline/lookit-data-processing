@@ -1,10 +1,11 @@
 import os
 from utils import make_sure_path_exists
+import conf
 
 FFMPEG = '/usr/local/bin/ffmpeg'
 
-OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')
-SENDGRID_KEY = os.environ.get('SENDGRID_KEY')
+#OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')
+#SENDGRID_KEY = os.environ.get('SENDGRID_KEY')
 CODERS = eval(os.environ['CODERS'])
 VIDEO_DIR = os.environ.get("VIDEO_DIR")
 BATCH_DIR = os.environ.get("BATCH_DIR")
@@ -16,7 +17,7 @@ for d in ["VIDEO_DIR", "BATCH_DIR", "DATA_DIR", "CODING_DIR", "SESSION_DIR"]:
     make_sure_path_exists(os.environ.get(d))
 
 VIDEO_FILENAME = os.path.join(DATA_DIR, 'video_data.bin')
-ACCOUNT_FILENAME = os.path.join(DATA_DIR, 'accounts.bin')
+ACCOUNT_FILENAME = os.path.join(DATA_DIR, 'accounts' + conf.VERSION + '.bin')
 
 def session_filename(expId):
     '''Return full path to the session data filename for experiment expId'''
@@ -50,14 +51,20 @@ def batchsheet_filename(expId, coderName):
 
 def accountsheet_filename():
     '''Return full path to the .csv account file'''
-    return os.path.join(CODING_DIR, 'accounts.csv')
+    return os.path.join(CODING_DIR, 'accounts' + conf.VERSION + '.csv')
 
 
 def make_session_key(expId, sessId):
-    return 'experimenter.session' + expId + 's.' + sessId
+    if conf.VERSION == 'prod':
+        return 'lookit.session' + expId + 's.' + sessId
+    else:
+        return 'experimenter.session' + expId + 's.' + sessId
 
 def parse_session_key(sessKey):
-    prefix = 'experimenter.session'
+    if conf.VERSION == 'staging':
+        prefix = 'experimenter.session'
+    elif conf.VERSION == 'prod':
+        prefix = 'lookit.session'
     assert sessKey[:len(prefix)] == prefix
     sessKey = sessKey[len(prefix):]
     (expId, sessId) = sessKey.split('.')

@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 #args = parser.parse_args()
 
 #dotenv_path = os.path.join(os.path.dirname(__file__), args.config or '.env')
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+VERSION='prod'
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env-prod')
 load_dotenv(dotenv_path)
 
 OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')

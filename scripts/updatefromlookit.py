@@ -6,6 +6,7 @@ import subprocess as sp
 from warnings import warn
 import lookitpaths as paths
 from utils import backup_and_save
+import conf
 
 def sync_S3(pull=False):
 	'''Download any new or modified video files from S3.
@@ -32,7 +33,7 @@ def pull_from_wowza():
 
 def update_session_data(experimentId, display=False):
 	'''Get session data from the server for this experiment ID and save'''
-	client = ExperimenterClient(access_token=paths.OSF_ACCESS_TOKEN).authenticate()
+	client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
 	exps = client.fetch_experiments()
 	expIDs = [paths.parse_expId(exp['id']) for exp in exps]
 
@@ -49,7 +50,7 @@ def update_session_data(experimentId, display=False):
 
 def update_account_data():
 	'''Get current account data from the server and save to the account file'''
-	client = ExperimenterClient(access_token=paths.OSF_ACCESS_TOKEN).authenticate()
+	client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
 	accounts = client.fetch_accounts()
 	allAccounts = {}
 	for acc in accounts:
@@ -63,7 +64,7 @@ def update_account_data():
 
 def show_all_experiments():
 	'''Display a list of all experiments listed on the server (no return value)'''
-	client = ExperimenterClient(access_token=paths.OSF_ACCESS_TOKEN).authenticate()
+	client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
 	exps = client.fetch_experiments()
 	for (iExp, exp) in enumerate(exps):
 		print  exp['id'] + ' ' + exp['attributes']['title']
