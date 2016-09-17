@@ -203,31 +203,8 @@ class ExperimenterClient(object):
 
 def test():
     client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()  # noqa
-    '''
-    exps = client.fetch_experiments()
-    for exp in exps:
-        exp['sessions'] = client.fetch_sessions_for_experiment(exp)
+    # revert back to regular password-reset email
+    client.set_password_reset_template('b1808cb9-1bdd-45d2-a048-5228d2aa1ca4')
 
-    exp = exps[3]
-    sess = exp['sessions'][0]
-    res = client.set_session_feedback(sess, "Some test feedback")
-    print """
-    Feedback set to: {}
-    on session: {}
-    of experiment: {}
-    """.format(
-        res.json()['data']['attributes']['feedback'],
-        sess['id'].split('.')[-1],
-        exp['attributes']['title']
-    )
-    '''
-    account_id = 'sam'
-    print """
-    Demographics for {}:
-    {}
-    """.format(account_id, json.dumps(
-        client.get_demographics_for_account(account_id),
-        indent=4
-    ))
 
 test() if __name__ == '__main__' else None

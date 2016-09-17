@@ -7,6 +7,7 @@ from warnings import warn
 import lookitpaths as paths
 from utils import backup_and_save
 import conf
+import pickle
 
 def sync_S3(pull=False):
 	'''Download any new or modified video files from S3.
@@ -52,6 +53,16 @@ def update_account_data():
 	'''Get current account data from the server and save to the account file'''
 	client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
 	accounts = client.fetch_accounts()
+	allusernames = [acc.id.split('.')[-1] for acc in accounts]
+
+	if os.path.exists(paths.ACCOUNT_FILENAME):
+	    with open(paths.ACCOUNT_FILENAME,'rb') as f:
+	        existingData = pickle.load(f)
+            newUsernames = set(allusernames) - set(existingData.keys())
+            print "New accounts:"
+            printer.pprint(newUsernames)
+            print "---End new accounts"
+
 	allAccounts = {}
 	for acc in accounts:
 		fullId = acc.id

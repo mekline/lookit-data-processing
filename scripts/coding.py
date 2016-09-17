@@ -417,6 +417,13 @@ class Experiment(object):
                 continue
             key = paths.make_session_key(expId, sessId)
 
+            # TODO: if it's a consent video, copy it to a separate consent directory
+            # (sessions/study/consents/)
+            if 'consent' in frameId:
+                consentDir = os.path.join(paths.SESSION_DIR, expId, 'consents')
+                make_sure_path_exists(consentDir)
+                sp.call(['cp', os.path.join(paths.VIDEO_DIR, vidName), os.path.join(consentDir, vidName)])
+
             # Skip videos for other studies
             if expId != self.expId:
                 continue
@@ -1626,7 +1633,8 @@ if __name__ == '__main__':
                'removebatch': ['study'],  # must provide batchID or batchFile
                'exportmat': ['study'],
                'updatevcode': ['study'],
-               'tests': []}
+               'tests': [],
+               'updatevideodata': ['study']}
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Coding operations for Lookit data',
@@ -1711,7 +1719,8 @@ if __name__ == '__main__':
 
     elif args.action == 'update':
         print 'Starting Lookit update, {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
-        #update_account_data()
+        update_account_data()
+        Experiment.export_accounts()
         exp.accounts = exp.load_account_data()
         newVideos = sync_S3(pull=True)
         exp.update_session_data()
@@ -1719,7 +1728,7 @@ if __name__ == '__main__':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
         assert len(unmatched) == 0
         exp.update_videos_found()
-        exp.concatenate_session_videos('all', display=True, replace=False)
+        #exp.concatenate_session_videos('all', display=True, replace=False)
         print 'update complete'
 
     elif args.action == 'makebatches': # TODO: update criteria
@@ -1746,4 +1755,7 @@ if __name__ == '__main__':
 
     elif args.action == 'updatevcode':
         exp.read_batch_coding()
+
+    elif args.action == 'updatevideodata':
+        sessionsAffected, improperFilenames, unmatched = exp.update_video_data(newVideos='all', reprocess=True, resetPaths=False, display=False)
 
