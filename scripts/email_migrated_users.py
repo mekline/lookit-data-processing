@@ -39,9 +39,10 @@ def main(dry=True, debug=False, verbosity=0):
                     raise RuntimeError(res.json())
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('-DR', '--dry', type=bool, default=True)
-    parser.add_argument('-D', '--debug', type=bool, default=False)
+    parser.add_argument('-DR', '--dry', action='store_true')
+    parser.add_argument('-D', '--debug', action='store_true')
     parser.add_argument('-V', '--verbosity', type=int, default=0, choices=(0, 1, 2))  # noqa
     args = parser.parse_args()
     main(**vars(args))
