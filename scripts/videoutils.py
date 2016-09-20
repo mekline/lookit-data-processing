@@ -45,7 +45,15 @@ def get_video_details(vidName, whichAttr, fullpath=False):
     cmd = "/usr/local/bin/ffprobe -v quiet -show_format -print_format json -show_streams -count_frames"
     args = shlex.split(cmd)
     args.append(vidPath)
-    ffprobeOutput = sp.check_output(args).decode('utf-8')
+    try:
+        ffprobeOutput = sp.check_output(args).decode('utf-8')
+    except:
+        warn('Error running ffprobe to get video details, returning 0s')
+        if len(whichAttr) == 1:
+            return -1
+        else:
+            return [-1] * len(whichAttr)
+
     ffprobeOutput = json.loads(ffprobeOutput)
 
 
