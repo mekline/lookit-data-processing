@@ -1095,7 +1095,7 @@ class Experiment(object):
         backup_and_save(paths.batch_filename(self.expId), self.batchData)
 
     def generate_codesheet(self, coderName, showOtherCoders=True, showAllHeaders=False,
-    includeFields=[], filter={}):
+    includeFields=[], filter={}, ignoreProfiles=[]):
         '''Create a .csv coding sheet for a particular study and coder
 
         csv will be named expID_coderName.csv and live in the CODING_DIR.
@@ -1124,6 +1124,8 @@ class Experiment(object):
         	the dict and looking for includeFields above, so it's possible to use
         	just the ending of a field if it's also in includeFields. Use 'None' in the
         	lists to allow records that don't have this key.
+
+        ignoreProfiles: list of profile IDs not to show, e.g. for test accounts
 
         '''
 
@@ -1189,9 +1191,9 @@ class Experiment(object):
         # Continue predetermined starting list
         headerStart = headerStart + ['attributes.feedback',
             'attributes.hasReadFeedback',
-            'attributes.completed', 'nVideosExpected', 'nVideosFound', 'videosExpected', 'videosFound',
+            'attributes.completed', 'nVideosExpected', 'nVideosFound'] + includeFields + ['videosExpected', 'videosFound',
             'child.birthday', 'child.deleted', 'child.gender', 'child.profileId',
-            'child.additionalInformation'] + includeFields
+            'child.additionalInformation']
 
         # Add remaining headers from data if using
         if showAllHeaders:
@@ -1206,6 +1208,9 @@ class Experiment(object):
             codingList = [sess for sess in codingList if (key in sess.keys() and sess[key] in vals) or
                 (key not in sess.keys() and None in vals)]
 
+        if ignoreProfiles:
+            codingList = [sess for sess in codingList if sess['child.profileId'] not in ignoreProfiles]
+
         # Reencode anything in unicode
         for record in codingList:
             for k in record.keys():
@@ -1217,6 +1222,33 @@ class Experiment(object):
         # Back up any existing coding file by the same name & save
         codesheetPath = paths.codesheet_filename(self.expId, coderName)
         backup_and_save_dict(codesheetPath, codingList, headerList)
+
+        # Display a quick summary of the data
+
+        # How many records?
+        profileIds = [sess['child.profileId'] for sess in codingList]
+        print "Number of records: {} ({} unique)".format(len(codingList), len(list(set(profileIds))))
+        hasVideo = [sess['child.profileId'] for sess in codingList if sess['nVideosExpected'] > 0]
+        print "Completed consent: {} ({} unique)".format(len(hasVideo),
+            len(list(set(hasVideo))))
+        allVideo = [sess for sess in codingList if sess['nVideosExpected'] > 0]
+        print "\tonly consent {}, some study videos {}, entire study {}".format(
+            len([sess for sess in codingList if sess['nVideosExpected'] == 1]),
+            len([sess for sess in codingList if 1 < sess['nVideosExpected'] < 25]),
+            len([sess for sess in codingList if sess['nVideosExpected'] >= 25]))
+        print "\tvalid consent {}".format(
+            len([sess for sess in codingList if sess['consent'] == 'yes']))
+        print "Other consent values:"
+        printer.pprint([(sess['consent'], sess.get('coderComments.Kim')) for sess in codingList if sess['consent'] not in ['orig', 'yes']])
+
+
+        print "Privacy: data from {}. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
+            len([sess for sess in codingList if 'exit-survey.withdrawal' in sess.keys()]),
+            len([sess for sess in codingList if sess.get('exit-survey.withdrawal', False) == True]),
+            len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'private']),
+            len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'scientific']),
+            len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'public']))
+
 
     def commit_coding(self, coderName):
         '''Update the coding file for expId based on a CSV edited by a coder.
@@ -1584,12 +1616,16 @@ if __name__ == '__main__':
                       'test': '57adc3373de08a003fb12aad',
                       'pilot': '57dae6f73de08a0056fb4165',
                       'prodpilot':'57bc591dc0d9d70055f775db'}
+
+    ignoreProfiles = ['kim2.smtS6', 'sam.pOE5w']
     # TODO: select fields to display
     includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
                             '57adc3373de08a003fb12aad': [],
                             '57dae6f73de08a0056fb4165': ['exit-survey.withdrawal',
                                                          'exit-survey.useOfMedia',
                                                          'exit-survey.databraryShare',
+                                                         'exit-survey.feedback',
+                                                         'instructions.confirmationcode',
                                                          'mood-survey.active',
                                                          'mood-survey.childHappy',
                                                          'mood-survey.rested',
@@ -1597,12 +1633,16 @@ if __name__ == '__main__':
                                                          'mood-survey.doingBefore',
                                                          'mood-survey.lastEat',
                                                          'mood-survey.napWakeUp',
+                                                         'mood-survey.nextNap',
+                                                         'mood-survey.usualNapSchedule',
                                                          'mood-survey.ontopofstuff',
                                                          'mood-survey.parentHappy',
                                                          'mood-survey.energetic'],
                             '57bc591dc0d9d70055f775db': ['exit-survey.withdrawal',
                                                          'exit-survey.useOfMedia',
                                                          'exit-survey.databraryShare',
+                                                         'exit-survey.feedback',
+                                                         'instructions.confirmationcode',
                                                          'mood-survey.active',
                                                          'mood-survey.childHappy',
                                                          'mood-survey.rested',
@@ -1610,6 +1650,8 @@ if __name__ == '__main__':
                                                          'mood-survey.doingBefore',
                                                          'mood-survey.lastEat',
                                                          'mood-survey.napWakeUp',
+                                                         'mood-survey.nextNap',
+                                                         'mood-survey.usualNapSchedule',
                                                          'mood-survey.ontopofstuff',
                                                          'mood-survey.parentHappy',
                                                          'mood-survey.energetic']}
@@ -1634,7 +1676,8 @@ if __name__ == '__main__':
                'exportmat': ['study'],
                'updatevcode': ['study'],
                'tests': [],
-               'updatevideodata': ['study']}
+               'updatevideodata': ['study'],
+               'summarize': ['study']}
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Coding operations for Lookit data',
@@ -1672,13 +1715,13 @@ if __name__ == '__main__':
 
     elif args.action == 'fetchcodesheet': # TODO: change back to consent: yes
         print 'Fetching codesheet...'
-        exp.generate_codesheet(args.coder, filter={'consent':['orig'], 'exit-survey.withdrawal': [False, None]}, showAllHeaders=False,
-            includeFields=includeFields)
+        exp.generate_codesheet(args.coder, filter={'consent':['yes'], 'exit-survey.withdrawal': [False, None]}, showAllHeaders=False,
+            includeFields=includeFields, ignoreProfiles=ignoreProfiles)
 
     elif args.action == 'fetchconsentsheet':
         print 'Fetching consentsheet...'
         exp.generate_codesheet(args.coder, filter={}, showAllHeaders=True,
-            includeFields=includeFields)
+            includeFields=includeFields, ignoreProfiles=ignoreProfiles)
 
     elif args.action == 'commitcodesheet':
         print 'Committing codesheet...'
@@ -1719,8 +1762,8 @@ if __name__ == '__main__':
 
     elif args.action == 'update':
         print 'Starting Lookit update, {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
-        update_account_data()
-        Experiment.export_accounts()
+        #update_account_data()
+        #Experiment.export_accounts()
         exp.accounts = exp.load_account_data()
         newVideos = sync_S3(pull=True)
         exp.update_session_data()
@@ -1728,6 +1771,7 @@ if __name__ == '__main__':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
         assert len(unmatched) == 0
         exp.update_videos_found()
+        exp.make_mp4s_for_study(sessionsToProcess='missing', display=True, trimming=False, suffix='whole')
         #exp.concatenate_session_videos('all', display=True, replace=False)
         print 'update complete'
 
