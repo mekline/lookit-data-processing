@@ -1617,15 +1617,15 @@ if __name__ == '__main__':
                       'pilot': '57dae6f73de08a0056fb4165',
                       'prodpilot':'57bc591dc0d9d70055f775db'}
 
-    ignoreProfiles = ['kim2.smtS6', 'sam.pOE5w']
-    # TODO: select fields to display
+    ignoreProfiles = ['kim2.smtS6', 'sam.pOE5w', 'abought.hqReV']
+
     includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
                             '57adc3373de08a003fb12aad': [],
                             '57dae6f73de08a0056fb4165': ['exit-survey.withdrawal',
                                                          'exit-survey.useOfMedia',
                                                          'exit-survey.databraryShare',
                                                          'exit-survey.feedback',
-                                                         'instructions.confirmationcode',
+                                                         'instructions.confirmationCode',
                                                          'mood-survey.active',
                                                          'mood-survey.childHappy',
                                                          'mood-survey.rested',
@@ -1642,7 +1642,7 @@ if __name__ == '__main__':
                                                          'exit-survey.useOfMedia',
                                                          'exit-survey.databraryShare',
                                                          'exit-survey.feedback',
-                                                         'instructions.confirmationcode',
+                                                         'instructions.confirmationCode',
                                                          'mood-survey.active',
                                                          'mood-survey.childHappy',
                                                          'mood-survey.rested',
@@ -1762,8 +1762,8 @@ if __name__ == '__main__':
 
     elif args.action == 'update':
         print 'Starting Lookit update, {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
-        #update_account_data()
-        #Experiment.export_accounts()
+        update_account_data()
+        Experiment.export_accounts()
         exp.accounts = exp.load_account_data()
         newVideos = sync_S3(pull=True)
         exp.update_session_data()

@@ -55,6 +55,7 @@ def update_account_data():
 	accounts = client.fetch_accounts()
 	allusernames = [acc.id.split('.')[-1] for acc in accounts]
 
+    # Flag new accounts
 	if os.path.exists(paths.ACCOUNT_FILENAME):
 	    with open(paths.ACCOUNT_FILENAME,'rb') as f:
 	        existingData = pickle.load(f)
@@ -63,11 +64,9 @@ def update_account_data():
             printer.pprint(newUsernames)
             print "---End new accounts"
 
-	allAccounts = {}
-	for acc in accounts:
-		fullId = acc.id
-		pieces = fullId.split('.')
-		username = pieces[-1]
+    # TODO: change back to all accounts!!
+	allAccounts = existingData # {}
+	for username in newUsernames: #allusernames
 		print username
 		accData = client.fetch_account(username)
 		allAccounts[username] = accData
