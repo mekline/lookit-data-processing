@@ -55,6 +55,7 @@ def backup(filepath):
         newDir = os.path.join(fileDir, 'backup', timestamp())
         make_sure_path_exists(newDir)
         os.rename(filepath, os.path.join(newDir, fileName))
+        print "Backing up {} to {}".format(fileName, newDir)
 
 def backup_and_save_dict(filepath, dictList, headerList):
     '''Save a list of dicts to a csv file, backing up existing file first.
