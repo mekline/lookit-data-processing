@@ -5,7 +5,7 @@ import {
 
 moduleForModel('account', 'Unit | Model | account', {
     // Specify the other units that are required for this test.
-    needs: []
+    needs: ['model:history']
 });
 
 test('it exists', function(assert) {

@@ -207,4 +207,5 @@ def test():
     client.set_password_reset_template('b1808cb9-1bdd-45d2-a048-5228d2aa1ca4')
 
 
-test() if __name__ == '__main__' else None
+if __name__ == '__main__':
+    test()

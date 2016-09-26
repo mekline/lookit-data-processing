@@ -18,6 +18,9 @@ testem.log
 /public/VideoRecorder.swf
 /.env
 
+# Virtualenv
+scripts/env
+
 migration/output/*
 scripts/.env
 scripts/venv/bin/activate

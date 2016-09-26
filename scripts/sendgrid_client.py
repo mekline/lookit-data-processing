@@ -1,7 +1,6 @@
 import argparse
 import sendgrid
 import json
-import pprint
 
 import conf
 
@@ -12,6 +11,7 @@ class EmailPreferences(object):
         'Next Session': 'nextSession',
         'New Studies': 'newStudies',
         'Results Published': 'resultsPublished',
+        'Opt Out': 'optOut',
         'Personal communication': 'personalCommunication'
     }
 
@@ -31,7 +31,7 @@ class SendGrid(object):
         self.smtp = sendgrid.SendGridClient(
             apikey or conf.SENDGRID_KEY
         )
-        self.from_addr = from_addr or 'Lookit team <lookit@mit.edu>'
+        self.from_addr = from_addr or 'Test client <test-client@foo.com>'
 
     def groups(self):
         res = self.sg.client.asm.groups.get()
@@ -55,7 +55,7 @@ class SendGrid(object):
     def batch_unsubscribe_from(self, group, emails):
         return json.loads(
             self.sg.client.asm.groups._(group['id']).suppressions.post(
-                request_body={"recipient_emails": emails}
+                request_body={'recipient_emails': emails}
             ).response_body
         )
 
@@ -82,20 +82,19 @@ def test(recipient_email, subscribe=True, unsubscribe=False):
     sg = SendGrid()
     groups = sg.groups()
     for _, group in groups.items():
-        print "Emails currently in the unsubscribe group '{}':".format(group['name'])  # noqa
-        print "{}".format(', '.join(sg.unsubscribes_for(group)))
-        print "-------------------"
-
-        print "{}ubscribing {}".format('S' if not unsubscribe else 'Uns', recipient_email)  # noqa
+        print 'Emails currently in the unsubscribe group "{}":'.format(group['name'])  # noqa
+        print '{}'.format(', '.join(sg.unsubscribes_for(group)))
+        print '-------------------'
+        print '{}ubscribing {}'.format('S' if not unsubscribe else 'Uns', recipient_email)  # noqa
         if not unsubscribe:
             sg.subscribe_to(group, recipient_email)
         else:
             sg.unsubscribe_from(group, recipient_email)
-        print "-------------------"
-        print "Emails now in the unsubscribe group:"
-        print "{}".format(', '.join(sg.unsubscribes_for(group)))
-        print "-------------------"
-        print "Sending a test email to {} with group_id {}".format(
+        print '-------------------'
+        print 'Emails now in the unsubscribe group:'
+        print '{}'.format(', '.join(sg.unsubscribes_for(group)))
+        print '-------------------'
+        print 'Sending a test email to {} with group_id {}'.format(
             recipient_email,
             group['id']
         )
@@ -105,7 +104,7 @@ def test(recipient_email, subscribe=True, unsubscribe=False):
             'This is a test',
             group_id=group['id']
         )
-        print "*******************"
+        print '*******************'
 
 
 if __name__ == '__main__':
