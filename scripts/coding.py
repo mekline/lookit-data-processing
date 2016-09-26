@@ -1236,8 +1236,15 @@ class Experiment(object):
             len([sess for sess in codingList if sess['nVideosExpected'] == 1]),
             len([sess for sess in codingList if 1 < sess['nVideosExpected'] < 25]),
             len([sess for sess in codingList if sess['nVideosExpected'] >= 25]))
-        print "\tvalid consent {}".format(
-            len([sess for sess in codingList if sess['consent'] == 'yes']))
+        consentSess = [sess for sess in codingList if sess['consent'] == 'yes']
+        print "Valid consent: {} ({} unique)".format(
+            len(consentSess),
+            len(list(set([sess['child.profileId'] for sess in consentSess]))))
+        print "\tonly consent {}, some study videos {}, entire study {} ({} unique)".format(
+            len([sess for sess in consentSess if sess['nVideosExpected'] == 1]),
+            len([sess for sess in consentSess if 1 < sess['nVideosExpected'] < 25]),
+            len([sess for sess in consentSess if sess['nVideosExpected'] >= 25]),
+            len(list(set([sess['child.profileId'] for sess in consentSess if sess['nVideosExpected'] >= 25]))))
         print "Other consent values:"
         printer.pprint([(sess['consent'], sess.get('coderComments.Kim')) for sess in codingList if sess['consent'] not in ['orig', 'yes']])
 
@@ -1248,6 +1255,11 @@ class Experiment(object):
             len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'private']),
             len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'scientific']),
             len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'public']))
+
+        print "Databrary: data from {}. \n\tyes {}, no {}".format(
+            len([sess for sess in codingList if 'exit-survey.databraryShare' in sess.keys()]),
+            len([sess for sess in codingList if sess.get('exit-survey.databraryShare', False) == 'yes']),
+            len([sess for sess in codingList if sess.get('exit-survey.databraryShare', False) == 'no']))
 
 
     def commit_coding(self, coderName):
@@ -1771,7 +1783,7 @@ if __name__ == '__main__':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
         assert len(unmatched) == 0
         exp.update_videos_found()
-        exp.make_mp4s_for_study(sessionsToProcess='missing', display=True, trimming=False, suffix='whole')
+        #exp.make_mp4s_for_study(sessionsToProcess='missing', display=True, trimming=False, suffix='whole')
         #exp.concatenate_session_videos('all', display=True, replace=False)
         print 'update complete'
 
