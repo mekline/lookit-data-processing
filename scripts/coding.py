@@ -532,7 +532,7 @@ class Experiment(object):
         # Save coding & video data
         backup_and_save(paths.coding_filename(self.expId), self.coding)
 
-    def make_mp4s_for_study(self, sessionsToProcess='missing', display=False,
+    def make_mp4s_for_study(self, sessionsToProcess='missing', filter={}, display=False,
         trimming=False, suffix=''):
         '''Convert flvs to mp4s for sessions in a particular study.
 
@@ -543,6 +543,14 @@ class Experiment(object):
         	don't already exist (both video file and entry in videoData).
         	'all' creates mp4s for all session flvs, even if they already
         	exist.
+
+        filter: dictionary of codingKey:[value1, value2, ...] pairs that should be required
+            in the coding data in
+        	order for the session to be included in the codesheet. Only sessions
+        	with a value in the list for this header will be shown. (Most
+        	common usage is {'consent':['yes']} to only process sessions we have
+        	already confirmed consent for.) Use 'None' as a value to allow sessions
+        	where codingKey is not present.
 
         display: (default False) whether to print out information about
         	progress
@@ -576,6 +584,10 @@ class Experiment(object):
             # Make sure list of sessions is unique
             sessionKeys = list(set(sessionsToProcess))
 
+        # Only process data that passes filter
+        for (key, vals) in filter.items():
+            sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
+                (key not in self.coding[sKey].keys() and None in vals)]
 
         # Process each session...
         for sessKey in sessionKeys:
@@ -1782,7 +1794,7 @@ if __name__ == '__main__':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
         assert len(unmatched) == 0
         exp.update_videos_found()
-        #exp.make_mp4s_for_study(sessionsToProcess='missing', display=True, trimming=False, suffix='whole')
+        exp.make_mp4s_for_study(sessionsToProcess='missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, trimming=False, suffix='whole')
         #exp.concatenate_session_videos('all', display=True, replace=False)
         print 'update complete'
 
