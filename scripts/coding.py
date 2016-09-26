@@ -937,6 +937,7 @@ class Experiment(object):
     def empty_coding_record(self):
         '''Return a new instance of an empty coding dict'''
         emptyRecord = {'consent': 'orig',
+                'consentnotes': '',
                 'usable': '',
                 'withdrawn': None,
                 'feedback': '',
@@ -1185,7 +1186,7 @@ class Experiment(object):
 
         # Organize the headers we actually want to put in the file - headerStart will come
         # first, then alphabetized other headers if we're using them
-        headerStart = ['id', 'meta.created-on', 'child.profileId', 'consent', 'usable', 'withdrawn', 'feedback',
+        headerStart = ['id', 'meta.created-on', 'child.profileId', 'consent', 'withdrawn', 'consentnotes', 'usable', 'feedback',
             'ageRegistration', 'ageExitsurvey']
 
         # Insert this and other coders' data here if using
@@ -1712,9 +1713,10 @@ if __name__ == '__main__':
         help='Coder name to create sheet or commit coding for')
     parser.add_argument('--study', help='Study ID')
     parser.add_argument('--fields', help='Fields to commit (used for commitconsentsheet only)',
-        action='append', default=['consent', 'feedback'])
+        action='append', default=['consent', 'feedback', 'usable', 'consentnotes'])
     parser.add_argument('--batchID', help='Batch ID to remove, or "all" (used for removebatch only)')
     parser.add_argument('--batchFile', help='Batch filename to remove (used for removebatch only)')
+    parser.add_argument('-c', '--config', type=str, default='.env-prod', help='.env file to use; defaults to .env-prod')
 
     args = parser.parse_args()
 
@@ -1743,7 +1745,7 @@ if __name__ == '__main__':
 
     elif args.action == 'fetchconsentsheet':
         print 'Fetching consentsheet...'
-        exp.generate_codesheet(args.coder, filter={}, showAllHeaders=True,
+        exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(1,100)}, showAllHeaders=True,
             includeFields=includeFields, ignoreProfiles=ignoreProfiles)
 
     elif args.action == 'commitcodesheet':
