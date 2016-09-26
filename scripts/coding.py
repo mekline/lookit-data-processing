@@ -21,14 +21,7 @@ import numpy as np
 import vcode
 
 class Experiment(object):
-    '''TODO: DOC'''
-
-    # TODO: for backup_and_save, allow hold flag in init that says whether to wait until
-    # explicitly instructed to save data. Also make fn to backup/save all, and allow
-    # tagging the backups (e.g. "FNNAME - before commit Kim").
-
-    # TODO: clear UI & docs for coders, future self. Set up to do basic updates
-    # automatically.
+    '''Represent a Lookit experiment with stored session, coding, & video data.'''
 
     # Don't have ffmpeg tell us everything it has ever thought about.
     loglevel = 'quiet'
@@ -275,7 +268,11 @@ class Experiment(object):
             inputList = inputList + '[{}:0][{}:1]'.format(iVid, iVid)
 
         # Concatenate the videos
-        concat = concat + ['-filter_complex', inputList + 'concat=n={}:v=1:a=1'.format(len(vidPaths)) + '[out]', '-map', '[out]', concatPath, '-loglevel', 'error']
+        concat = concat + ['-filter_complex', inputList + 'concat=n={}:v=1:a=1'.format(len(vidPaths)) + '[out]',
+            '-map', '[out]', concatPath, '-loglevel', 'error', "-c:v", "libx264", "-preset", "slow",
+			"-b:v", "1000k", "-maxrate", "1000k", "-bufsize", "2000k",
+			"-c:a", "libfdk_aac", "-b:a", "128k"]
+
         sp.call(concat)
 
         # Check and return the duration of the video stream
@@ -693,7 +690,8 @@ class Experiment(object):
             # Sort the vidNames found by timestamp so we concat in order.
             withTs = [(paths.parse_videoname(v)[3], v) for v in vidNames]
             vidNames = [tup[1] for tup in sorted(withTs)]
-            vidNames = [v for vid in vidNames if len(self.videoData[vid]['mp4Path_whole'])] # TODO: this assumes we have mp4Path_whole in all cases
+            # TODO: this assumes we have mp4Path_whole in all cases
+            vidNames = [vid for vid in vidNames if len(self.videoData[vid]['mp4Path_whole'])]
 
             if len(vidNames) == 0:
                 warn('No video data for session {}'.format(sessKey))
@@ -1584,7 +1582,8 @@ To check for issues with batch concatenation, where total file length != sum of 
 To look for and process VCode files for batch videos:
     python coding.py updatevcode --study STUDY
 
-To switch between prod and staging:
+To use the staging database:
+    add the argument --config .env-staging to any other command
 
 
 Partial updates:
@@ -1687,7 +1686,7 @@ if __name__ == '__main__':
                'removebatch': ['study'],  # must provide batchID or batchFile
                'exportmat': ['study'],
                'updatevcode': ['study'],
-               'tests': [],
+               'tests': ['study'],
                'updatevideodata': ['study'],
                'summarize': ['study']}
 
@@ -1815,3 +1814,5 @@ if __name__ == '__main__':
     elif args.action == 'updatevideodata':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(newVideos='all', reprocess=True, resetPaths=False, display=False)
 
+    elif args.action == 'tests':
+        exp.concatenate_session_videos(['lookit.session57bc591dc0d9d70055f775dbs.57dd7bfac0d9d70060c67c51'], display=True, replace=False)
