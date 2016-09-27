@@ -77,11 +77,21 @@ def get_video_details(vidName, whichAttr, fullpath=False):
                     audioStream = iStream
                 elif ffprobeOutput['streams'][iStream]['codec_type'] == 'video':
                     videoStream = iStream
-            if videoStream == -1 or audioStream == -1:
-                warn('Missing audio or video stream for video {}'.format(vidName))
-                returnVal = 0
-                attributes.append(returnVal)
-                continue
+
+
+            if videoStream == -1:
+                warn('Missing video stream for video {}'.format(vidName))
+                if attr in ['nframes', 'height', 'width', 'vidduration']:
+                    returnVal = 0
+                    attributes.append(returnVal)
+                    continue
+
+            if audioStream == -1:
+                warn('Missing audio stream for video {}'.format(vidName))
+                if attr in ['audduration']:
+                    returnVal = 0
+                    attributes.append(returnVal)
+                    continue
 
             if attr == 'nframes':
                 if 'nb_read_frames' in ffprobeOutput['streams'][videoStream].keys():
