@@ -203,6 +203,10 @@ class ExperimenterClient(object):
 
 def test():
     client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()  # noqa
+    # Use the migration template
+    #client.set_password_reset_template('e0ea5319-429e-46fc-b65c-49f56518003a')
+
+
     # revert back to regular password-reset email
     client.set_password_reset_template('b1808cb9-1bdd-45d2-a048-5228d2aa1ca4')
 

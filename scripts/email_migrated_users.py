@@ -1,12 +1,13 @@
 import argparse
 import logging
 import requests
-
+from datetime import datetime
 from client import Account, ExperimenterClient
 import conf
 
 url = '{}/v1/id/collections/{}.accounts/_search?q=_exists_:migratedFrom'.format(conf.JAM_HOST, conf.JAM_NAMESPACE)  # noqa
 
+logfilename = '/Users/kms/lookitkim/scripts/logs/successfullymigrated' + datetime.today().strftime("%y%m%d%H%M%S") + '.txt'
 
 def main(dry=True, debug=False, verbosity=0, user=None):
     verbosity = min(max(verbosity, 0), 2)
@@ -16,6 +17,8 @@ def main(dry=True, debug=False, verbosity=0, user=None):
         logging.basicConfig(level=logging.DEBUG)
 
     client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
+
+    logfile = open(logfilename, 'w')
 
     if user:
         account_payload = client.fetch_account(user)
@@ -46,6 +49,11 @@ def main(dry=True, debug=False, verbosity=0, user=None):
                     ipdb.set_trace()
                 else:
                     raise RuntimeError(res.json())
+
+        # Write email address to file
+        logfile.write(account.email + '\n')
+
+    logfile.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
