@@ -3,6 +3,7 @@ import subprocess as sp
 from warnings import warn
 import shlex
 import json
+import lookitpaths as paths
 
 # function to find the resolution of the input video file
 # http://stackoverflow.com/a/34356719
@@ -42,13 +43,13 @@ def get_video_details(vidName, whichAttr, fullpath=False):
         vidPath = vidName
 
     # Run ffprobe and collect output with data about video
-    cmd = "/usr/local/bin/ffprobe -v quiet -show_format -print_format json -show_streams -count_frames"
+    cmd = paths.FFPROBE + " -v quiet -show_format -print_format json -show_streams -count_frames"
     args = shlex.split(cmd)
     args.append(vidPath)
     try:
         ffprobeOutput = sp.check_output(args).decode('utf-8')
     except:
-        warn('Error running ffprobe to get video details, returning 0s')
+        warn('Error running ffprobe to get video details, returning -1')
         if len(whichAttr) == 1:
             return -1
         else:

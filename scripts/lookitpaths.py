@@ -2,36 +2,40 @@ import os
 from utils import make_sure_path_exists
 import conf
 
-FFMPEG = '/usr/local/bin/ffmpeg'
-
 #OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')
 #SENDGRID_KEY = os.environ.get('SENDGRID_KEY')
 CODERS = eval(os.environ['CODERS'])
-VIDEO_DIR = os.environ.get("VIDEO_DIR")
-BATCH_DIR = os.environ.get("BATCH_DIR")
-DATA_DIR = os.environ.get("DATA_DIR")
-CODING_DIR = os.environ.get("CODING_DIR")
-SESSION_DIR = os.environ.get("SESSION_DIR")
+BASE_DIR=os.environ.get("BASE_DIR")
+VIDEO_DIR = os.path.join(BASE_DIR, os.environ.get("VIDEO_DIR"))
+BATCH_DIR = os.path.join(BASE_DIR, os.environ.get("BATCH_DIR"))
+DATA_DIR = os.path.join(BASE_DIR, os.environ.get("DATA_DIR"))
+CODING_DIR = os.path.join(BASE_DIR, os.environ.get("CODING_DIR"))
+SESSION_DIR = os.path.join(BASE_DIR, os.environ.get("SESSION_DIR"))
+FFMPEG = os.environ.get("FFMPEG_PATH")
+FFPROBE = os.path.join(os.path.split(FFMPEG)[0], 'ffprobe')
 
-for d in ["VIDEO_DIR", "BATCH_DIR", "DATA_DIR", "CODING_DIR", "SESSION_DIR"]:
-    make_sure_path_exists(os.environ.get(d))
+make_sure_path_exists(VIDEO_DIR)
+make_sure_path_exists(BATCH_DIR)
+make_sure_path_exists(DATA_DIR)
+make_sure_path_exists(CODING_DIR)
+make_sure_path_exists(SESSION_DIR)
 
 VIDEO_FILENAME = os.path.join(DATA_DIR, 'video_data.bin')
 ACCOUNT_FILENAME = os.path.join(DATA_DIR, 'accounts' + conf.VERSION + '.bin')
 
 def session_filename(expId):
     '''Return full path to the session data filename for experiment expId'''
-    return os.path.join(os.environ.get('DATA_DIR'), 'session_data_' + \
+    return os.path.join(DATA_DIR, 'session_data_' + \
         expId + '.bin')
 
 def coding_filename(expId):
     '''Return full path to the coding data filename for experiment expId'''
-    return os.path.join(os.environ.get('DATA_DIR'), 'coding_data_' + \
+    return os.path.join(DATA_DIR, 'coding_data_' + \
         expId + '.bin')
 
 def batch_filename(expId):
     '''Return full path to the batch data filename for experiment expId'''
-    return os.path.join(os.environ.get('DATA_DIR'), 'batch_data_' + \
+    return os.path.join(DATA_DIR, 'batch_data_' + \
         expId + '.bin')
 
 def vcode_filename(batchFilename, coderName):
