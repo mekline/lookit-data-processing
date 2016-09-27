@@ -3,7 +3,7 @@ import errno
 import pickle
 from client import Account, ExperimenterClient
 #from sendgrid_client import SendGrid
-from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, flatten_dict, backup, backup_and_save_dict
+from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, flatten_dict, backup, backup_and_save_dict, display_unique_counts
 import uuid
 import subprocess as sp
 import sys
@@ -99,7 +99,7 @@ class Experiment(object):
         return accountData
 
     @classmethod
-    def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='', replace=False):
+    def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='', replace=False, whichFrames=[]):
         '''	Convert flvs in VIDEO_DIR to mp4s organized in SESSION_DIR for a
 		particular session
 
@@ -127,6 +127,10 @@ class Experiment(object):
         	replace: False (default) to skip making an mp4 if (a) we
         		already have the correct filename and (b) we have a
         		record of it in videoData, True to make anyway.
+
+        	whichFrames: list of substrings of video filenames for which we should
+                actually do processing, e.g. ['video-consent', 'video-preview'].
+                Default of [] means process all frames.
 
         	To make the mp4, we first create video-only and
         		audio-only files from the original flv file. Then we
@@ -175,9 +179,15 @@ class Experiment(object):
         for (iVid, vid) in enumerate(vidNames):
             vidPath = os.path.join(paths.VIDEO_DIR, vid)
 
+            # Only process videos in whichFrames if argument given
+            if len(whichFrames):
+                if not any([fr in vid for fr in whichFrames]):
+                    continue
+
             # If not replacing: check that we haven't already (tried to) make this mp4
             mergedFilename = vid[:-4] + '_' + suffix + '.mp4'
             mergedPath = os.path.join(sessionDir, mergedFilename)
+
             if not replace and os.path.exists(mergedPath) and vid in cls.videoData.keys() and ('mp4Dur_' + suffix) in cls.videoData[vid].keys() and ('mp4Path_' + suffix) in cls.videoData[vid].keys():
                 if display:
                     print "Already have {} mp4 for video {}, skipping".format(suffix, vid)
@@ -205,7 +215,7 @@ class Experiment(object):
 
             # Make video-only file
             (_, frameId, sessStr, timestamp, _) = paths.parse_videoname(vid)
-            filterComplexVideo = "[0:v]drawtext='fontfile=/Library/Fonts/Arial Black.ttf':text='"+frameId + '_' + '_' + sessStr + '_' + timestamp + "':fontsize=12:fontcolor=red:x=10:y=10,setpts=PTS-STARTPTS" + trimStrVideo + "[v0]"
+            filterComplexVideo = "[0:v]drawtext='fontfile=/Library/Fonts/Arial Black.ttf':text='"+frameId + '_' + '_' + sessStr + '_' + timestamp + "':fontsize=16:fontcolor=red:x=10:y=10,setpts=PTS-STARTPTS" + trimStrVideo + "[v0]"
             noAudioPath = os.path.join(sessionDir, vid[:-4] + '_video.mp4')
             sp.call([paths.FFMPEG, '-i', vidPath, '-filter_complex',
     filterComplexVideo, '-map', '[v0]', '-c:v', 'libx264', '-an', '-vsync', 'cfr', '-r', '30', '-crf', '18', noAudioPath, '-loglevel', cls.loglevel])
@@ -223,8 +233,12 @@ class Experiment(object):
                 audioPath = os.path.join(sessionDir, vid[:-4] + '_audio.m4a')
                 sp.call([paths.FFMPEG, '-i', vidPath, '-vn', '-filter_complex', filterComplexAudio, '-c:a', 'libfdk_aac', '-loglevel', cls.loglevel, audioPath])
 
-                # Put audio and video together
-                sp.call([paths.FFMPEG, '-i', noAudioPath,  '-i', audioPath, '-c:v', 'copy', '-c:a', 'copy', '-shortest', '-loglevel', cls.loglevel, mergedPath])
+                audioOnlyDur = videoutils.get_video_details(audioPath, ['duration'], fullpath=True)
+                # If we don't have audio, just use use the video file
+                if audioOnlyDur in [0, -1]:
+                    sp.call(['mv', noAudioPath, mergedPath])
+                else: # Otherwise, put audio and video together
+                    sp.call([paths.FFMPEG, '-i', noAudioPath,  '-i', audioPath, '-c:v', 'copy', '-c:a', 'copy', '-shortest', '-loglevel', cls.loglevel, mergedPath])
 
                 # Check the duration of the newly created clip
                 (dur, startTime) = videoutils.get_video_details(mergedPath, ['duration', 'starttime'],  fullpath=True)
@@ -262,13 +276,19 @@ class Experiment(object):
         if not len(vidPaths):
             return 0
 
+        # Check whether we have audio for each component file
+        hasAudio = [(not videoutils.get_video_details(vid, ['audduration'], fullpath=True) == 0) for vid in vidPaths]
+
         # Build the concatenate command
         for (iVid, vid) in enumerate(vidPaths):
             concat = concat + ['-i', os.path.join(paths.SESSION_DIR, vid)]
-            inputList = inputList + '[{}:0][{}:1]'.format(iVid, iVid)
+            if all(hasAudio):
+                inputList = inputList + '[{}:0][{}:1]'.format(iVid, iVid)
+            else:
+                inputList = inputList + '[{}:0]'.format(iVid)
 
         # Concatenate the videos
-        concat = concat + ['-filter_complex', inputList + 'concat=n={}:v=1:a=1'.format(len(vidPaths)) + '[out]',
+        concat = concat + ['-filter_complex', inputList + 'concat=n={}:v=1:a={}'.format(len(vidPaths), 1*(all(hasAudio))) + '[out]',
             '-map', '[out]', concatPath, '-loglevel', 'error', "-c:v", "libx264", "-preset", "slow",
 			"-b:v", "1000k", "-maxrate", "1000k", "-bufsize", "2000k",
 			"-c:a", "libfdk_aac", "-b:a", "128k"]
@@ -338,13 +358,14 @@ class Experiment(object):
         backup_and_save_dict(accountsheetPath, accs, headerList)
 
 
-    def __init__(self, expId):
+    def __init__(self, expId, trimLength=None):
         self.expId = expId
         self.batchData = self.load_batch_data(expId)
         self.coding = self.load_coding(expId)
         self.sessions = self.load_session_data(expId)
         self.videoData = self.load_video_data()
         self.accounts = self.load_account_data()
+        self.trimLength = trimLength
         print 'initialized study {}'.format(expId)
 
     def update_session_data(self):
@@ -502,7 +523,7 @@ class Experiment(object):
         ...['videosExpected'][i].
 
         Currently this is very inefficient--rechecks all sessions in the experiment.
-        Note that this does not update the coding or video data; these should
+        Note that this does not update the actual coding or videoData; these should
         already be up to date.'''
 
         print "Updating videos found for study {}", self.expId
@@ -518,7 +539,6 @@ class Experiment(object):
             if len(shortNames) == 0:
                 continue;
 
-
             # Which videos match the expected patterns? Keep track & save the list.
             self.coding[sessKey]['videosFound'] = []
             for (iShort, short) in enumerate(shortNames):
@@ -533,7 +553,7 @@ class Experiment(object):
         backup_and_save(paths.coding_filename(self.expId), self.coding)
 
     def make_mp4s_for_study(self, sessionsToProcess='missing', filter={}, display=False,
-        trimming=False, suffix=''):
+        trimming=False, suffix='', whichFrames=[]):
         '''Convert flvs to mp4s for sessions in a particular study.
 
         expId: experiment id, string (ex.: 574db6fa3de08a005bb8f844)
@@ -565,6 +585,10 @@ class Experiment(object):
         	their originating flv filenames, plus "_[suffix]") and to the
         	fields 'mp4Path_[suffix]' and 'mp4Dur_[suffix]' in videoData.
         	Default ''. As used by make_mp4s.
+
+        whichFrames: list of substrings of video filenames for which we should
+            actually do processing, e.g. ['video-consent', 'video-preview'].
+            Default of [] means process all frames.
 
         Calls make_mp4s to actually create the mp4s; see documentation there.
 
@@ -619,7 +643,8 @@ class Experiment(object):
 
             replace = sessionsToProcess == 'all'
 
-            mp4Data = self.make_mp4s(sessDirRel, vidNames, display, trimming=trimming, suffix=suffix, replace=replace)
+            mp4Data = self.make_mp4s(sessDirRel, vidNames, display, trimming=trimming,
+                suffix=suffix, replace=replace, whichFrames=whichFrames)
 
             for vid in mp4Data.keys():
                 # Save the (relative) path to the mp4 and its duration in video data
@@ -632,7 +657,7 @@ class Experiment(object):
         # Save coding & video data
         backup_and_save(paths.VIDEO_FILENAME, self.videoData)
 
-    def concatenate_session_videos(self, sessionKeys, replace=False, display=False):
+    def concatenate_session_videos(self, sessionKeys, filter={}, replace=False, display=False):
         '''Concatenate videos within the same session for the specified sessions.
 
         Should be run after update_videos_found as it relies on videosFound
@@ -647,20 +672,32 @@ class Experiment(object):
         	to process, e.g. as returned by update_video_data. Session keys
         	are the IDs in session data and the keys for the coding data.
 
+        filter: dictionary of codingKey:[value1, value2, ...] pairs that should be required
+            in the coding data in
+        	order for the session to be included in the codesheet. Only sessions
+        	with a value in the list for this header will be shown. (Most
+        	common usage is {'consent':['yes']} to only process sessions we have
+        	already confirmed consent for.) Use 'None' as a value to allow sessions
+        	where codingKey is not present.
+
         replace: whether to replace existing concatenated files (default
         	False)
 
         display: whether to show debugging output (default False)
 
         For each session, this: - uses videosFound in the coding file to
-        	locate (after creating if necessary) single-clip mp4s (untrimmed)
+        	locate (after creating if necessary) single-clip mp4s
         	with text labels - creates a concatenated mp4 with all video for
         	this session (in order) in SESSION_DIR/expId/sessId/, called
         	expId_sessId.mp4
 
-        Does not save any coding or video data. '''
+        Saves expectedDuration and actualDuration to coding data. '''
 
         print "Making concatenated session videos for study {}".format(self.expId)
+
+        useTrimmedFrames = ['pref-phys-videos']
+        useWholeVideoFrames = ['video-preview', 'video-consent']
+        skipFrames = ['video-consent']
 
         if sessionKeys in ['missing', 'all']:
             sessionKeys = self.coding.keys()
@@ -668,7 +705,17 @@ class Experiment(object):
             # Make sure list of sessions is unique
             sessionKeys = list(set(sessionKeys))
 
-        self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display, trimming=False, suffix='whole')
+        # Only process data that passes filter
+        # TODO: generalize this functionality
+        for (key, vals) in filter.items():
+            sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
+                (key not in self.coding[sKey].keys() and None in vals)]
+
+        self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
+            trimming=self.trimLength, suffix='trimmed', whichFrames=useTrimmedFrames)
+
+        self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
+            trimming=False, suffix='whole', whichFrames=useWholeVideoFrames)
 
         # Process each session...
         for sessKey in sessionKeys:
@@ -696,35 +743,66 @@ class Experiment(object):
 
             # Which videos match the expected patterns? Keep track & save the list.
             vidNames = []
-            for vids in self.coding[sessKey]['videosFound']:
+            vidInds = []
+            for (i, vids) in enumerate(self.coding[sessKey]['videosFound']):
                 vidNames = vidNames + vids
+                vidInds  = vidInds + [i] * len(vids)
+
+            # Remove vidNames we don't want in the concat file
+            for skip in skipFrames:
+                vidNames = [vid for vid in vidNames if skip not in vid]
+
+            # Also skip any other frames where video was ended early
+            vidNames = [vid for (iVid, vid) in zip(vidInds, vidNames) if not self.coding[sessKey]['endedEarly'][iVid]]
+            vidsShown = [self.coding[sessKey]['videosShown'][iVid] for iVid in vidInds]
 
             # Sort the vidNames found by timestamp so we concat in order.
             withTs = [(paths.parse_videoname(v)[3], v) for v in vidNames]
             vidNames = [tup[1] for tup in sorted(withTs)]
-            # TODO: this assumes we have mp4Path_whole in all cases
-            vidNames = [vid for vid in vidNames if len(self.videoData[vid]['mp4Path_whole'])]
+            # Get (vid, useWhole) pairs, where useWhole = whether we should use the 'whole' mp4
+            vidNames = zip(vidNames, [any([fr in vid for fr in useWholeVideoFrames]) for vid in vidNames])
+            # Check we have the duration stored (proxy for whether video conversion worked/have any video)
+            vidNames = [vid for vid in vidNames if (not vid[1] and len(self.videoData[vid[0]]['mp4Path_trimmed'])) or \
+                                                      (vid[1] and len(self.videoData[vid[0]]['mp4Path_whole']))]
 
             if len(vidNames) == 0:
                 warn('No video data for session {}'.format(sessKey))
                 continue
 
-            totalDur = 0
-            for (iVid, vid) in enumerate(vidNames):
-                totalDur = totalDur + self.videoData[vid]['mp4Dur_whole']
+            expDur = 0
+            for vid in vidNames:
+                if vid[1]:
+                    expDur = expDur + self.videoData[vid[0]]['mp4Dur_whole']
+                else:
+                    expDur = expDur + self.videoData[vid[0]]['mp4Dur_trimmed']
 
             # Concatenate mp4 videos
 
-            vidDur = self.concat_mp4s(concatPath, [os.path.join(paths.SESSION_DIR, self.videoData[vid]['mp4Path_whole']) for vid in vidNames])
+            vidDur = self.concat_mp4s(concatPath,
+                [os.path.join(paths.SESSION_DIR, self.videoData[vid[0]]['mp4Path_whole']) if \
+                    vid[1] else os.path.join(paths.SESSION_DIR, self.videoData[vid[0]]['mp4Path_trimmed']) \
+                    for vid in vidNames])
 
             if display:
-                print 'Total duration: expected {}, actual {}'.format(totalDur, vidDur)
-                # Note: "actual total dur" is video duration only, not audio or standard "overall" duration. This is fine for our purposes so far where we don't need exactly synchronized audio and video in the concatenated files (i.e. it's possible that audio from one file might appear to occur during a different file (up to about 10ms per concatenated file), but would need to be fixed for other purposes!
+                print 'Total duration: expected {}, actual {}'.format(expDur, vidDur)
+                # Note: "actual total dur" is video duration only, not audio or standard
+                # "overall" duration. This is fine for our purposes so far where we don't
+                # need exactly synchronized audio and video in the concatenated files
+                # (i.e. it's possible that audio from one file might appear to occur during
+                # a different file (up to about 10ms per concatenated file), but would
+                # need to be fixed for other purposes!
 
             # Warn if we're too far off (more than one video frame at 30fps) on
             # the total duration
-            if abs(totalDur - vidDur) > 1./30:
-                warn('Predicted {}, actual {}'.format(totalDur, vidDur))
+            if abs(expDur - vidDur) > 1./30:
+                warn('Predicted {}, actual {}'.format(expDur, vidDur))
+
+            self.coding[sessKey]['concatVideosShown'] = vidsShown;
+            self.coding[sessKey]['expectedDuration'] = expDur;
+            self.coding[sessKey]['actualDuration']   = vidDur;
+
+            # TODO: unindent again
+            backup_and_save(paths.coding_filename(self.expId), self.coding)
 
     def batch_videos(self, batchLengthMinutes=5, codingCriteria={'consent':['yes'], 'usable':['yes']},
         includeIncompleteBatches=True):
@@ -944,14 +1022,17 @@ class Experiment(object):
                 'ageRegistration': -1,
                 'ageExitsurvey': -1,
                 'videosExpected': [],
-                'videosFound': []}
+                'videosFound': [],
+                'allcoders': [],
+                'expectedDuration': None,
+                'actualDuration': None}
         for field in self.coderFields:
             emptyRecord[field] = {} # CoderName: 'comment'
         return emptyRecord
 
     def update_coding(self, display=False):
         '''Update coding data with empty records for any new sessions in saved session
-        data.'''
+        data, which video files are expected, withdrawn status, & birthdates.'''
 
         updated = False
 
@@ -972,13 +1053,58 @@ class Experiment(object):
 
         # For all sessions, update some critical information - videos expected,
         # withdrawn status, age
+
         for iSess in range(len(self.sessions['sessions'])):
             sessId = self.sessions['sessions'][iSess]['id']
             expData = self.sessions['sessions'][iSess]['attributes']['expData']
+
+            # Get list of video files expected
             self.coding[sessId]['videosExpected'] = []
+            self.coding[sessId]['showedAlternate'] = []
+            self.coding[sessId]['endedEarly'] = []
+            self.coding[sessId]['videosShown'] = []
             for (frameId, frameData) in expData.iteritems():
-                if 'videoId' in frameData.keys():
-                  self.coding[sessId]['videosExpected'].append(frameData['videoId'])
+                #TODO: generalize for other frames, event names
+                if 'videoId' in frameData.keys() and not frameId=='31-31-pref-phys-videos':
+
+
+                    if 'pref-phys-videos' in frameId:
+
+                        # Check events: was the video paused?
+                        events = [e['eventType'] for e in frameData['eventTimings']]
+                        showAlternate = 'exp-physics:startAlternateVideo' in events
+
+                        # Was the alternate video also paused, if applicable?
+                        # TODO: once we have an F1 event, add this as a way the study could be ended early
+                        # Ended early if we never saw either test or alternate video (check
+                        # for alternate b/c of rare case where due to lots of pausing only
+                        # alternate is shown)
+                        endedEarly = 'exp-physics:startTestVideo' not in events and 'exp-physics:startAlternateVideo' not in events
+                        # Check that the alternate video wasn't paused
+                        if showAlternate:
+                            lastAlternateEvent = len(events) - events[::-1].index('exp-physics:startAlternateVideo') - 1
+                            endedEarly = endedEarly or ('exp-physics:pauseVideo' in events[lastAlternateEvent:])
+                        # Check we didn't pause test video, but never get to alternate (e.g. F1)
+                        if not endedEarly and 'exp-physics:pauseVideo' in events and 'exp-physics:startTestVideo' in events:
+                            lastPause = len(events) - events[::-1].index('exp-physics:pauseVideo') - 1
+                            firstTest = events.index('exp-physics:startTestVideo')
+                            endedEarly = endedEarly or (lastPause > firstTest and not showAlternate)
+
+                        # Which video file was actually shown?
+                        thisVideo = ''
+                        if 'videosShown' in frameData.keys():
+                            videos = frameData['videosShown']
+                            thisVideo = os.path.splitext(os.path.split(videos[0 + showAlternate])[1])[0]
+
+                    else:
+                        showAlternate = None
+                        thisVideo = None
+                        endedEarly = None
+
+                    self.coding[sessId]['videosExpected'].append(frameData['videoId'])
+                    self.coding[sessId]['showedAlternate'].append(showAlternate)
+                    self.coding[sessId]['videosShown'].append(thisVideo)
+                    self.coding[sessId]['endedEarly'].append(endedEarly)
 
             withdrawSegment = 'exit-survey'
             exitbirthdate = []
@@ -1008,6 +1134,7 @@ class Experiment(object):
             self.coding[sessId]['ageRegistration'] = float((testdate - birthdate).days) * 12.0/365
 
         backup_and_save(paths.coding_filename(self.expId), self.coding)
+
 
         if display:
             printer.pprint(self.coding)
@@ -1179,6 +1306,8 @@ class Experiment(object):
                         val[fieldEnd] = val[field]
                         del val[field]
 
+            val['shortId'] = paths.parse_session_key(key)[1]
+
             # Add any new headers from this session
             headers = headers | set(val.keys())
 
@@ -1186,25 +1315,31 @@ class Experiment(object):
 
         # Organize the headers we actually want to put in the file - headerStart will come
         # first, then alphabetized other headers if we're using them
-        headerStart = ['id', 'meta.created-on', 'child.profileId', 'consent', 'withdrawn', 'consentnotes', 'usable', 'feedback',
-            'ageRegistration', 'ageExitsurvey']
+        headerStart = ['shortId', 'meta.created-on', 'child.profileId', 'consent',
+            'withdrawn', 'consentnotes', 'usable', 'feedback',
+            'ageRegistration', 'ageExitsurvey', 'allcoders']
 
         # Insert this and other coders' data here if using
         if coderName == 'all':
             for field in self.coderFields:
                 headerStart = headerStart + [h for h in headers if h[:len(field + '.')] == field + '.']
         else:
+            headerStart = headerStart + ['coded']
             for field in self.coderFields:
                 headerStart = headerStart + [field + '.' + coderName]
                 if showOtherCoders:
                     headerStart = headerStart + [h for h in headers if h[:len(field + '.')] == field + '.' and h != field + '.' + coderName]
 
+            # Populate the 'coded' field based on allcoders
+            for record in codingList:
+                record['coded'] = 'yes' if coderName in record['allcoders'] else 'no'
+
         # Continue predetermined starting list
         headerStart = headerStart + ['attributes.feedback',
-            'attributes.hasReadFeedback',
-            'attributes.completed', 'nVideosExpected', 'nVideosFound'] + includeFields + ['videosExpected', 'videosFound',
-            'child.birthday', 'child.deleted', 'child.gender', 'child.profileId',
-            'child.additionalInformation']
+            'attributes.hasReadFeedback', 'attributes.completed', 'nVideosExpected',
+            'nVideosFound', 'expectedDuration', 'actualDuration', 'concatVideosShown'] + includeFields + \
+            ['videosExpected', 'videosFound', 'videosShown', 'showedAlternate', 'endedEarly',
+            'child.deleted', 'child.gender', 'child.additionalInformation']
 
         # Add remaining headers from data if using
         if showAllHeaders:
@@ -1229,6 +1364,7 @@ class Experiment(object):
                     record[k] = record[k].encode('utf-8')
 
         codingList.sort(key=lambda b: b['meta.created-on'])
+
 
         # Back up any existing coding file by the same name & save
         codesheetPath = paths.codesheet_filename(self.expId, coderName)
@@ -1256,8 +1392,11 @@ class Experiment(object):
             len([sess for sess in consentSess if 1 < sess['nVideosExpected'] < 25]),
             len([sess for sess in consentSess if sess['nVideosExpected'] >= 25]),
             len(list(set([sess['child.profileId'] for sess in consentSess if sess['nVideosExpected'] >= 25]))))
+
+        display_unique_counts([sess['usable'] for sess in consentSess])
+
         print "Other consent values:"
-        printer.pprint([(sess['consent'], sess.get('coderComments.Kim')) for sess in codingList if sess['consent'] not in ['orig', 'yes']])
+        printer.pprint([(sess['consent'], sess.get('consentnotes')) for sess in codingList if sess['consent'] not in ['orig', 'yes']])
 
 
         print "Privacy: data from {}. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
@@ -1271,6 +1410,7 @@ class Experiment(object):
             len([sess for sess in codingList if 'exit-survey.databraryShare' in sess.keys()]),
             len([sess for sess in codingList if sess.get('exit-survey.databraryShare', False) == 'yes']),
             len([sess for sess in codingList if sess.get('exit-survey.databraryShare', False) == 'no']))
+
 
 
     def commit_coding(self, coderName):
@@ -1298,7 +1438,7 @@ class Experiment(object):
         with open(codesheetPath, 'rU') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                id = row['id']
+                id = paths.make_session_key(exp.expId, row['shortId'])
                 if id in self.coding.keys(): # Match to a sessionKey in the coding dict.
                     # Go through each expected coder-specific field, e.g.
                     # coderComments
@@ -1327,6 +1467,24 @@ class Experiment(object):
                                 self.coding[id][genField][coderField] = row[field]
                         else:
                             warn('Missing expected row header in coding CSV: {}'.format(field))
+
+                    # Separately process coded field and adjust allcoder accordingly
+                    if 'coded' in row.keys():
+                        coded = row['coded'].strip().lower() # Should be 'yes' or 'no'
+                        if coded == 'yes':
+                            if coderName not in self.coding[id]['allcoders']:
+                                self.coding[id]['allcoders'].append(coderName)
+                                print('Marking session {} as coded by {}').format(id, coderName)
+                        elif coded == 'no':
+                            if coderName in self.coding[id]['allcoders']:
+                                self.coding[id]['allcoders'].remove(coderName)
+                                print('Marking session {} as NOT coded by {}').format(id, coderName)
+                        else:
+                            raise ValueError('Unexpected value for whether coding is done for session {} (should be yes or no): {}'.format(id, coded))
+                    else:
+                        warn('Missing expected row header "coded" in coding CSV')
+
+
                 else: # Couldn't find this sessionKey in the coding dict.
                     warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
 
@@ -1729,7 +1887,7 @@ if __name__ == '__main__':
     # Process any study nicknames
     if args.study:
         args.study = studyNicknames.get(args.study, args.study)
-        exp = Experiment(args.study)
+        exp = Experiment(args.study, trimLength)
         includeFields = includeFieldsByStudy.get(args.study, [])
 
     ### Process individual actions
@@ -1738,7 +1896,7 @@ if __name__ == '__main__':
         print 'Sending feedback...'
         exp.send_feedback()
 
-    elif args.action == 'fetchcodesheet': # TODO: change back to consent: yes
+    elif args.action == 'fetchcodesheet':
         print 'Fetching codesheet...'
         exp.generate_codesheet(args.coder, filter={'consent':['yes'], 'exit-survey.withdrawal': [False, None]}, showAllHeaders=False,
             includeFields=includeFields, ignoreProfiles=ignoreProfiles)
@@ -1786,7 +1944,7 @@ if __name__ == '__main__':
         exp.concatenate_session_videos('all', display=True, replace=False)
 
     elif args.action == 'update':
-        print 'Starting Lookit update, {:%Y-%m-%d %H:%M:%S}'.format(datetime.datetime.now())
+        print '\nStarting Lookit update, {:%Y-%m-%d %H:%M:%S}\n'.format(datetime.datetime.now())
         update_account_data()
         Experiment.export_accounts()
         exp.accounts = exp.load_account_data()
@@ -1796,9 +1954,9 @@ if __name__ == '__main__':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
         assert len(unmatched) == 0
         exp.update_videos_found()
-        exp.make_mp4s_for_study(sessionsToProcess='missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, trimming=False, suffix='whole')
-        #exp.concatenate_session_videos('all', display=True, replace=False)
-        print 'update complete'
+        exp.concatenate_session_videos('missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=False)
+        #exp.concatenate_session_videos('all', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=True)
+        print '\nUpdate complete'
 
     elif args.action == 'makebatches': # TODO: update criteria
         print 'Making batches...'
@@ -1829,4 +1987,7 @@ if __name__ == '__main__':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(newVideos='all', reprocess=True, resetPaths=False, display=False)
 
     elif args.action == 'tests':
-        exp.concatenate_session_videos(['lookit.session57bc591dc0d9d70055f775dbs.57dd7bfac0d9d70060c67c51'], display=True, replace=False)
+        exp.update_coding()
+        exp.update_videos_found()
+        #exp.concatenate_session_videos(['lookit.session57bc591dc0d9d70055f775dbs.57dde527c0d9d70060c67df1',
+        #                                'lookit.session57bc591dc0d9d70055f775dbs.57ddbb90c0d9d70061c67d01'], display=True, replace=False)

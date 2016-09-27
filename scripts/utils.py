@@ -101,3 +101,12 @@ def flatten_dict(d):
     items = [ item for k, v in d.items() for item in expand(k, v) ]
 
     return dict(items)
+
+def display_unique_counts(vals):
+    '''Given a list, display one line per unique value with the count'''
+    uniqueVals = list(set(vals))
+
+    for v in uniqueVals:
+        print '\t{}\t{}'.format(vals.count(v), v)
+
+
