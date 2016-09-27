@@ -12,13 +12,6 @@ For instructions on how to use coding.py, type
 from this directory.
 
 ---
-TODO:
-- Get account data more efficiently
-- Add some basic security to functionality beyond coding (make it harder for people to break things);
-maybe use separate API keys, maybe password-protecting, maybe split up functions
-- Clean up ffmpeg path
-
----
 
 Initial installation so client.py can work:
 
@@ -31,6 +24,8 @@ Initial installation so client.py can work:
 		https://github.com/yyuu/pyenv/wiki/Common-build-problems
 
 	  Needed to use CFLAGS="-I$(xcrun --show-sdk-path)/usr/include" pyenv install -v 2.7.11 to install
+
+    - Install virtualenv:[sudo] pip install virtualenv
 
 	- Create virtualenv in scripts dir
 
@@ -60,8 +55,7 @@ To start using:
 	DATA_DIR='/Users/kms/lookitcoding/data'
 	CODING_DIR='/Users/kms/lookitcoding/coding'
 	CODERS="['Jean', 'Audrey', 'Kim']"
-
-	May also need to run: pip install -U python-dotenv
+	FFMPEG_PATH='/usr/local/bin/ffmpeg'
 
 	* Install AWS command-line tools:
         http://docs.aws.amazon.com/cli/latest/userguide/installing.html
@@ -70,9 +64,6 @@ To start using:
         aws configure
            enter keys (saved; can make new keys from AWS console)
            region: us-east-1
-
-    * pip install numpy
-    * pip install scipy
 
 	* source venv/bin/activate
 	in order to get into the virtual environment; then can call python scripts.
@@ -84,11 +75,7 @@ Setting up automation, on OSX:
 	- Make sure updateLookit.sh is executable: chmod +x updateLookit.sh (from this directory)
 	- Start the process: launchctl load com.lookit.update.plist
 	- You can stop using launchctl unload com.lookit.update.plist.
-
 	- You can see the output and any errors in autoSync.err and autoSync.out.
-	- It's important that ffmpeg and ffprobe are installed in usr/local/bin.
-	If not, you can set the path to ffmpeg at the top of coding.py and set the path to
-	ffprobe in videoutils.py, but we should come up with a better way to allow variation in these paths.
 
 
 ------------------- Setting up for data analysis ------------------------------

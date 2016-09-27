@@ -1,2 +1,3 @@
 source venv/bin/activate
-python coding.py doUpdate
+say "Updating Lookit pilot study"
+python coding.py update --study prodpilot
