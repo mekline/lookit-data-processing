@@ -761,6 +761,7 @@ class Experiment(object):
             vidNames = [tup[1] for tup in sorted(withTs)]
             # Get (vid, useWhole) pairs, where useWhole = whether we should use the 'whole' mp4
             vidNames = zip(vidNames, [any([fr in vid for fr in useWholeVideoFrames]) for vid in vidNames])
+
             # Check we have the duration stored (proxy for whether video conversion worked/have any video)
             vidNames = [vid for vid in vidNames if (not vid[1] and len(self.videoData[vid[0]]['mp4Path_trimmed'])) or \
                                                       (vid[1] and len(self.videoData[vid[0]]['mp4Path_whole']))]
@@ -1516,7 +1517,7 @@ class Experiment(object):
         with open(codesheetPath, 'rU') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                id = row['id']
+                id = paths.make_session_key(exp.expId, row['shortId'])
                 if id in self.coding.keys(): # Match to a sessionKey in the coding dict.
                     for field in commitFields:
                         if field not in row.keys():
@@ -1858,8 +1859,7 @@ if __name__ == '__main__':
                'exportmat': ['study'],
                'updatevcode': ['study'],
                'tests': ['study'],
-               'updatevideodata': ['study'],
-               'summarize': ['study']}
+               'updatevideodata': ['study']}
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Coding operations for Lookit data',
@@ -1903,7 +1903,8 @@ if __name__ == '__main__':
 
     elif args.action == 'fetchconsentsheet':
         print 'Fetching consentsheet...'
-        exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(1,100)}, showAllHeaders=True,
+        exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(1,100),
+        'consent': ['yes'], 'withdrawn': [False], 'exit-survey.useOfMedia': ['public']}, showAllHeaders=True,
             includeFields=includeFields, ignoreProfiles=ignoreProfiles)
 
     elif args.action == 'commitcodesheet':
@@ -1987,7 +1988,11 @@ if __name__ == '__main__':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(newVideos='all', reprocess=True, resetPaths=False, display=False)
 
     elif args.action == 'tests':
-        exp.update_coding()
-        exp.update_videos_found()
-        #exp.concatenate_session_videos(['lookit.session57bc591dc0d9d70055f775dbs.57dde527c0d9d70060c67df1',
-        #                                'lookit.session57bc591dc0d9d70055f775dbs.57ddbb90c0d9d70061c67d01'], display=True, replace=False)
+        sessionsToProcess = ['lookit.session57bc591dc0d9d70055f775dbs.57ddba23c0d9d70060c67d14',
+                             'lookit.session57bc591dc0d9d70055f775dbs.57ddd64ac0d9d70060c67dd8',
+                             'lookit.session57bc591dc0d9d70055f775dbs.57de081fc0d9d70061c67e39',
+                             'lookit.session57bc591dc0d9d70055f775dbs.57ec14a6c0d9d70060c68595',
+                             'lookit.session57bc591dc0d9d70055f775dbs.57eae5cac0d9d70061c684e2',
+                             'lookit.session57bc591dc0d9d70055f775dbs.57ea1af0c0d9d70061c684b5']
+        exp.concatenate_session_videos(sessionsToProcess, display=True, replace=False)
+

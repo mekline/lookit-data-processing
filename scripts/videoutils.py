@@ -38,7 +38,7 @@ def get_video_details(vidName, whichAttr, fullpath=False):
 
     # Get full path to video
     if not(fullpath):
-        vidPath = os.path.join(os.environ.get('VIDEO_DIR'), vidName)
+        vidPath = os.path.join(paths.VIDEO_DIR, vidName)
     else:
         vidPath = vidName
 
@@ -49,7 +49,7 @@ def get_video_details(vidName, whichAttr, fullpath=False):
     try:
         ffprobeOutput = sp.check_output(args).decode('utf-8')
     except:
-        warn('Error running ffprobe to get video details, returning -1')
+        warn('Error running ffprobe command {} to get video details about {}, returning -1'.format(' '.join(args), vidName))
         if len(whichAttr) == 1:
             return -1
         else:
