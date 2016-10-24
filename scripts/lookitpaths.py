@@ -38,10 +38,15 @@ def batch_filename(expId):
     return os.path.join(DATA_DIR, 'batch_data_' + \
         expId + '.bin')
 
-def vcode_filename(batchFilename, coderName):
+def vcode_batchfilename(batchFilename, coderName):
     '''Return full path to expected VCode file for a given batch & coder'''
     batchStub, ext = os.path.splitext(batchFilename)
     return os.path.join(CODING_DIR, coderName, batchStub + '-evts.txt')
+
+def vcode_filename(sessKey, coderName):
+    '''Return full path to expected VCode file for a given study, session & coder'''
+    (expId, shortSess) = parse_session_key(sessKey)
+    return os.path.join(CODING_DIR, coderName, expId + '_' + shortSess + '-evts.txt')
 
 
 def codesheet_filename(expId, coderName):

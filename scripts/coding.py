@@ -1,3 +1,4 @@
+import sysconfig
 import os
 import errno
 import pickle
@@ -8,6 +9,7 @@ import uuid
 import subprocess as sp
 import sys
 import videoutils
+import vcode
 from warnings import warn
 import datetime
 import lookitpaths as paths
@@ -18,7 +20,11 @@ import string
 import argparse
 import unittest
 import numpy as np
-import vcode
+if sysconfig.get_config_var("PYTHONFRAMEWORK"):
+    import matplotlib.pyplot as plt
+else:
+    print "Non-framework build: not importing matplotlib. Plotting functionality will raise error."
+
 
 class Experiment(object):
     '''Represent a Lookit experiment with stored session, coding, & video data.'''
@@ -598,7 +604,9 @@ class Experiment(object):
         	created if there is a video stream, but it stops and then the
         	audio stream continues for at least trimming seconds after that.
         	'mp4Path_[suffix]': Relative path (from paths.SESSION_DIR) to mp4
-        	created, or '' if as above mp4 was not created.'''
+        	created, or '' if as above mp4 was not created.
+
+        Returns a list of session keys for sessions where any video was created.'''
 
         print "Making {} mp4s for study {}".format(suffix, self.expId)
 
@@ -612,6 +620,8 @@ class Experiment(object):
         for (key, vals) in filter.items():
             sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
                 (key not in self.coding[sKey].keys() and None in vals)]
+
+        sessionsAffected = []
 
         # Process each session...
         for sessKey in sessionKeys:
@@ -653,9 +663,14 @@ class Experiment(object):
                 self.videoData[vid]['mp4Path' + '_' + suffix] = mp4Data[vid]['mp4Path' + '_' + suffix]
                 self.videoData[vid]['mp4Dur' + '_' + suffix] = mp4Data[vid]['mp4Dur' + '_' + suffix]
 
+            if any([not mp4Data[vid]['mp4Dur' + '_' + suffix] == 0 for vid in mp4Data.keys()]):
+                sessionsAffected.append(sessKey)
+
 
         # Save coding & video data
         backup_and_save(paths.VIDEO_FILENAME, self.videoData)
+
+        return sessionsAffected
 
     def concatenate_session_videos(self, sessionKeys, filter={}, replace=False, display=False):
         '''Concatenate videos within the same session for the specified sessions.
@@ -706,15 +721,15 @@ class Experiment(object):
             sessionKeys = list(set(sessionKeys))
 
         # Only process data that passes filter
-        # TODO: generalize this functionality
-        for (key, vals) in filter.items():
-            sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
-                (key not in self.coding[sKey].keys() and None in vals)]
+        sessionKeys = filter_keys(self.coding, filter)
+        #for (key, vals) in filter.items():
+        #    sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
+        #        (key not in self.coding[sKey].keys() and None in vals)]
 
-        self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
+        sessionsAffected = self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
             trimming=self.trimLength, suffix='trimmed', whichFrames=useTrimmedFrames)
 
-        self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
+        sessionsAffected = sessionsAffected + self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
             trimming=False, suffix='whole', whichFrames=useWholeVideoFrames)
 
         # Process each session...
@@ -736,53 +751,51 @@ class Experiment(object):
             concatFilename = self.expId + '_' +  sessId + '.mp4'
             concatPath = os.path.join(sessionDir, concatFilename)
 
-            # Skip if not replacing & file exists
-            if not replace and os.path.exists(concatPath):
+            # Skip if not replacing & file exists & we haven't made any new mp4s for this session
+            if not replace and os.path.exists(concatPath) and sessKey not in sessionsAffected:
                 print "Skipping, already have concat file: {}".format(concatFilename)
                 continue
 
-            # Which videos match the expected patterns? Keep track & save the list.
+            # Which videos match the expected patterns? Keep track of inds, timestamps, names.
             vidNames = []
             vidInds = []
             for (i, vids) in enumerate(self.coding[sessKey]['videosFound']):
                 vidNames = vidNames + vids
                 vidInds  = vidInds + [i] * len(vids)
+            vidTimestamps = [(paths.parse_videoname(v)[3], v) for v in vidNames]
+            # whether we should use the 'whole' mp4
+            useWhole = [any([fr in vid for fr in useWholeVideoFrames]) for vid in vidNames]
+
+            vidData = zip(vidNames, vidInds, vidTimestamps, useWhole)
 
             # Remove vidNames we don't want in the concat file
             for skip in skipFrames:
-                vidNames = [vid for vid in vidNames if skip not in vid]
+                vidData = [vid for vid in vidData if skip not in vid[0]]
 
             # Also skip any other frames where video was ended early
-            vidNames = [vid for (iVid, vid) in zip(vidInds, vidNames) if not self.coding[sessKey]['endedEarly'][iVid]]
-            vidsShown = [self.coding[sessKey]['videosShown'][iVid] for iVid in vidInds]
+            vidData = [vid for vid in vidData if not self.coding[sessKey]['endedEarly'][vid[1]]]
 
-            # Sort the vidNames found by timestamp so we concat in order.
-            withTs = [(paths.parse_videoname(v)[3], v) for v in vidNames]
-            vidNames = [tup[1] for tup in sorted(withTs)]
-            # Get (vid, useWhole) pairs, where useWhole = whether we should use the 'whole' mp4
-            vidNames = zip(vidNames, [any([fr in vid for fr in useWholeVideoFrames]) for vid in vidNames])
+            # Sort the vidData found by timestamp so we concat in order.
+            vidData = sorted(vidData, key=lambda x: x[2])
 
             # Check we have the duration stored (proxy for whether video conversion worked/have any video)
-            vidNames = [vid for vid in vidNames if (not vid[1] and len(self.videoData[vid[0]]['mp4Path_trimmed'])) or \
-                                                      (vid[1] and len(self.videoData[vid[0]]['mp4Path_whole']))]
+            vidData = [vid for vid in vidData if  (not vid[3] and len(self.videoData[vid[0]]['mp4Path_trimmed'])) or \
+                                                      (vid[3] and len(self.videoData[vid[0]]['mp4Path_whole']))]
 
-            if len(vidNames) == 0:
+            if len(vidData) == 0:
                 warn('No video data for session {}'.format(sessKey))
                 continue
 
             expDur = 0
-            for vid in vidNames:
-                if vid[1]:
-                    expDur = expDur + self.videoData[vid[0]]['mp4Dur_whole']
-                else:
-                    expDur = expDur + self.videoData[vid[0]]['mp4Dur_trimmed']
+            concatDurations = [self.videoData[vid[0]]['mp4Dur_whole'] if vid[3] else self.videoData[vid[0]]['mp4Dur_trimmed'] for vid in vidData]
+            expDur = sum(concatDurations)
 
             # Concatenate mp4 videos
 
-            vidDur = self.concat_mp4s(concatPath,
-                [os.path.join(paths.SESSION_DIR, self.videoData[vid[0]]['mp4Path_whole']) if \
-                    vid[1] else os.path.join(paths.SESSION_DIR, self.videoData[vid[0]]['mp4Path_trimmed']) \
-                    for vid in vidNames])
+            concatVids = [os.path.join(paths.SESSION_DIR, self.videoData[vid[0]]['mp4Path_whole']) if \
+                    vid[3] else os.path.join(paths.SESSION_DIR, self.videoData[vid[0]]['mp4Path_trimmed']) \
+                    for vid in vidData]
+            vidDur = self.concat_mp4s(concatPath, concatVids)
 
             if display:
                 print 'Total duration: expected {}, actual {}'.format(expDur, vidDur)
@@ -798,12 +811,16 @@ class Experiment(object):
             if abs(expDur - vidDur) > 1./30:
                 warn('Predicted {}, actual {}'.format(expDur, vidDur))
 
-            self.coding[sessKey]['concatVideosShown'] = vidsShown;
-            self.coding[sessKey]['expectedDuration'] = expDur;
-            self.coding[sessKey]['actualDuration']   = vidDur;
+            vidsShown = [self.coding[sessKey]['videosShown'][vid[1]] for vid in vidData]
 
-            # TODO: unindent again
-            backup_and_save(paths.coding_filename(self.expId), self.coding)
+            self.coding[sessKey]['concatShowedAlternate'] = [self.coding[sessKey]['showedAlternate'][i] for (vidName, i, t, useW) in vidData]
+            self.coding[sessKey]['concatVideosShown'] = vidsShown
+            self.coding[sessKey]['expectedDuration'] = expDur
+            self.coding[sessKey]['actualDuration']   = vidDur
+            self.coding[sessKey]['concatVideos'] = concatVids
+            self.coding[sessKey]['concatDurations'] = concatDurations
+
+        backup_and_save(paths.coding_filename(self.expId), self.coding)
 
     def batch_videos(self, batchLengthMinutes=5, codingCriteria={'consent':['yes'], 'usable':['yes']},
         includeIncompleteBatches=True):
@@ -1026,7 +1043,9 @@ class Experiment(object):
                 'videosFound': [],
                 'allcoders': [],
                 'expectedDuration': None,
-                'actualDuration': None}
+                'actualDuration': None,
+                'concatDurations': [],
+                'concatVideos': []}
         for field in self.coderFields:
             emptyRecord[field] = {} # CoderName: 'comment'
         return emptyRecord
@@ -1373,44 +1392,58 @@ class Experiment(object):
 
         # Display a quick summary of the data
 
+        #consent / non
+        #for each: none, some, all actual study vids
+        #for some/all: usability.
+
         # How many records?
         profileIds = [sess['child.profileId'] for sess in codingList]
         print "Number of records: {} ({} unique)".format(len(codingList), len(list(set(profileIds))))
         hasVideo = [sess['child.profileId'] for sess in codingList if sess['nVideosExpected'] > 0]
         print "Completed consent: {} ({} unique)".format(len(hasVideo),
             len(list(set(hasVideo))))
-        allVideo = [sess for sess in codingList if sess['nVideosExpected'] > 0]
-        print "\tonly consent {}, some study videos {}, entire study {}".format(
-            len([sess for sess in codingList if sess['nVideosExpected'] == 1]),
-            len([sess for sess in codingList if 1 < sess['nVideosExpected'] < 25]),
-            len([sess for sess in codingList if sess['nVideosExpected'] >= 25]))
+        for sess in codingList:
+            vidsFound = [v for outer in sess['videosFound'] for v in outer]
+            sess['nPrefPhys'] = len([1 for v in vidsFound if 'pref-phys-videos' in v])
         consentSess = [sess for sess in codingList if sess['consent'] == 'yes']
+        nonconsentSess = [sess for sess in codingList if sess['consent'] != 'yes']
+
         print "Valid consent: {} ({} unique)".format(
             len(consentSess),
             len(list(set([sess['child.profileId'] for sess in consentSess]))))
-        print "\tonly consent {}, some study videos {}, entire study {} ({} unique)".format(
-            len([sess for sess in consentSess if sess['nVideosExpected'] == 1]),
-            len([sess for sess in consentSess if 1 < sess['nVideosExpected'] < 25]),
-            len([sess for sess in consentSess if sess['nVideosExpected'] >= 25]),
-            len(list(set([sess['child.profileId'] for sess in consentSess if sess['nVideosExpected'] >= 25]))))
+        print "\tno physics videos {}, some study videos {}, entire study {} ({} unique)".format(
+            len([1 for sess in consentSess if sess['nPrefPhys'] == 0]),
+            len([1 for sess in consentSess if 0 < sess['nPrefPhys'] < 24]),
+            len([1 for sess in consentSess if sess['nPrefPhys'] >= 24]),
+            len(list(set([sess['child.profileId'] for sess in consentSess if sess['nPrefPhys'] >= 24]))))
 
-        display_unique_counts([sess['usable'] for sess in consentSess])
+        print "Invalid consent: {} ({} unique)".format(
+            len(nonconsentSess),
+            len(list(set([sess['child.profileId'] for sess in nonconsentSess]))))
+        print "\tno physics videos {}, some study videos {}, entire study {} ({} unique)".format(
+            len([1 for sess in nonconsentSess if sess['nPrefPhys'] == 0]),
+            len([1 for sess in nonconsentSess if 0 < sess['nPrefPhys'] < 24]),
+            len([1 for sess in nonconsentSess if sess['nPrefPhys'] >= 24]),
+            len(list(set([sess['child.profileId'] for sess in nonconsentSess if sess['nPrefPhys'] >= 24]))))
 
-        print "Other consent values:"
-        printer.pprint([(sess['consent'], sess.get('consentnotes')) for sess in codingList if sess['consent'] not in ['orig', 'yes']])
+        print "Nonconsent values:"
+        display_unique_counts([sess['consent'] for sess in nonconsentSess])
+        #printer.pprint([(sess['consent'], sess.get('consentnotes')) for sess in codingList if sess['consent'] not in ['orig', 'yes']])
 
+        print "Usability (for {} valid consent + some video records):".format(len([1 for sess in consentSess if sess['nPrefPhys'] > 0]))
+        display_unique_counts([sess['usable'] for sess in consentSess if sess['nPrefPhys'] > 0])
 
-        print "Privacy: data from {}. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
-            len([sess for sess in codingList if 'exit-survey.withdrawal' in sess.keys()]),
-            len([sess for sess in codingList if sess.get('exit-survey.withdrawal', False) == True]),
-            len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'private']),
-            len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'scientific']),
-            len([sess for sess in codingList if sess.get('exit-survey.useOfMedia', False) == 'public']))
+        print "Privacy: data from {} consented. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
+            len([sess for sess in consentSess if 'exit-survey.withdrawal' in sess.keys()]),
+            len([sess for sess in consentSess if sess.get('exit-survey.withdrawal', False)]),
+            len([sess for sess in consentSess if not sess.get('exit-survey.withdrawal', False) and sess.get('exit-survey.useOfMedia', False) == 'private']),
+            len([sess for sess in consentSess if not sess.get('exit-survey.withdrawal', False) and sess.get('exit-survey.useOfMedia', False) == 'scientific']),
+            len([sess for sess in consentSess if not sess.get('exit-survey.withdrawal', False) and sess.get('exit-survey.useOfMedia', False) == 'public']))
 
-        print "Databrary: data from {}. \n\tyes {}, no {}".format(
-            len([sess for sess in codingList if 'exit-survey.databraryShare' in sess.keys()]),
-            len([sess for sess in codingList if sess.get('exit-survey.databraryShare', False) == 'yes']),
-            len([sess for sess in codingList if sess.get('exit-survey.databraryShare', False) == 'no']))
+        print "Databrary: data from {} consented. \n\tyes {}, no {}".format(
+            len([sess for sess in consentSess if 'exit-survey.databraryShare' in sess.keys()]),
+            len([sess for sess in consentSess if sess.get('exit-survey.databraryShare', False) == 'yes']),
+            len([sess for sess in consentSess if sess.get('exit-survey.databraryShare', False) == 'no']))
 
 
 
@@ -1575,7 +1608,7 @@ class Experiment(object):
             # Extract list of lengths to use for demarcating trials
             vidLengths = [v[2] for v in batch['videos']]
             for coderName in theseCoders:
-                vcodeFilename = paths.vcode_filename(batch['batchFile'], coderName)
+                vcodeFilename = paths.vcode_batchfilename(batch['batchFile'], coderName)
                 # Check that the VCode file exists
                 if not os.path.isfile(vcodeFilename):
                     warn('Expected Vcode file {} for coder {} not found'.format(os.path.basename(vcodeFilename), coderName))
@@ -1596,10 +1629,73 @@ class Experiment(object):
         # Save batch and video data
         backup_and_save(paths.batch_filename(self.expId), self.batchData)
 
+    def read_vcode_coding(self, filter={}):
+        '''Check all sessions for this study for expected VCode files & read into coding data.
+        TODO: full doc'''
+
+        sessionKeys = filter_keys(self.coding, filter)
+        for sessKey in sessionKeys:
+            codeRec = self.coding[sessKey]
+            theseCoders = codeRec['allcoders']
+            vidLengths = codeRec['concatDurations']
+            printer.pprint((sessKey, theseCoders))
+            # Extract list of lengths to use for demarcating trials
+
+            for coderName in theseCoders:
+                vcodeFilename = paths.vcode_filename(sessKey, coderName)
+                # Check that VCode file exists
+                if not os.path.isfile(vcodeFilename):
+                    warn('Expected Vcode file {} for coder {} not found'.format(os.path.basename(vcodeFilename), coderName))
+                    continue
+                # Read in file
+                (durations, leftLookTime, rightLookTime, oofTime) = \
+                    vcode.read_preferential(vcodeFilename, interval=[], videoLengths=vidLengths)
+
+                vcodeData = {'durations': durations, 'leftLookTime': leftLookTime,
+                    'rightLookTime': rightLookTime, 'oofTime': oofTime}
+
+                if 'vcode' in codeRec.keys():
+                    codeRec['vcode'][coderName] = vcodeData
+                else:
+                    codeRec['vcode'] = {coderName: vcodeData}
+                self.coding[sessKey] = codeRec
+
+        # Save batch and video data
+        backup_and_save(paths.coding_filename(self.expId), self.coding)
+
+    def summarize_results(self):
+
+        usableSessions = {sKey:c for (sKey, c) in self.coding.items() if c['usable'] in ['yes']}
+
+        for (sessKey, codeRec) in usableSessions.items():
+            # Check if file is usable. If so, list.
+            print (sessKey, codeRec['allcoders'])
+
+            if 'Training' not in codeRec['allcoders'] and 'Jessica' in codeRec['allcoders']:
+                #'concatShowedAlternate', 'concatVideosShown', 'actualDuration',
+                #'nVideosFound', 'vcode', 'usable', 'concatVideos', 'nVideosExpected',
+                #'concatDurations', 'allcoders'
+
+                print "{} clips. Durations: ".format(len(codeRec['concatVideos']))
+                printer.pprint(codeRec['concatDurations'])
+                printer.pprint(codeRec['concatVideosShown'])
+                vcodedata = codeRec['vcode']
 
 
+                for (coder, coding) in vcodedata.items():
+                    totalLTs = coding['leftLookTime'] + coding['rightLookTime']
+                    print totalLTs
+
+                    preferences = np.divide(coding['leftLookTime'], totalLTs)
+                    print preferences
+
+                    plt.plot([1,2,3,4])
+                    plt.ylabel('some numbers')
+                    plt.show()
 
 
+            else:
+                print '\tNot yet coded'
 
 
 def get_batch_info(expId='', batchId='', batchFilename=''):
@@ -1626,6 +1722,23 @@ def get_batch_info(expId='', batchId='', batchFilename=''):
             batchId = Experiment.batch_id_for_filename(expId, batchFilename)
 
         return batches[batchId]
+
+def filter_keys(sessDict, filter):
+    '''Return only session keys from dict that satisfy query given by filter.
+
+    filter is a dictionary of filtKey:[val1, val2, val3, ...] pairs.
+
+    sessDict is a dictionary of sessKey:session pairs.
+
+    The returned keys will contain only sessKey:session pairs for which,
+    for all of the pairs in filter, session[filtKey] is in filter[filtKey] OR
+    None is in filter[filtKey] and filtKey is not in session.keys().'''
+
+    filteredKeys = sessDict.keys()
+    for (key, vals) in filter.items():
+        filteredKeys = [sKey for sKey in filteredKeys if (key in sessDict[sKey].keys() and sessDict[sKey][key] in vals) or
+            (key not in sessDict[sKey].keys() and None in vals)]
+    return filteredKeys
 
 helptext = '''
 You'll use the program coding.py to create spreadsheets with updated data for you to work
@@ -1903,9 +2016,10 @@ if __name__ == '__main__':
 
     elif args.action == 'fetchconsentsheet':
         print 'Fetching consentsheet...'
-        exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(1,100),
-        'consent': ['yes'], 'withdrawn': [False], 'exit-survey.useOfMedia': ['public']}, showAllHeaders=True,
+        exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(1,100)}, showAllHeaders=True,
             includeFields=includeFields, ignoreProfiles=ignoreProfiles)
+
+        #'consent': ['yes'], 'withdrawn': [False], 'exit-survey.useOfMedia': ['public']
 
     elif args.action == 'commitcodesheet':
         print 'Committing codesheet...'
@@ -1956,13 +2070,12 @@ if __name__ == '__main__':
         assert len(unmatched) == 0
         exp.update_videos_found()
         exp.concatenate_session_videos('missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=False)
-        #exp.concatenate_session_videos('all', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=True)
         print '\nUpdate complete'
 
     elif args.action == 'makebatches': # TODO: update criteria
         print 'Making batches...'
         exp.make_mp4s_for_study(sessionsToProcess='missing', display=True, trimming=trimLength, suffix='trimmed')
-        exp.batch_videos(batchLengthMinutes=batchLengthMinutes, codingCriteria={'consent':['orig'], 'usable':[''], 'withdrawn':[None, False]})
+        exp.batch_videos(batchLengthMinutes=batchLengthMinutes, codingCriteria={'consent':['yes'], 'usable':[''], 'withdrawn':[None, False]})
 
     elif args.action == 'removebatch':
         print 'Removing batch(es)...'
@@ -1982,17 +2095,20 @@ if __name__ == '__main__':
         scipy.io.savemat(os.path.join(paths.DATA_DIR, exp.expId + '_batches.mat'), batches_export)
 
     elif args.action == 'updatevcode':
-        exp.read_batch_coding()
+        #exp.read_batch_coding()
+        exp.read_vcode_coding(filter={'consent':['yes'], 'withdrawn':[None, False]})
 
     elif args.action == 'updatevideodata':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(newVideos='all', reprocess=True, resetPaths=False, display=False)
 
     elif args.action == 'tests':
-        sessionsToProcess = ['lookit.session57bc591dc0d9d70055f775dbs.57ddba23c0d9d70060c67d14',
-                             'lookit.session57bc591dc0d9d70055f775dbs.57ddd64ac0d9d70060c67dd8',
-                             'lookit.session57bc591dc0d9d70055f775dbs.57de081fc0d9d70061c67e39',
-                             'lookit.session57bc591dc0d9d70055f775dbs.57ec14a6c0d9d70060c68595',
-                             'lookit.session57bc591dc0d9d70055f775dbs.57eae5cac0d9d70061c684e2',
-                             'lookit.session57bc591dc0d9d70055f775dbs.57ea1af0c0d9d70061c684b5']
-        exp.concatenate_session_videos(sessionsToProcess, display=True, replace=False)
+        #sessionsToProcess = ['lookit.session57bc591dc0d9d70055f775dbs.57ddba23c0d9d70060c67d14',
+        #                     'lookit.session57bc591dc0d9d70055f775dbs.57ddd64ac0d9d70060c67dd8',
+        #                     'lookit.session57bc591dc0d9d70055f775dbs.57de081fc0d9d70061c67e39',
+        #                     'lookit.session57bc591dc0d9d70055f775dbs.57ec14a6c0d9d70060c68595',
+        #                     'lookit.session57bc591dc0d9d70055f775dbs.57eae5cac0d9d70061c684e2',
+        #                     'lookit.session57bc591dc0d9d70055f775dbs.57ea1af0c0d9d70061c684b5']
+        #exp.concatenate_session_videos(sessionsToProcess, display=True, replace=False)
+        #exp.concatenate_session_videos('all', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=True)
+        exp.summarize_results()
 

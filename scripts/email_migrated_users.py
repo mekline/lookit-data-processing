@@ -48,6 +48,7 @@ def main(dry=True, debug=False, verbosity=0, user=None):
                     import ipdb
                     ipdb.set_trace()
                 else:
+                    logfile.close()
                     raise RuntimeError(res.json())
 
         # Write email address to file

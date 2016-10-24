@@ -13,6 +13,7 @@ from this directory.
 
 ---
 
+
 Initial installation so client.py can work:
 
 	- Get token
@@ -32,6 +33,39 @@ Initial installation so client.py can work:
 	  virtualenv -p ~/.pyenv/versions/2.7.11/bin/python2.7 venv
 	  source venv/bin/activate
 	  pip install -r requirements.txt
+
+
+
+*For framework version, separately*
+    brew install python --framework
+    virtualenv -p /usr/local/Cellar/python/2.7.12_1/bin/python2.7 fwenv
+
+    from http://matplotlib.org/faq/virtualenv_faq.html:
+
+    The best known workaround, borrowed from the WX wiki, is to use the non virtualenv python along with the PYTHONHOME environment variable. This can be implemented in a script as below. To use this modify PYVER and PATHTOPYTHON and put the script in the virtualenv bin directory i.e. PATHTOVENV/bin/frameworkpython
+
+        #!/bin/bash
+
+        # what real Python executable to use
+        PYVER=2.7
+        PATHTOPYTHON=/usr/local/Cellar/python/2.7.12_1/bin/
+        PYTHON=${PATHTOPYTHON}python${PYVER}
+
+        # find the root of the virtualenv, it should be the parent of the dir this script is in
+        ENV=`$PYTHON -c "import os; print(os.path.abspath(os.path.join(os.path.dirname(\"$0\"), '..')))"`
+
+        # now run Python with the virtualenv set as Python's HOME
+        export PYTHONHOME=$ENV
+        exec $PYTHON "$@"
+
+    With this in place you can run frameworkpython to get an interactive framework build within the virtualenv. To run a script you can do frameworkpython test.py where test.py is a script that requires a framework build. To run an interactive IPython session with the framework build within the virtual environment you can do frameworkpython -m IPython
+
+    source fwenv/bin/activate
+    pip install -r requirements.txt
+    pip install matplotlib
+
+    Now to run anything that requires matplotlib, use frameworkpython in place of python.
+
 
 To start using:
 
