@@ -30,7 +30,7 @@ class Experiment(object):
     '''Represent a Lookit experiment with stored session, coding, & video data.'''
 
     # Don't have ffmpeg tell us everything it has ever thought about.
-    loglevel = 'quiet'
+    loglevel = 'error'
 
     # Coder-specific fields to create/expect in coding data. If FIELDNAME is one
     # of these fields, then codingrecord[FIELDNAME] is a dict with keys = coder
@@ -194,7 +194,9 @@ class Experiment(object):
             mergedFilename = vid[:-4] + '_' + suffix + '.mp4'
             mergedPath = os.path.join(sessionDir, mergedFilename)
 
-            if not replace and os.path.exists(mergedPath) and vid in cls.videoData.keys() and ('mp4Dur_' + suffix) in cls.videoData[vid].keys() and ('mp4Path_' + suffix) in cls.videoData[vid].keys():
+            if not replace and os.path.exists(mergedPath) and vid in cls.videoData.keys() and \
+                ('mp4Dur_' + suffix) in cls.videoData[vid].keys() and ('mp4Path_' + suffix) in cls.videoData[vid].keys() and \
+                cls.videoData[vid]['mp4Path_' + suffix]:
                 if display:
                     print "Already have {} mp4 for video {}, skipping".format(suffix, vid)
                 continue
@@ -721,10 +723,9 @@ class Experiment(object):
             sessionKeys = list(set(sessionKeys))
 
         # Only process data that passes filter
-        sessionKeys = filter_keys(self.coding, filter)
-        #for (key, vals) in filter.items():
-        #    sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
-        #        (key not in self.coding[sKey].keys() and None in vals)]
+        for (key, vals) in filter.items():
+           sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
+               (key not in self.coding[sKey].keys() and None in vals)]
 
         sessionsAffected = self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
             trimming=self.trimLength, suffix='trimmed', whichFrames=useTrimmedFrames)
@@ -782,6 +783,7 @@ class Experiment(object):
             vidData = [vid for vid in vidData if  (not vid[3] and len(self.videoData[vid[0]]['mp4Path_trimmed'])) or \
                                                       (vid[3] and len(self.videoData[vid[0]]['mp4Path_whole']))]
 
+
             if len(vidData) == 0:
                 warn('No video data for session {}'.format(sessKey))
                 continue
@@ -819,6 +821,30 @@ class Experiment(object):
             self.coding[sessKey]['actualDuration']   = vidDur
             self.coding[sessKey]['concatVideos'] = concatVids
             self.coding[sessKey]['concatDurations'] = concatDurations
+
+        backup_and_save(paths.coding_filename(self.expId), self.coding)
+
+    def sync_coding_data(self, codeDataName):
+        '''Hopefully one-time script to update coding data when replacing concatenated
+        files by those made on a different computer'''
+
+        otherCodingFile = os.path.join(paths.DATA_DIR, codeDataName)
+
+        if os.path.exists(otherCodingFile):
+            with open(otherCodingFile,'rb') as f:
+                otherCoding = pickle.load(f)
+
+        replaceFields = ['concatShowedAlternate', 'concatVideosShown', 'expectedDuration',
+            'actualDuration', 'concatVideos', 'concatDurations']
+
+        for sessKey in self.coding.keys():
+            for field in replaceFields:
+                print field
+                if sessKey in otherCoding.keys() and field in otherCoding[sessKey].keys():
+                    print otherCoding[sessKey][field]
+                    self.coding[sessKey][field] = otherCoding[sessKey][field]
+                else:
+                    print "skipping"
 
         backup_and_save(paths.coding_filename(self.expId), self.coding)
 
@@ -1870,6 +1896,11 @@ To look for and process VCode files for batch videos:
 To use the staging database:
     add the argument --config .env-staging to any other command
 
+If videos had to be created on a different computer:
+    move videodata file to TMI
+    move videos to TMI
+    move coding data file to TMI under new name in data dir
+    run exp.sync_coding_data(newCodingFileName)
 
 Partial updates:
 
@@ -2110,5 +2141,12 @@ if __name__ == '__main__':
         #                     'lookit.session57bc591dc0d9d70055f775dbs.57ea1af0c0d9d70061c684b5']
         #exp.concatenate_session_videos(sessionsToProcess, display=True, replace=False)
         #exp.concatenate_session_videos('all', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=True)
-        exp.summarize_results()
+        #exp.summarize_results()
+        #
+        #sessions = ['lookit.session57bc591dc0d9d70055f775dbs.57e68be1c0d9d70061c682da',
+        #            'lookit.session57bc591dc0d9d70055f775dbs.57e70cfbc0d9d70061c68364']
+        #exp.concatenate_session_videos(sessions, filter={}, display=True, replace=False)
 
+        #printer.pprint(exp.videoData)
+        #printer.pprint(exp.coding)
+        exp.sync_coding_data('coding_data_57bc591dc0d9d70055f775db_kms.bin')
