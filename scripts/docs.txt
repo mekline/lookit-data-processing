@@ -63,6 +63,7 @@ Initial installation so client.py can work:
     source fwenv/bin/activate
     pip install -r requirements.txt
     pip install matplotlib
+    pip install scipy
 
     Now to run anything that requires matplotlib, use frameworkpython in place of python.
 

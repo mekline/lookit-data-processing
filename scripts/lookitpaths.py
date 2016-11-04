@@ -11,6 +11,7 @@ BATCH_DIR = os.path.join(BASE_DIR, os.environ.get("BATCH_DIR"))
 DATA_DIR = os.path.join(BASE_DIR, os.environ.get("DATA_DIR"))
 CODING_DIR = os.path.join(BASE_DIR, os.environ.get("CODING_DIR"))
 SESSION_DIR = os.path.join(BASE_DIR, os.environ.get("SESSION_DIR"))
+FIG_DIR = os.path.join(CODING_DIR, 'figs')
 FFMPEG = os.environ.get("FFMPEG_PATH")
 FFPROBE = os.path.join(os.path.split(FFMPEG)[0], 'ffprobe')
 
@@ -43,10 +44,13 @@ def vcode_batchfilename(batchFilename, coderName):
     batchStub, ext = os.path.splitext(batchFilename)
     return os.path.join(CODING_DIR, coderName, batchStub + '-evts.txt')
 
-def vcode_filename(sessKey, coderName):
-    '''Return full path to expected VCode file for a given study, session & coder'''
+def vcode_filename(sessKey, coderName, short=False):
+    '''Return full path to expected VCode file for a given study, session & coder. short=True to use just the session ID instead of exp + session.'''
     (expId, shortSess) = parse_session_key(sessKey)
-    return os.path.join(CODING_DIR, coderName, expId + '_' + shortSess + '-evts.txt')
+    if short:
+        return os.path.join(CODING_DIR, coderName, shortSess + '-evts.txt')
+    else:
+        return os.path.join(CODING_DIR, coderName, expId + '_' + shortSess + '-evts.txt')
 
 
 def codesheet_filename(expId, coderName):

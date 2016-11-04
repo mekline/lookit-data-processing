@@ -20,6 +20,7 @@ import string
 import argparse
 import unittest
 import numpy as np
+import scipy.stats
 if sysconfig.get_config_var("PYTHONFRAMEWORK"):
     import matplotlib.pyplot as plt
 else:
@@ -1664,11 +1665,12 @@ class Experiment(object):
             codeRec = self.coding[sessKey]
             theseCoders = codeRec['allcoders']
             vidLengths = codeRec['concatDurations']
-            printer.pprint((sessKey, theseCoders))
+            # printer.pprint((sessKey, theseCoders))
+
             # Extract list of lengths to use for demarcating trials
 
             for coderName in theseCoders:
-                vcodeFilename = paths.vcode_filename(sessKey, coderName)
+                vcodeFilename = paths.vcode_filename(sessKey, coderName, short=True)
                 # Check that VCode file exists
                 if not os.path.isfile(vcodeFilename):
                     warn('Expected Vcode file {} for coder {} not found'.format(os.path.basename(vcodeFilename), coderName))
@@ -1691,37 +1693,206 @@ class Experiment(object):
 
     def summarize_results(self):
 
-        usableSessions = {sKey:c for (sKey, c) in self.coding.items() if c['usable'] in ['yes']}
+        usableSessions = {sKey:c for (sKey, c) in self.coding.items() if c['usable'][:3] == 'yes'}
+
+        nCoded = 0
+
+        plotsToMake = ['prefRight', 'prefOverall', 'prefByConcept', 'controlCorrs', 'calibration', 'totalLT']
+        #plotsToMake = ['calibration']
+        figNums = {plotName: figNum for (plotName, figNum) in zip(plotsToMake, range(len(plotsToMake)))}
+
+        calibrationData = []
+        totalData = []
 
         for (sessKey, codeRec) in usableSessions.items():
             # Check if file is usable. If so, list.
             print (sessKey, codeRec['allcoders'])
 
-            if 'Training' not in codeRec['allcoders'] and 'Jessica' in codeRec['allcoders']:
-                #'concatShowedAlternate', 'concatVideosShown', 'actualDuration',
-                #'nVideosFound', 'vcode', 'usable', 'concatVideos', 'nVideosExpected',
-                #'concatDurations', 'allcoders'
+            # get child's age
+            age = codeRec['ageRegistration']
 
-                print "{} clips. Durations: ".format(len(codeRec['concatVideos']))
-                printer.pprint(codeRec['concatDurations'])
-                printer.pprint(codeRec['concatVideosShown'])
+            if 'Jessica' in codeRec['allcoders']: #'Training' not in codeRec['allcoders'] and
+
+                nCoded += 1
+
+                print "{} clips".format(len(codeRec['concatVideos']))
+                #printer.pprint(codeRec['concatVideosShown'])
                 vcodedata = codeRec['vcode']
 
-
                 for (coder, coding) in vcodedata.items():
-                    totalLTs = coding['leftLookTime'] + coding['rightLookTime']
-                    print totalLTs
+                    if coder == 'Jessica':
 
-                    preferences = np.divide(coding['leftLookTime'], totalLTs)
-                    print preferences
+                        totalLTs = coding['leftLookTime'] + coding['rightLookTime']
+                        totalData.append([LT for LT in totalLTs if not codeRec['concatVideosShown'] == None])
+                        preferences = np.divide(coding['leftLookTime'], totalLTs)
 
-                    plt.plot([1,2,3,4])
-                    plt.ylabel('some numbers')
-                    plt.show()
+                        # unexpectedLeft references child's left, preferences are to coder's left = child's right
+                        prefUnexpected = [1-pref if parse_stimuli_name(stimVid)['unexpectedLeft'] else pref \
+                            for (pref, stimVid) in zip(preferences, codeRec['concatVideosShown'])]
 
+                        parsedVidNames = [parse_stimuli_name(stimVid) for stimVid in codeRec['concatVideosShown']]
+
+                        def selectPreferences(prefs, minTrial=0, maxTrial=25, excludeConcepts=[], concepts=[], events=[], requireOneImprob=True):
+                            thesePrefs = [p for (p, parsed, trialNum) in zip(prefs, parsedVidNames, range(len(prefs))) if \
+                                ((not requireOneImprob) or parsed['unexpectedLeft'] != parsed['unexpectedRight']) and \
+                                not parsed['concept'] in excludeConcepts and \
+                                ((not concepts) or parsed['concept'] in concepts) and \
+                                ((not events) or parsed['event'] in events) and \
+                                minTrial <= trialNum <= maxTrial ]
+                            m = np.nanmean(thesePrefs)
+                            s = scipy.stats.sem(thesePrefs, nan_policy='omit')
+
+                            return (thesePrefs, m, s)
+
+                        (prefUnexpectedOverall, overallMean, overallSem) = selectPreferences(prefUnexpected, excludeConcepts=['control'])
+                        (prefUnexpectedGravity, gravityMean, gravitySem) = selectPreferences(prefUnexpected, concepts=['gravity'])
+                        (prefUnexpectedSupport, supportMean, supportSem) = selectPreferences(prefUnexpected, concepts=['support'], events=['stay'])
+                        (prefUnexpectedControl, controlMean, controlSem) = selectPreferences(prefUnexpected, concepts=['control'])
+                        prefSame = np.abs(np.array(selectPreferences(preferences, events=['same'], requireOneImprob=False)[0]) - 0.5)
+
+                        calScores = [vcode.scoreCalibrationTrials(paths.vcode_filename(sessKey, coder, short=True),
+                                                            iTrial,
+                                                            codeRec['concatDurations'],
+                                                            parsed['flip'] == 'LR',
+                                                            [5000, 10000, 15000, 20000]) \
+                                    for (iTrial, parsed) in zip(range(len(parsedVidNames)), parsedVidNames) \
+                                        if parsed['event'] == 'calibration']
+                        correctTotal = sum([cs[0] for cs in calScores])
+                        incorrectTotal = sum([cs[1] for cs in calScores])
+                        calFracs = [float(cs[0])/(cs[0]+cs[1]) if cs[0]+cs[1] else float('nan') for cs in calScores]
+                        calibrationData.append(calFracs)
+
+                        if correctTotal + incorrectTotal:
+                            calScoreSummary = float(correctTotal) / (correctTotal + incorrectTotal)
+                        else:
+                            calScoreSummary = float('nan')
+
+                        if 'prefRight' in plotsToMake:
+                            plt.figure(figNums['prefRight'])
+                            plt.plot(preferences, 'o-')
+
+                        if 'prefOverall' in plotsToMake:
+                            plt.figure(figNums['prefOverall'])
+                            plt.errorbar(age, overallMean, yerr=overallSem, fmt='o', ecolor='g', capthick=2)
+
+                        if 'prefByConcept' in plotsToMake:
+                            plt.figure(figNums['prefByConcept'], figsize=(5,10))
+                            plt.subplot(411)
+                            plt.errorbar(age, gravityMean, yerr=gravitySem, fmt='o', ecolor='g', capthick=2)
+                            plt.subplot(412)
+                            plt.errorbar(age, supportMean, yerr=supportSem, fmt='o', ecolor='g', capthick=2)
+                            plt.subplot(413)
+                            plt.errorbar(age, controlMean, yerr=controlSem, fmt='o', ecolor='g', capthick=2)
+                            if not np.isnan(calScoreSummary):
+                                plt.plot([age], [calScoreSummary], 'kx')
+                            plt.subplot(414)
+                            plt.plot([age] * len(prefSame), prefSame, 'ro-')
+
+                        if 'controlCorrs' in plotsToMake:
+                            plt.figure(figNums['controlCorrs'], figsize=(4,8))
+                            plt.subplot(211)
+                            plt.errorbar(np.nanmean(prefSame), overallMean,
+                                xerr=scipy.stats.sem(prefSame, nan_policy='omit'), yerr=overallSem, fmt='o', capthick=2, ecolor='g')
+                            plt.subplot(212)
+                            plt.errorbar(controlMean, overallMean,
+                                xerr=controlSem, yerr=overallSem, fmt='o', capthick=2, ecolor='g')
 
             else:
                 print '\tNot yet coded'
+
+        print "\n{} records coded".format(nCoded)
+
+        make_sure_path_exists(paths.FIG_DIR)
+
+        agerange = [4, 13]
+
+        if 'totalLT' in plotsToMake:
+            f = plt.figure(figNums['totalLT'])
+            nTrials = 24
+            meanLT = np.divide([np.nanmean([LTs[iT] if (iT < len(LTs)) else float('nan') for LTs in totalData]) for iT in range(nTrials)], 1000)
+            semLT = np.divide([scipy.stats.sem([LTs[iT] if (iT < len(LTs)) else float('nan') for LTs in totalData], nan_policy='omit') for iT in range(nTrials)], 1000)
+            plt.errorbar(range(nTrials), meanLT, yerr=semLT, fmt='o-', capthick=2)
+            plt.xlabel('trial number')
+            plt.ylabel('looking time (s)')
+            plt.title('Mean total looking time per trial')
+            plt.axis([-1,nTrials,0, 20])
+            plt.grid(True)
+            f.savefig(os.path.join(paths.FIG_DIR, 'totalLT.png'))
+
+
+        if 'prefRight' in plotsToMake:
+            f = plt.figure(figNums['prefRight'])
+            plt.axis([0,24,-0.1,1.1])
+            plt.ylabel('preference for childs right')
+            plt.xlabel('trial number')
+            plt.tight_layout()
+            f.savefig(os.path.join(paths.FIG_DIR, 'prefRight.png'))
+
+        if 'prefOverall' in plotsToMake:
+            f = plt.figure(figNums['prefOverall'])
+            plt.axis(agerange + [0.2, 0.8])
+            plt.title('Overall preference per child')
+            plt.ylabel('preference for unexpected events')
+            plt.xlabel('age in months')
+            plt.plot(agerange, [0.5, 0.5], 'k-')
+            plt.tight_layout()
+            f.savefig(os.path.join(paths.FIG_DIR, 'prefOverall.png'))
+
+        if 'prefByConcept' in plotsToMake:
+            f = plt.figure(figNums['prefByConcept'])
+            plt.subplot(411)
+            plt.axis(agerange + [0, 1])
+            plt.title('Gravity preference')
+            plt.plot(agerange, [0.5, 0.5], 'k-')
+            plt.subplot(412)
+            plt.axis(agerange + [0, 1])
+            plt.title('Support preference')
+            plt.plot(agerange, [0.5, 0.5], 'k-')
+            plt.subplot(413)
+            plt.axis(agerange + [-0.1, 1.1])
+            plt.title('Salience preference')
+            plt.plot(agerange, [0.5, 0.5], 'k-')
+            plt.subplot(414)
+            plt.axis(agerange + [-0.05, 0.55])
+            plt.title('Stickiness, per trial')
+            plt.xlabel('age in months')
+            plt.plot(agerange, [0.5, 0.5], 'k-')
+            plt.plot(agerange, [0, 0], 'k-')
+            plt.tight_layout()
+            f.savefig(os.path.join(paths.FIG_DIR, 'prefByConcept.png'))
+
+        if 'controlCorrs' in plotsToMake:
+            f = plt.figure(figNums['controlCorrs'])
+            plt.subplot(211)
+            plt.axis([0, 0.5, 0, 1])
+            plt.grid(True)
+            plt.xlabel('''Stickiness (0 = equal looking,
+            0.5 = exclusively one event)''')
+            plt.ylabel('Overall preference unexpected')
+            plt.subplot(212)
+            plt.axis([0, 1, 0, 1])
+            plt.xlabel('Salience preference')
+            plt.ylabel('Overall preference unexpected')
+            plt.grid(True)
+            plt.tight_layout()
+            f.savefig(os.path.join(paths.FIG_DIR, 'controlCorrs.png'))
+
+        if 'calibration' in plotsToMake:
+            f = plt.figure(figNums['calibration'], figsize=(4,4))
+            i = 1
+            for calFracs in calibrationData:
+                if len(calFracs):
+                    plt.plot([i] * len(calFracs), calFracs, 'ko')
+                    plt.plot([i-0.1, i+0.1], [np.nanmean(calFracs)] * 2, 'k-')
+                    i += 1
+            plt.axis([0, i, -0.01, 1.01])
+            plt.ylabel('Fraction looking time to correct side')
+            plt.xlabel('Participant')
+            plt.title('Calibration trials')
+            plt.tight_layout()
+            f.savefig(os.path.join(paths.FIG_DIR, 'calibration.png'))
+
+        plt.show()
 
 
 def get_batch_info(expId='', batchId='', batchFilename=''):
@@ -1765,6 +1936,48 @@ def filter_keys(sessDict, filter):
         filteredKeys = [sKey for sKey in filteredKeys if (key in sessDict[sKey].keys() and sessDict[sKey][key] in vals) or
             (key not in sessDict[sKey].keys() and None in vals)]
     return filteredKeys
+
+def parse_stimuli_name(stimVid):
+
+    unexpectedOutcomes = {'ramp': ['up'],
+                        'toss':  ['up'],
+                        'table':  ['up', 'continue'],
+                        'stay': ['near', 'next-to', 'slightly-on'],
+                        'fall': ['mostly-on'],
+                        'salience': ['interesting'],
+                        'same': []}
+
+    if not stimVid:
+        concept = None
+        unexpectedLeft = False
+        unexpectedRight = False
+        event = None
+        flip = None
+
+    elif 'calibration' in stimVid:
+        concept = 'calibration'
+        unexpectedLeft = False
+        unexpectedRight = False
+        event = 'calibration'
+        flip = 'RL' if 'RL' in stimVid else 'LR'
+    else:
+        (_, event, leftOutcome, rightOutcome, object, camera, background, flip) = stimVid.split('_')
+        if event in ['ramp', 'toss', 'table']:
+            concept = 'gravity'
+        elif event in ['stay', 'fall']:
+            concept = 'support'
+        elif event in ['same', 'salience']:
+            concept = 'control'
+        else:
+            warn('Unrecognized event type')
+
+        unexpectedLeft = leftOutcome in unexpectedOutcomes[event]
+        unexpectedRight = rightOutcome in unexpectedOutcomes[event]
+
+    return {'concept': concept, 'unexpectedLeft': unexpectedLeft,
+            'unexpectedRight': unexpectedRight, 'event': event,
+            'flip': flip}
+
 
 helptext = '''
 You'll use the program coding.py to create spreadsheets with updated data for you to work
@@ -2127,7 +2340,8 @@ if __name__ == '__main__':
 
     elif args.action == 'updatevcode':
         #exp.read_batch_coding()
-        exp.read_vcode_coding(filter={'consent':['yes'], 'withdrawn':[None, False]})
+        #exp.read_vcode_coding(filter={'consent':['yes'], 'withdrawn':[None, False]})
+        exp.summarize_results()
 
     elif args.action == 'updatevideodata':
         sessionsAffected, improperFilenames, unmatched = exp.update_video_data(newVideos='all', reprocess=True, resetPaths=False, display=False)
@@ -2149,4 +2363,7 @@ if __name__ == '__main__':
 
         #printer.pprint(exp.videoData)
         #printer.pprint(exp.coding)
-        exp.sync_coding_data('coding_data_57bc591dc0d9d70055f775db_kms.bin')
+        #exp.sync_coding_data('coding_data_57bc591dc0d9d70055f775db_kms.bin')
+        #sessions = ['lookit.session57bc591dc0d9d70055f775dbs.57dd71bcc0d9d70061c67bec']
+        #exp.concatenate_session_videos(sessions, filter={}, display=True, replace=True)
+        pass

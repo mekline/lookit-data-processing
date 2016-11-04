@@ -190,10 +190,8 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
     # Use the correct interval
     if len(interval):
         if interval[1]:
-            trialStarts = np.minimum(trialEnds, np.add(trialStarts, interval[0]))
             trialEnds = np.minimum(trialEnds, np.add(trialStarts, interval[1]))
-        else:
-            trialStarts = np.maximum(trialStarts, np.add(trialEnds,  interval[0]))
+        trialStarts = np.minimum(trialEnds, np.add(trialStarts, interval[0]))
 
     durations = np.subtract(trialEnds, trialStarts)
 
@@ -222,6 +220,31 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
 
     return (durations, leftLookTime, rightLookTime, oofTime)
 
+''' TODO: finish and test'''
+def scoreCalibrationTrials(vcodepath, whichTrial, videoLengths, startLeft, switchTimes):
+    thisSideLeft = startLeft
+    startTime = 0
+    correctTime = 0
+    incorrectTime = 0
+    for iSegment in range(len(switchTimes)):
+        if iSegment == 0:
+            startTime = 0
+        else:
+            startTime = switchTimes[iSegment - 1]
+        startTime = startTime + 500
+        endTime = switchTimes[iSegment]
+        (durations, leftLookTime, rightLookTime, oofTime) = \
+            read_preferential(vcodepath, whichTrials=[whichTrial], interval=[startTime, endTime], videoLengths=videoLengths)
+
+        if thisSideLeft:
+            correctTime += rightLookTime[whichTrial]
+            incorrectTime += leftLookTime[whichTrial]
+        else:
+            correctTime += leftLookTime[whichTrial]
+            incorrectTime += rightLookTime[whichTrial]
+        thisSideLeft = not thisSideLeft
+
+    return (correctTime, incorrectTime)
 
 class TestLookingMethods(unittest.TestCase):
 
