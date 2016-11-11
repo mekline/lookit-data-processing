@@ -73,6 +73,17 @@ class Experiment(object):
         return exp
 
     @classmethod
+    def load_email_data(cls, expId):
+        '''Return saved email data for this experiment, or {} if none saved'''
+        emailFile = paths.email_filename(expId)
+        if os.path.exists(emailFile):
+            with open(paths.email_filename(expId),'rb') as f:
+                email = pickle.load(f)
+        else:
+            email = {}
+        return email
+
+    @classmethod
     def load_coding(cls, expId):
         '''Return saved coding data for this experiment, or empty dict if none saved.'''
         codingFile = paths.coding_filename(expId)
@@ -374,6 +385,7 @@ class Experiment(object):
         self.sessions = self.load_session_data(expId)
         self.videoData = self.load_video_data()
         self.accounts = self.load_account_data()
+        self.email = self.load_email_data(expId)
         self.trimLength = trimLength
         print 'initialized study {}'.format(expId)
 
@@ -1702,6 +1714,7 @@ class Experiment(object):
         figNums = {plotName: figNum for (plotName, figNum) in zip(plotsToMake, range(len(plotsToMake)))}
 
         calibrationData = []
+        calibrationTimes = []
         totalData = []
 
         for (sessKey, codeRec) in usableSessions.items():
@@ -1760,7 +1773,14 @@ class Experiment(object):
                         correctTotal = sum([cs[0] for cs in calScores])
                         incorrectTotal = sum([cs[1] for cs in calScores])
                         calFracs = [float(cs[0])/(cs[0]+cs[1]) if cs[0]+cs[1] else float('nan') for cs in calScores]
+                        calTimes = [float(cs[0] + cs[1]) if cs[0] + cs[1] else float('nan') for cs in calScores]
                         calibrationData.append(calFracs)
+                        calibrationTimes.append(calTimes)
+
+                        print 'calibration:'
+                        print calFracs
+                        #print [parsed in parsedVidNames if parsed['event'] == 'calibration'
+                        printer.pprint([(parsed['event'], vid) for (parsed, vid) in zip(parsedVidNames, codeRec['concatVideos']) if parsed['event']=='calibration'])
 
                         if correctTotal + incorrectTotal:
                             calScoreSummary = float(correctTotal) / (correctTotal + incorrectTotal)
@@ -1880,15 +1900,20 @@ class Experiment(object):
         if 'calibration' in plotsToMake:
             f = plt.figure(figNums['calibration'], figsize=(4,4))
             i = 1
-            for calFracs in calibrationData:
-                if len(calFracs):
-                    plt.plot([i] * len(calFracs), calFracs, 'ko')
-                    plt.plot([i-0.1, i+0.1], [np.nanmean(calFracs)] * 2, 'k-')
-                    i += 1
-            plt.axis([0, i, -0.01, 1.01])
-            plt.ylabel('Fraction looking time to correct side')
-            plt.xlabel('Participant')
+            for (iSubj, calFracs) in enumerate(calibrationData):
+                #if len(calFracs):
+                #    plt.plot([i] * len(calFracs), calFracs, 'ko')
+                #    plt.plot([i-0.1, i+0.1], [np.nanmean(calFracs)] * 2, 'k-')
+                #    i += 1
+                plt.plot(calibrationTimes[iSubj], calFracs, 'o')
+            #plt.axis([0, i, -0.01, 1.01])
+            #plt.ylabel('Fraction looking time to correct side')
+            #plt.xlabel('Participant')
             plt.title('Calibration trials')
+
+
+
+
             plt.tight_layout()
             f.savefig(os.path.join(paths.FIG_DIR, 'calibration.png'))
 
@@ -1979,7 +2004,9 @@ def parse_stimuli_name(stimVid):
             'flip': flip}
 
 
-helptext = '''
+if __name__ == '__main__':
+
+    helptext = '''
 You'll use the program coding.py to create spreadsheets with updated data for you to work
 with, and to 'commit' or save the edits you make in those spreadsheets to the underlying
 data structures. Note that the spreadsheets you interact with are TEMPORARY files: they
@@ -2146,17 +2173,6 @@ Partial updates:
         and videos are converted to mp4 and concatenated by session, with the results stored
         under sessions/STUDYID. (Existing videos are not overwritten.)'''
 
-
-
-if __name__ == '__main__':
-
-
-
-    studyNicknames = {'phys': '57a212f23de08a003c10c6cb',
-                      'test': '57adc3373de08a003fb12aad',
-                      'pilot': '57dae6f73de08a0056fb4165',
-                      'prodpilot':'57bc591dc0d9d70055f775db'}
-
     ignoreProfiles = ['kim2.smtS6', 'sam.pOE5w', 'abought.hqReV']
 
     includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
@@ -2243,7 +2259,7 @@ if __name__ == '__main__':
 
     # Process any study nicknames
     if args.study:
-        args.study = studyNicknames.get(args.study, args.study)
+        args.study = paths.studyNicknames.get(args.study, args.study)
         exp = Experiment(args.study, trimLength)
         includeFields = includeFieldsByStudy.get(args.study, [])
 
@@ -2340,7 +2356,7 @@ if __name__ == '__main__':
 
     elif args.action == 'updatevcode':
         #exp.read_batch_coding()
-        #exp.read_vcode_coding(filter={'consent':['yes'], 'withdrawn':[None, False]})
+        exp.read_vcode_coding(filter={'consent':['yes'], 'withdrawn':[None, False]})
         exp.summarize_results()
 
     elif args.action == 'updatevideodata':

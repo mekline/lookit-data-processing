@@ -31,7 +31,7 @@ class SendGrid(object):
         self.smtp = sendgrid.SendGridClient(
             apikey or conf.SENDGRID_KEY
         )
-        self.from_addr = from_addr or 'Test client <test-client@foo.com>'
+        self.from_addr = from_addr or 'Lookit team <lookit@mit.edu>'
 
     def groups(self):
         res = self.sg.client.asm.groups.get()
@@ -65,17 +65,35 @@ class SendGrid(object):
         ).delete()
         return None
 
-    def send_email_to(self, email, subject, body, group_id=None):
+    def send_email_to(self, email, subject, body, group_id=None, plaintext=None):
+
+        if plaintext == None:
+            plaintext = self.make_plaintext(body)
         message = sendgrid.Mail()
         message.add_to(email)
         message.set_subject(subject)
         message.set_html(body)
-        message.set_text(body)
+        message.set_text(plaintext)
         message.set_from(self.from_addr)
         if group_id:
             message.set_asm_group_id(group_id)
         status, msg = self.smtp.send(message)
         print(status, msg)
+        return status
+
+    def make_plaintext(self, body):
+        plaintext = body
+        replace = {'<br>': '\r\n'}
+        remove = ['<hr>']
+        for (old, new) in replace.items():
+            while old in plaintext:
+                ind = plaintext.find(old)
+                plaintext = plaintext[:ind] + new + plaintext[(ind+len(old)):]
+        for rem in remove:
+            while rem in plaintext:
+                ind = plaintext.find(rem)
+                plaintext = plaintext[:ind] + plaintext[(ind+len(rem)):]
+        return plaintext
 
 
 def test(recipient_email, subscribe=True, unsubscribe=False):

@@ -6,7 +6,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--config', type=str)
 args, _ = parser.parse_known_args()
 
-default_env = '.env-prod'
+# default_env = '.env-prod'
+default_env = '.env-staging'
 dotenv_path = os.path.join(os.path.dirname(__file__), args.config or default_env)
 load_dotenv(dotenv_path)
 

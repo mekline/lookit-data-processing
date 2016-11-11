@@ -112,6 +112,10 @@ Setting up automation, on OSX:
 	- You can stop using launchctl unload com.lookit.update.plist.
 	- You can see the output and any errors in autoSync.err and autoSync.out.
 
+	- To start also sending emails, will need to add the line
+	python reminder_emails.py --study prodpilot --emails all
+	to updateLookit.sh
+
 
 ------------------- Setting up for data analysis ------------------------------
 * Install MacPorts.
@@ -224,6 +228,8 @@ Videos: keys are filenames (.flv)
   mp4Path_[suffix] - relative, from SESSION_DIR. '' if not created yet.
   mp4Dur_[suffix] - duration of the mp4 in seconds; -1 if not created yet; 0 if could not
     be created.
+
+email: keys are profileIds (e.g. kim2.zlkjs), values are lists of emails sent regarding that child's participation in this study.
 
 Note: suffix is 'whole' or 'trimmed'; these fields are created when updating video
     data, although others could also be added.

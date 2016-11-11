@@ -24,20 +24,27 @@ make_sure_path_exists(SESSION_DIR)
 VIDEO_FILENAME = os.path.join(DATA_DIR, 'video_data.bin')
 ACCOUNT_FILENAME = os.path.join(DATA_DIR, 'accounts' + conf.VERSION + '.bin')
 
+studyNicknames = {'phys': '57a212f23de08a003c10c6cb',
+                  'test': '57adc3373de08a003fb12aad',
+                  'pilot': '57dae6f73de08a0056fb4165',
+                  'prodpilot':'57bc591dc0d9d70055f775db'}
+
+
 def session_filename(expId):
     '''Return full path to the session data filename for experiment expId'''
-    return os.path.join(DATA_DIR, 'session_data_' + \
-        expId + '.bin')
+    return os.path.join(DATA_DIR, 'session_data_' + expId + '.bin')
+
+def email_filename(expId):
+    '''Return full path to the session data filename for experiment expId'''
+    return os.path.join(DATA_DIR, 'email_data_' + expId + conf.VERSION + '.bin')
 
 def coding_filename(expId):
     '''Return full path to the coding data filename for experiment expId'''
-    return os.path.join(DATA_DIR, 'coding_data_' + \
-        expId + '.bin')
+    return os.path.join(DATA_DIR, 'coding_data_' + expId + '.bin')
 
 def batch_filename(expId):
     '''Return full path to the batch data filename for experiment expId'''
-    return os.path.join(DATA_DIR, 'batch_data_' + \
-        expId + '.bin')
+    return os.path.join(DATA_DIR, 'batch_data_' +  expId + '.bin')
 
 def vcode_batchfilename(batchFilename, coderName):
     '''Return full path to expected VCode file for a given batch & coder'''
