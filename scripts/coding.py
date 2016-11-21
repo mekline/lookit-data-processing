@@ -1709,13 +1709,15 @@ class Experiment(object):
 
         nCoded = 0
 
-        plotsToMake = ['prefRight', 'prefOverall', 'prefByConcept', 'controlCorrs', 'calibration', 'totalLT']
-        #plotsToMake = ['calibration']
+        #plotsToMake = ['prefRight', 'prefOverall', 'prefByConcept', 'controlCorrs', 'calibration', 'totalLT']
+        plotsToMake = ['calibration']
         figNums = {plotName: figNum for (plotName, figNum) in zip(plotsToMake, range(len(plotsToMake)))}
 
         calibrationData = []
         calibrationTimes = []
         totalData = []
+        stds = []
+
 
         for (sessKey, codeRec) in usableSessions.items():
             # Check if file is usable. If so, list.
@@ -1753,14 +1755,18 @@ class Experiment(object):
                                 ((not events) or parsed['event'] in events) and \
                                 minTrial <= trialNum <= maxTrial ]
                             m = np.nanmean(thesePrefs)
-                            s = scipy.stats.sem(thesePrefs, nan_policy='omit')
+                            std = np.nanstd(thesePrefs)
+                            sem = scipy.stats.sem(thesePrefs, nan_policy='omit')
 
-                            return (thesePrefs, m, s)
+                            return (thesePrefs, m, sem, std)
 
-                        (prefUnexpectedOverall, overallMean, overallSem) = selectPreferences(prefUnexpected, excludeConcepts=['control'])
-                        (prefUnexpectedGravity, gravityMean, gravitySem) = selectPreferences(prefUnexpected, concepts=['gravity'])
-                        (prefUnexpectedSupport, supportMean, supportSem) = selectPreferences(prefUnexpected, concepts=['support'], events=['stay'])
-                        (prefUnexpectedControl, controlMean, controlSem) = selectPreferences(prefUnexpected, concepts=['control'])
+                        (prefUnexpectedOverall, overallMean, overallSem, overallStd) = selectPreferences(prefUnexpected, excludeConcepts=['control'])
+                        (prefUnexpectedGravity, gravityMean, gravitySem, gravityStd) = selectPreferences(prefUnexpected, concepts=['gravity'])
+                        (prefUnexpectedSupport, supportMean, supportSem, supportStd) = selectPreferences(prefUnexpected, concepts=['support'], events=['stay'])
+                        (prefUnexpectedControl, controlMean, controlSem, controlStd) = selectPreferences(prefUnexpected, concepts=['control'])
+
+                        if len(prefUnexpectedControl) > 1:
+                            stds.append(controlStd)
                         prefSame = np.abs(np.array(selectPreferences(preferences, events=['same'], requireOneImprob=False)[0]) - 0.5)
 
                         calScores = [vcode.scoreCalibrationTrials(paths.vcode_filename(sessKey, coder, short=True),
@@ -1901,14 +1907,14 @@ class Experiment(object):
             f = plt.figure(figNums['calibration'], figsize=(4,4))
             i = 1
             for (iSubj, calFracs) in enumerate(calibrationData):
-                #if len(calFracs):
-                #    plt.plot([i] * len(calFracs), calFracs, 'ko')
-                #    plt.plot([i-0.1, i+0.1], [np.nanmean(calFracs)] * 2, 'k-')
-                #    i += 1
-                plt.plot(calibrationTimes[iSubj], calFracs, 'o')
-            #plt.axis([0, i, -0.01, 1.01])
-            #plt.ylabel('Fraction looking time to correct side')
-            #plt.xlabel('Participant')
+                if len(calFracs):
+                   plt.plot([i] * len(calFracs), calFracs, 'ko')
+                   plt.plot([i-0.1, i+0.1], [np.nanmean(calFracs)] * 2, 'k-')
+                   i += 1
+                #plt.plot(calibrationTimes[iSubj], calFracs, 'o')
+            plt.axis([0, i, -0.01, 1.01])
+            plt.ylabel('Fraction looking time to correct side')
+            plt.xlabel('Participant')
             plt.title('Calibration trials')
 
 
@@ -1918,6 +1924,9 @@ class Experiment(object):
             f.savefig(os.path.join(paths.FIG_DIR, 'calibration.png'))
 
         plt.show()
+
+        print stds
+        print np.nanmean(stds)
 
 
 def get_batch_info(expId='', batchId='', batchFilename=''):
