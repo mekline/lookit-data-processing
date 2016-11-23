@@ -5,11 +5,17 @@
         <div class="lookit-row studies-row">
             <div class="container">
                 <div id="past-studies">
-                    <p class="study-detail-caption">Here you can view your studies and see comments left by researchers:</p>
+                    <div class="row study-detail-caption">
+                        Here you can view your studies and see comments left by researchers:
+                    </div>
+
                     <div class="row">
-                      {{#each model as |experimentSession|}}
-                        {{study-feedback experiment=experimentSession.experiment sessions=experimentSession.sessions account=account}}
-		      {{/each}}
+                        {{#each model as |experimentSession|}}
+                            {{study-feedback experiment=experimentSession.experiment sessions=experimentSession.sessions account=account}}
+                        {{else}}
+                            You have not yet completed any studies. Browse our list of {{#link-to 'studies'}}
+                            available studies{{/link-to}}.
+                        {{/each}}
                     </div>
                 </div>
             </div>

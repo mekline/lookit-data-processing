@@ -1,16 +1,14 @@
 import Ember from 'ember';
-// Do we want/need this?
+
 import AuthenticatedRouteMixin from 'ember-simple-auth/mixins/authenticated-route-mixin';
 
 import ExpPlayerRouteMixin from 'exp-player/mixins/exp-player-route';
 import WarnOnExitRouteMixin from 'exp-player/mixins/warn-on-exit-route';
 
-const { service } = Ember.inject;
-
 export default Ember.Route.extend(AuthenticatedRouteMixin, ExpPlayerRouteMixin, WarnOnExitRouteMixin, {
-    raven: Ember.inject.service('raven'),
+    raven: Ember.inject.service(),
 
-    sessionAccount: service('session-account'),
+    sessionAccount: Ember.inject.service(),
 
     _getExperiment(params) {
         return this.store.findRecord('experiment', Ember.get(params, 'experiment_id'));

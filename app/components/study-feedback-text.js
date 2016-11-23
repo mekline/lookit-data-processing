@@ -12,14 +12,14 @@ export default Ember.Component.extend({
     profileName: null,
 
     init() {
-	this._super(...arguments);
-	this.get('session').getProfile().then((profile) => {
-	    this.set('profileName', profile.get('firstName'));
-	});
+        this._super(...arguments);
+        this.get('session').getProfile().then((profile) => {
+            this.set('profileName', profile.get('firstName'));
+        });
     },
 
     actions: {
-        toggleFeedback: function() {
+        toggleFeedback: function () {
             this.toggleProperty('showFeedback');
             if (this.get('showFeedback')) {
                 this.set('feedbackText', 'Hide Feedback');

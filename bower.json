@@ -1,28 +1,20 @@
 {
   "name": "lookit-base",
   "dependencies": {
-    "ember": "2.3.1",
-    "ember-cli-shims": "0.1.0",
-    "ember-cli-test-loader": "0.2.2",
+    "ember": "~2.8.0",
+    "ember-cli-shims": "0.1.1",
     "ember-qunit-notifications": "0.1.0",
-    "jquery": ">=1.11.3 < 2.2.0",
     "font-awesome": "~4.5.0",
     "bootstrap": "~3.3.5",
     "uri-templates": "^0.1.9",
     "bcryptjs": "^2.3.0",
     "video.js": "^5.0.0",
-    "moment": "momentjs#~2.11.1",
+    "moment": "^2.11.2",
     "swfobject": "*",
     "handlebars": "3.0.3",
     "toastr": "^2.1.2",
     "lodash": "~3.10.1",
     "pikaday": "^1.4.0",
     "tooltipster": "^3.3.0"
-  },
-  "resolutions": {
-    "ember": "2.3.0",
-    "jquery": "2.1.4",
-    "bootstrap": "3.3.2",
-    "moment": "^2.11.2"
   }
 }

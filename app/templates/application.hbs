@@ -4,7 +4,7 @@
   </div>
 {{else}}
   <div class="main">
-      {{main-nav}}
+      {{main-nav logout=(action 'logout')}}
       {{outlet}}
   </div>
 {{/if}}

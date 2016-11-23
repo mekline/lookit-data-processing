@@ -1,35 +1,34 @@
 /* global dcodeIO */
 import Ember from 'ember';
 
-const {bcrypt} = dcodeIO;
+const { bcrypt } = dcodeIO;
 
 export default Ember.Controller.extend({
+    toast: Ember.inject.service(),
+
     _error: null,
     newPass: null,
     confirmPass: null,
-    sessionAccount: Ember.inject.service(),
-    account: Ember.computed.alias('sessionAccount.account'),
-    toast: Ember.inject.service(),
 
-    passMatch: function() {
+    passMatch: Ember.computed('newPass', 'confirmPass', function() {
         this.set('_error');
         return this.get('newPass') === this.get('confirmPass');
-    }.property('newPass', 'confirmPass'),
+    }),
 
     canUpdate: Ember.computed.and('newPass', 'confirmPass', 'passMatch'),
 
     actions: {
         save() {
-            this.get('account').save().then(() => {
+            this.get('model').save().then(() => {
                 this.toast.info('Account updated successfully.');
             });
         },
         cancel() {
-            this.get('account').rollbackAttributes();
+            this.get('model').rollbackAttributes();
         },
         updatePassword() {
-            this.set('account.password', bcrypt.hashSync(this.get('newPass'), 10).replace('$2a$', '$2b$'));
-            this.get('account').save().then(() => {
+            this.set('model.password', bcrypt.hashSync(this.get('newPass'), 10).replace('$2a$', '$2b$'));
+            this.get('model').save().then(() => {
                 this.set('_error', null);
                 this.set('newPass', null);
                 this.set('confirmPass', null);

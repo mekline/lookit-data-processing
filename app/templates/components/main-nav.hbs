@@ -19,10 +19,8 @@
         <li>{{#link-to "resources"}}Resources{{/link-to}}</li>
         <li>{{#link-to "contact"}}Contact Us{{/link-to}}</li>
 	{{#if session.isAuthenticated}}
-	    {{#if accountName}}
-		<li>{{#link-to 'my'}}Hi {{accountName}}{{/link-to}}</li>
-	    {{/if}}
-            <li><a onclick={{action 'logout'}}>Logout</a></li>
+        <li>{{#link-to 'my'}}Hi {{accountName}}{{/link-to}}</li>
+        <li><a href="#" {{action logout}} class="btn-link">Logout</a></li>
 	{{else}}
             <li>{{#link-to 'login'}}Login{{/link-to}}</li>
 	{{/if}}

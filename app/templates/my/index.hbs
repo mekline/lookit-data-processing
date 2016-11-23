@@ -4,27 +4,27 @@
   <div class="form-group">
     <label class="col-sm-2 control-label">Username</label>
     <div class="col-sm-10">
-      <p class="form-control"> {{account.username}} </p>
+      <input class="form-control" value="{{model.username}}" disabled>
     </div>
   </div>
   <div class="form-group">
     <label class="col-sm-2 control-label">Contact Name</label>
     <div class="col-sm-10">
-        {{input value=account.name class="form-control"}}
+        {{input value=model.name class="form-control"}}
     </div>
   </div>
   <div class="form-group">
     <label for="inputPassword3" class="col-sm-2 control-label">Email</label>
     <div class="col-sm-10">
-        {{input value=account.email class="form-control"}}
+        {{input value=model.email class="form-control"}}
     </div>
   </div>
   <div class="form-group">
     <div class="col-sm-offset-4 col-sm-8">
         <div class="pull-right">
-            <button disabled={{not account.hasDirtyAttributes}} {{action 'save'}} class="btn btn-success">Save</button>
+            <button disabled={{not model.hasDirtyAttributes}} {{action 'save'}} class="btn btn-success">Save</button>
             &nbsp;
-            <button disabled={{not account.hasDirtyAttributes}} {{action 'cancel'}} class="btn btn-default">Cancel</button>
+            <button disabled={{not model.hasDirtyAttributes}} {{action 'cancel'}} class="btn btn-default">Cancel</button>
         </div>
     </div>
   </div>

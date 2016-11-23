@@ -160,6 +160,10 @@ export default Ember.Component.extend({
                 'name': 'Wesleyan University Cognitive Development Labs'
             },
             {
+                'url': 'http://candlab.yale.edu/',
+                'name': 'Yale Clinical Affective Neuroscience & Development Lab'
+            },
+            {
                 'url': 'http://cogdevlab.sites.yale.edu/',
                 'name': 'Yale Cognition and Development Lab'
             },

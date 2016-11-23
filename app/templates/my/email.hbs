@@ -25,14 +25,14 @@
 	{{/each}}
 	<br>
 	  {{#if canSave}}
-            {{#bs-button type="success" action=(action 'saveEmailPreferences' model.account)}}
+            {{#bs-button type="success" action=(action 'saveEmailPreferences')}}
               Save
             {{/bs-button}}
 	  {{else}}
 	    {{#bs-button class="disabled" type="success" disabled=true}}
 	      Saving
 	    {{/bs-button}}
-	  {{/if}}	  
+	  {{/if}}
       {{/bs-form-group}}
     {{/bs-form}}
   </div>

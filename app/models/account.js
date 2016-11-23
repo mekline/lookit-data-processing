@@ -4,7 +4,8 @@ import Account from 'exp-models/models/account';
 
 import config from 'ember-get-config';
 
-const DEMOGRAPHIC_FIELDS = ['demographicsLanguagesSpokenAtHome', 'demographicsNumberOfChildren', 'demographicsNumberOfGuardians', 'demographicsNumberOfGuardiansExplanation', 'demographicsRaceIdentification', 'demographicsAge', 'demographicsGender', 'demographicsEducationLevel', 'demographicsSpouseEducationLevel', 'demographicsAnnualIncome', 'demographicsNumberOfBooks', 'demographicsAdditionalComments'];
+const DEMOGRAPHIC_FIELDS = ['demographicsLanguagesSpokenAtHome', 'demographicsNumberOfChildren', 'demographicsNumberOfGuardians', 'demographicsNumberOfGuardiansExplanation', 'demographicsRaceIdentification', 'demographicsAge', 'demographicsGender', 'demographicsEducationLevel', 'demographicsSpouseEducationLevel', 'demographicsAnnualIncome', 'demographicsNumberOfBooks', 'demographicsAdditionalComments',
+'demographicsCountry', 'demographicsState', 'demographicsDensity'];
 
 let { ASM_MAPPING } = config;
 
@@ -25,6 +26,9 @@ export default Account.extend({
     demographicsAnnualIncome: DS.attr('string'),
     demographicsNumberOfBooks: DS.attr('number'),
     demographicsAdditionalComments: DS.attr('string'),
+    demographicsCountry: DS.attr('string'),
+    demographicsState: DS.attr('string'),
+    demographicsDensity: DS.attr('string'),
 
     hasCompletedSurvey: Ember.computed.or(...DEMOGRAPHIC_FIELDS),
 
