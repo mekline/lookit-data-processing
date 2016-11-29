@@ -68,23 +68,23 @@ emailsScheduled = {
     'started2': {
         'success': True,
         'days': 2,
-        'subject': 'Ready for another Baby Physics session?',
-        'message': "Thank you so much for participating in Baby Physics on Lookit a few days ago with your child! "},
+        'subject': 'Ready for another "Your baby the physicist" session?',
+        'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit a few days ago with your child! "},
     'started4': {
         'success': True,
         'days': 4,
-        'subject': "Ready for another Baby Physics session?",
-        'message': "Thank you so much for participating in Baby Physics on Lookit this week with your child! "},
+        'subject': "Ready for another 'Your baby the physicist' session?",
+        'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit this week with your child! "},
     'started7': {
         'success': True,
         'days': 7,
-        'subject': "It's been a week since your last Baby Physics session - ready to come back?",
-        'message': "Thank you so much for participating in Baby Physics on Lookit last week with your child! "},
+        'subject': "It's been a week since your last 'Your baby the physicist' session - ready to come back?",
+        'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit last week with your child! "},
     'started14': {
         'success': True,
         'days': 14,
-        'subject': "It's been a few weeks since your last Baby Physics session - ready to come back?",
-        'message': "Thank you so much for participating in Baby Physics on Lookit with your child! "}}
+        'subject': "It's been a few weeks since your last 'Your baby the physicist' session - ready to come back?",
+        'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit with your child! "}}
 
 idealSessions = 15
 
@@ -105,7 +105,7 @@ if __name__ == '__main__':
 	# Get list of all participants
 	children = list(set([sess['attributes']['profileId'] for sess in exp.sessions['sessions']])) # full profile ID, e.g. kim2.zwmst
 
-	print("All accounts participating in this study:")
+	print("Sending reminder emails. All accounts participating in this study:")
 	print(", ".join(list(set([get_username(child) for child in children]))))
 
 	# Get SendGrid object & unsubscribe group for notifications

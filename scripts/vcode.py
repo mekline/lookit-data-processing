@@ -17,6 +17,8 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
              set this to [2000, 6000] to use from second 2 to second 6.
          [msA, 0]: use the period from (trialEnd + msA) to trialEnd; e.g. set
              this to [-5000, 0] to use the last five seconds of the trial
+         [-msA, -msB]: use the period from (trialEnd - msA) to (trialEnd - msB);
+             done if first value is negative.
        lastTrialLength: minimum length of last trial to assume (if supplied, VCode file
          is expected to have trial markers only at the start of each trial). Default [];
          if empty, VCode file is expected to have an extra trial marker which marks the
@@ -186,12 +188,19 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
 # %         set this to [2000, 6000] to use from second 2 to second 6.
 # %     [msA, 0]: use the period from (trialEnd + msA) to trialEnd; e.g. set
 # %         this to [-5000, 0] to use the last five seconds of the trial
+#       [-msA, -msB]: use the period from (trialEnd - msA) to (trialEnd - msB);
+#           done if first value is negative.
 
     # Use the correct interval
     if len(interval):
-        if interval[1]:
-            trialEnds = np.minimum(trialEnds, np.add(trialStarts, interval[1]))
-        trialStarts = np.minimum(trialEnds, np.add(trialStarts, interval[0]))
+        if interval[0] < 0:
+            trialStarts = np.maximum(trialStarts, np.add(trialEnds, interval[0]))
+            trialEnds = np.maximum(trialStarts, np.add(trialEnds, interval[1]))
+        else:
+
+            if interval[1]:
+                trialEnds = np.minimum(trialEnds, np.add(trialStarts, interval[1]))
+            trialStarts = np.minimum(trialEnds, np.add(trialStarts, interval[0]))
 
     durations = np.subtract(trialEnds, trialStarts)
 
@@ -220,19 +229,20 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
 
     return (durations, leftLookTime, rightLookTime, oofTime)
 
-''' TODO: finish and test'''
 def scoreCalibrationTrials(vcodepath, whichTrial, videoLengths, startLeft, switchTimes):
+    '''TODO: testing/doc.
+    switchTimes defined from END of trial, i.e. 0 = end, -1000 = 1s before end'''
     thisSideLeft = startLeft
     startTime = 0
     correctTime = 0
     incorrectTime = 0
     for iSegment in range(len(switchTimes)):
-        if iSegment == 0:
-            startTime = 0
+        if iSegment == len(switchTimes) - 1:
+            endTime = 0
         else:
-            startTime = switchTimes[iSegment - 1]
-        startTime = startTime + 500
-        endTime = switchTimes[iSegment]
+            endTime = switchTimes[iSegment + 1]
+        endTime = endTime - 2000
+        startTime = switchTimes[iSegment]
         (durations, leftLookTime, rightLookTime, oofTime) = \
             read_preferential(vcodepath, whichTrials=[whichTrial], interval=[startTime, endTime], videoLengths=videoLengths)
 

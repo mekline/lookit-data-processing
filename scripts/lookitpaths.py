@@ -24,11 +24,10 @@ make_sure_path_exists(SESSION_DIR)
 VIDEO_FILENAME = os.path.join(DATA_DIR, 'video_data.bin')
 ACCOUNT_FILENAME = os.path.join(DATA_DIR, 'accounts' + conf.VERSION + '.bin')
 
-studyNicknames = {'phys': '57a212f23de08a003c10c6cb',
+studyNicknames = {'physics': '583c892ec0d9d70082123d94',
                   'test': '57adc3373de08a003fb12aad',
                   'pilot': '57dae6f73de08a0056fb4165',
                   'prodpilot':'57bc591dc0d9d70055f775db'}
-
 
 def session_filename(expId):
     '''Return full path to the session data filename for experiment expId'''

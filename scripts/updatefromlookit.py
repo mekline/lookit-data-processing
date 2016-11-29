@@ -66,7 +66,7 @@ def update_account_data():
 
     # TODO: change back to all accounts!!
 	allAccounts = existingData # {}
-	for username in newUsernames: #allusernames
+	for username in newUsernames:#allusernames:
 		print username
 		accData = client.fetch_account(username)
 		allAccounts[username] = accData

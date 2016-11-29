@@ -113,7 +113,7 @@ Setting up automation, on OSX:
 	- You can see the output and any errors in autoSync.err and autoSync.out.
 
 	- To start also sending emails, will need to add the line
-	python reminder_emails.py --study prodpilot --emails all
+	python reminder_emails.py --study physics --emails all
 	to updateLookit.sh
 
 

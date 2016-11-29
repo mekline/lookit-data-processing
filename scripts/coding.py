@@ -1713,6 +1713,7 @@ class Experiment(object):
         plotsToMake = ['calibration']
         figNums = {plotName: figNum for (plotName, figNum) in zip(plotsToMake, range(len(plotsToMake)))}
 
+        sessions = []
         calibrationData = []
         calibrationTimes = []
         totalData = []
@@ -1773,7 +1774,7 @@ class Experiment(object):
                                                             iTrial,
                                                             codeRec['concatDurations'],
                                                             parsed['flip'] == 'LR',
-                                                            [5000, 10000, 15000, 20000]) \
+                                                            [-20000, -15000, -10000, -5000]) \
                                     for (iTrial, parsed) in zip(range(len(parsedVidNames)), parsedVidNames) \
                                         if parsed['event'] == 'calibration']
                         correctTotal = sum([cs[0] for cs in calScores])
@@ -1782,6 +1783,7 @@ class Experiment(object):
                         calTimes = [float(cs[0] + cs[1]) if cs[0] + cs[1] else float('nan') for cs in calScores]
                         calibrationData.append(calFracs)
                         calibrationTimes.append(calTimes)
+                        sessions.append(sessKey)
 
                         print 'calibration:'
                         print calFracs
@@ -1906,19 +1908,19 @@ class Experiment(object):
         if 'calibration' in plotsToMake:
             f = plt.figure(figNums['calibration'], figsize=(4,4))
             i = 1
-            for (iSubj, calFracs) in enumerate(calibrationData):
+            for (iSubj, (calFracs, s)) in enumerate(zip(calibrationData, sessions)):
                 if len(calFracs):
                    plt.plot([i] * len(calFracs), calFracs, 'ko')
                    plt.plot([i-0.1, i+0.1], [np.nanmean(calFracs)] * 2, 'k-')
+                   print "{} (...{}): ".format(i, s[-4:]) + str.join(" ", ["%0.2f" % frac for frac in calFracs])
+
                    i += 1
+
                 #plt.plot(calibrationTimes[iSubj], calFracs, 'o')
             plt.axis([0, i, -0.01, 1.01])
             plt.ylabel('Fraction looking time to correct side')
             plt.xlabel('Participant')
             plt.title('Calibration trials')
-
-
-
 
             plt.tight_layout()
             f.savefig(os.path.join(paths.FIG_DIR, 'calibration.png'))
@@ -2285,7 +2287,7 @@ Partial updates:
 
     elif args.action == 'fetchconsentsheet':
         print 'Fetching consentsheet...'
-        exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(1,100)}, showAllHeaders=True,
+        exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(0,100)}, showAllHeaders=True,
             includeFields=includeFields, ignoreProfiles=ignoreProfiles)
 
         #'consent': ['yes'], 'withdrawn': [False], 'exit-survey.useOfMedia': ['public']
