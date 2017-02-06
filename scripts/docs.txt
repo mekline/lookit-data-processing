@@ -116,6 +116,8 @@ Setting up automation, on OSX:
 	python reminder_emails.py --study physics --emails all
 	to updateLookit.sh
 
+	- (I have also now set up a weekly job that just sends the feedback-only emails as needed)
+
 
 ------------------- Setting up for data analysis ------------------------------
 * Install MacPorts.

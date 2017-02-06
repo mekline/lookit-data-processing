@@ -3,7 +3,7 @@ from utils import printer
 import numpy as np
 import warnings
 
-def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[], videoLengths=[]):
+def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[], videoLengths=[], shift=0):
     '''Reads preferential looking data from a VCode text file
 
      Usage:
@@ -31,6 +31,7 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
          video lengths (in seconds) to determine trial boundaries. VCode file is expected
          to have one event 'end' which marks the end of the trial, and trial lengths are
          scaled accordingly.
+       shift: how many ms to shift vcode markings back in time (to compensate for realtime coding)
 
       Return values:
 
@@ -202,6 +203,8 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
                 trialEnds = np.minimum(trialEnds, np.add(trialStarts, interval[1]))
             trialStarts = np.minimum(trialEnds, np.add(trialStarts, interval[0]))
 
+    trialEnds = trialEnds + shift
+    trialStarts = trialStarts + shift
     durations = np.subtract(trialEnds, trialStarts)
 
     if not len(whichTrials):

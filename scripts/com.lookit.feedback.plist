@@ -7,7 +7,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/kms/lookit/scripts/updateLookit.sh</string>
+    <string>/Users/kms/lookit/scripts/sendJustFeedbackEmails.sh</string>
   </array>
 
   	<key>WorkingDirectory</key>
@@ -16,6 +16,8 @@
 
   <key>StartCalendarInterval</key>
 	<dict>
+	<key>Weekday</key>
+	<integer>2</integer>
 	<key>Hour</key>
 	<integer>3</integer>
 	<key>Minute</key>
