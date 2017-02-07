@@ -108,8 +108,8 @@ Setting up automation, on OSX:
 	- Edit the .plist file to use the correct path to updateLookit.sh (in this directory), to set the working directory to this directory, and to use .err/.out files in this directory. (Replace /Users/kms/lookitkim/scripts/ with this directory wherever you see it.)
 	- Copy the .plist file into $HOME/Library/LaunchAgents
 	- Make sure updateLookit.sh is executable: chmod +x updateLookit.sh (from this directory)
-	- Start the process: launchctl load com.lookit.update.plist
-	- You can stop using launchctl unload com.lookit.update.plist.
+	- Start the process: launchctl load ~/Library/LaunchAgents/com.lookit.update.plist
+	- You can stop using launchctl unload ~/Library/LaunchAgents/com.lookit.update.plist.
 	- You can see the output and any errors in autoSync.err and autoSync.out.
 
 	- To start also sending emails, will need to add the line
