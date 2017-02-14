@@ -1473,6 +1473,9 @@ class Experiment(object):
 		print "Usability (for {} valid consent + some video records):".format(len([1 for sess in consentSess if sess['nPrefPhys'] > 0]))
 		display_unique_counts([sess['usable'] for sess in consentSess if sess['nPrefPhys'] > 0])
 
+		print "Number of usable sessions per participant:"
+		display_unique_counts([sess['child.profileId'] for sess in consentSess if sess['usable']])
+
 		print "Privacy: data from {} consented. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
 			len([sess for sess in consentSess if 'exit-survey.withdrawal' in sess.keys()]),
 			len([sess for sess in consentSess if sess.get('exit-survey.withdrawal', False)]),
