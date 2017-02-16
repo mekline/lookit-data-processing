@@ -15,20 +15,23 @@ You will need the following things properly installed on your computer.
 
 ## Installation
 
+Before beginning, you will need to install [Yarn](https://yarnpkg.com/en/docs/install), a package manager (like npm). 
+
+
 ```bash
 git clone https://github.com/CenterForOpenScience/lookit.git
 cd lookit
-npm install
+yarn install --pure-lockfile
 bower install
 git submodule init
 git submodule update
 
 cd lib/exp-player
-npm install
+yarn install --pure-lockfile
 bower install
 
 cd ../exp-models
-npm install
+yarn install --pure-lockfile
 bower install
 ```
 
@@ -37,6 +40,17 @@ in your `lookit/public/` folder. **This file is not part of the git repository**
 recorder and must be obtained from a team member with access to the licensed version.
 
 ## Running / Development
+
+#### Adding dependencies on other packages
+Sometimes, you will want to install an additional third-party package. In place of npm, this project uses `yarn`. 
+Most of the [commands](https://yarnpkg.com/en/docs/managing-dependencies) are the same, but this alternative tool 
+provides a way for two developers to guarantee they are using the same versions of underlying code. (by running 
+`yarn install --pure-lockfile`) This can help avoid a situation where things break unexpectedly when run on a different 
+computer.
+
+Whenever you choose to update your dependencies (`yarn add x` or `yarn install`), make sure that code still runs, then
+be sure to [commit](https://yarnpkg.com/en/docs/yarn-lock) the modified `yarn.lock` file, which represents the "current 
+known working state" for your app. 
 
 #### Configuration
 
@@ -54,6 +68,8 @@ JAMDB_URL=https://staging-metadata.osf.io
 JAMDB_NAMESPACE=experimenter
 
 SENTRY_DSN=""
+# One of "staging" or "production"
+SENDGRID_ENV="staging"
 ```
 
 A more complete configuration string is available upon request. In this application, we typically use `WOWZA_PHP` 

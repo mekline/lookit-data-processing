@@ -2,13 +2,14 @@ import Ember from 'ember';
 
 import AuthenticatedRouteMixin from 'ember-simple-auth/mixins/authenticated-route-mixin';
 
+import {expStates} from 'exp-models/models/experiment';
+
 export default Ember.Route.extend(AuthenticatedRouteMixin, {
 
     model( /*params*/ ) {
         // In the future, routes should be restructured to better support more experiments
-        let Experiment = this.store.modelFor('experiment');
         let experiments = this.store.query('experiment', {
-            q: `state:${Experiment.prototype.ACTIVE} OR state:${Experiment.prototype.ARCHIVED}`
+            q: `state:${expStates.ACTIVE} OR state:${expStates.ARCHIVED}`
         });
 
         let sessionPromises = [];

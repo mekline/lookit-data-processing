@@ -61,6 +61,7 @@ export default Account.extend({
         });
     },
     setSuppressions(suppressionsHash) {
+        // Send subscriptions to the server: format {groupId: !subscribed} (except see optOut line below because yeah....)
         suppressionsHash.id = this.get('id');
         suppressionsHash[ASM_MAPPING.optOut.id] = !suppressionsHash[ASM_MAPPING.optOut.id];
         var url = this.get('suppressionsUrl');

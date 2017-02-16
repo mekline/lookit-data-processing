@@ -88,52 +88,60 @@ export default Ember.Component.extend({
         ],
         "California": [
             {
+                'url': 'http://www.csus.edu/indiv/a/alexanderk/lab.htm',
+                'name': 'CSU Sacramento Cognitive Development Lab'
+            },
+            {
                 'url': 'http://www-psych.stanford.edu/~babylab/',
                 'name': 'Stanford\'s Center for Infant Studies'
-            },
-            {
-                'url': 'http://www-cogsci.ucsd.edu/~deak/cdlab/',
-                'name': 'UCSD Cognitive Development Lab'
-            },
-            {
-                'url': 'http://babytalk.psych.ucla.edu/home.htm',
-                'name': 'UCLA Language and Cognitive Development Lab'
-            },
-            {
-                'url': 'http://psychology.berkeley.edu/participant-recruitment/rsvp-research-subject-volunteer-pool',
-                'name': 'UC Berkeley Psychology Department (list of studies)'
-            },
-            {
-                'url': 'http://babycenter.berkeley.edu/',
-                'name': 'UC Berkeley Infant Studies Center'
             },
             {
                 'url': 'http://bungelab.berkeley.edu/participate/',
                 'name': 'UC Berkeley Building Blocks of Cognition Lab'
             },
             {
+                'url': 'http://babycenter.berkeley.edu/',
+                'name': 'UC Berkeley Infant Studies Center'
+            },
+            {
+                'url': 'http://psychology.berkeley.edu/participant-recruitment/rsvp-research-subject-volunteer-pool',
+                'name': 'UC Berkeley Psychology Department (list of studies)'
+            },
+            {
+                'url': 'http://oakeslab.ucdavis.edu/',
+                'name': 'UC Davis Infant Cognition Lab'
+            },
+            {
+                'url': ' http://languagelearninglab.dss.ucdavis.edu/',
+                'name': 'UC Davis Language Learning Lab'
+            },
+            {
+                'url': ' http://riveralab.ucdavis.edu/',
+                'name': 'UC Davis Neurocognitive Development Lab'
+            },
+            {
                 'url': 'http://www.cogsci.uci.edu/cogdev/information.html',
                 'name': 'UC Irvine Sarnecka Cognitive Development Lab'
+            },
+            {
+                'url': 'http://babytalk.psych.ucla.edu/home.htm',
+                'name': 'UCLA Language and Cognitive Development Lab'
+            },
+            {
+                'url': 'http://www.ccl.ucr.edu/',
+                'name': 'UC Riverside Childhood Cognition Lab'
             },
             {
                 'url': 'https://labs.psych.ucsb.edu/german/tamsin/',
                 'name': 'UCSB Cognition & Development Laboratory'
             },
             {
-                'url': 'http://www.csus.edu/indiv/a/alexanderk/lab.htm',
-                'name': 'CSU Sacramento Cognitive Development Lab'
-            },
-            {
-                'url': 'http://mindbrain.ucdavis.edu/labs/Rivera/',
-                'name': 'UC Davis Neurocognitive Development Lab'
+                'url': 'http://www-cogsci.ucsd.edu/~deak/cdlab/',
+                'name': 'UCSD Cognitive Development Lab'
             },
             {
                 'url': 'http://dornsife.usc.edu/labs/mid-la/participate/',
                 'name': 'USC Minds in Development Lab'
-            },
-            {
-                'url': 'http://www.ccl.ucr.edu/',
-                'name': 'UC Riverside Childhood Cognition Lab'
             }
         ],
         "Colorado": [
@@ -160,24 +168,16 @@ export default Ember.Component.extend({
                 'name': 'Wesleyan University Cognitive Development Labs'
             },
             {
+                'url': 'http://infantandchild.yale.edu/',
+                'name': 'Yale Infant and Child Research'
+            },
+            {
                 'url': 'http://candlab.yale.edu/',
                 'name': 'Yale Clinical Affective Neuroscience & Development Lab'
             },
             {
-                'url': 'http://cogdevlab.sites.yale.edu/',
-                'name': 'Yale Cognition and Development Lab'
-            },
-            {
-                'url': 'http://www.yale.edu/infantlab/Welcome.html',
-                'name': 'Yale Infant Cognition Center'
-            },
-            {
-                'url': 'http://www.yale.edu/minddevlab/',
-                'name': 'Yale Mind and Development Lab'
-            },
-            {
-                'url': 'http://www.yale.edu/cnl/faculty.html',
-                'name': 'Yale Child Neuroscience Lab'
+                'url': 'https://medicine.yale.edu/lab/mcpartland/',
+                'name': 'McPartland Lab at Yale - Clinical Neuroscience of Autism Spectrum Disorder'
             }
         ],
         "Delaware": [
@@ -289,6 +289,10 @@ export default Ember.Component.extend({
         ],
         "Kentucky": [
             {
+                'url': 'http://babythinker.org',
+                'name': 'University of Louisville Infant Cognition Lab'
+            },
+            {
                 'url': 'http://www.wku.edu/psychological-sciences/labs/cognitive_development/index.php',
                 'name': 'Western Kentucky University Cognitive Development Lab'
             }
@@ -370,6 +374,10 @@ export default Ember.Component.extend({
             }
         ],
         "Montana": [
+            {
+                'url': 'http://hs.umt.edu/psychology/severson/',
+                'name': 'The Minds Lab at University of Montana '
+            },
             {
                 'url': 'http://www.montana.edu/wwwpy/brooker/html/meet.html',
                 'name': 'Montana State University DOME Lab'

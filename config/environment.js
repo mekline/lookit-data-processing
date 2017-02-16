@@ -27,24 +27,9 @@ module.exports = function (environment) {
         }
     };
 
-    if (environment === 'development') {
-        // ENV.APP.LOG_RESOLVER = true;
-        // ENV.APP.LOG_ACTIVE_GENERATION = true;
-        // ENV.APP.LOG_TRANSITIONS = true;
-        // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
-        // ENV.APP.LOG_VIEW_LOOKUPS = true;
-    }
-
-    if (environment === 'staging' || environment === 'production') {
-        ENV.JAMDB = {
-            authorizer: 'jam-jwt',
-            collection:'accounts',
-            url: process.env.JAMDB_URL,
-            namespace: process.env.JAMDB_NAMESPACE
-        };
-    }
-
-    if (environment === 'staging') {
+    // For now, just hardcode the sendgrid group IDs for both environments. In future switch to YML config and store
+    //   this data as an object in .env files
+    if (process.env.SENDGRID_ENV === 'staging') {
         ENV.ASM_MAPPING = {
             nextSession: {
                 label: 'Next Session',
@@ -67,9 +52,7 @@ module.exports = function (environment) {
                 id: '1117'
             }
         };
-    }
-
-    if (environment === 'production') {
+    } else if (process.env.SENDGRID_ENV === 'production') {
         ENV.ASM_MAPPING = {
             nextSession: {
                 label: 'Next Session',
@@ -103,6 +86,14 @@ module.exports = function (environment) {
         ENV.APP.LOG_VIEW_LOOKUPS = false;
 
         ENV.APP.rootElement = '#ember-testing';
+    } else {
+        // Get application configuration from .env file
+        ENV.JAMDB = {
+            authorizer: 'jam-jwt',
+            collection:'accounts',
+            url: process.env.JAMDB_URL,
+            namespace: process.env.JAMDB_NAMESPACE
+        };
     }
 
     return ENV;

@@ -1,10 +1,11 @@
 import Ember from 'ember';
 
+import {expStates} from 'exp-models/models/experiment';
+
 export default Ember.Route.extend({
     model() {
-        let Experiment = this.store.modelFor('experiment');
         return this.store.query('experiment', {
-            q:`state:${Experiment.prototype.ACTIVE}`
+            q:`state:${expStates.ACTIVE}`
         });
     }
 });
