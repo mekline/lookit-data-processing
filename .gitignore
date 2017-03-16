@@ -8,22 +8,32 @@
 /node_modules
 /bower_components
 
-# misc
+# misc and logs
 /.sass-cache
 /connect.lock
 /coverage/*
 /libpeerconnection.log
 npm-debug.log
 testem.log
+autoSync.err
+autoSync.out
+scripts/logs
 
 # HDFVR flash video recorder
 /public/VideoRecorder.swf
 
 # Sensitive settings- never commit to github!
 /.env
+.env*
 /**/config.json
+*.pem
 
 # Virtualenv
 scripts/env
+scripts/fwenv
+scripts/venv
 
 migration/output/*
+
+
+*.pyc
