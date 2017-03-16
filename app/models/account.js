@@ -14,7 +14,7 @@ export default Account.extend({
     mustResetPassword: DS.attr('boolean'),
 
     demographicsNumberOfChildren: DS.attr('string'),
-    demographicsChildBirthdays: DS.attr('dateList'),
+    demographicsChildBirthdays: DS.attr('dateList', {defaultValue: () => []}),
     demographicsLanguagesSpokenAtHome: DS.attr('string'),
     demographicsNumberOfGuardians: DS.attr('string'),
     demographicsNumberOfGuardiansExplanation: DS.attr('string'),

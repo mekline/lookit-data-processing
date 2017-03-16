@@ -1,183 +1,204 @@
 <div>
-  <div>
-    <p>One reason we are developing Internet-based experiments is to represent a more
-    diverse group of families in our research. Your answers to these questions will help
-    us understand what audience we reach, as well as how factors like speaking multiple languages or
-    having older siblings affect children's learning.</p>
+    <div>
+        <p>One reason we are developing Internet-based experiments is to represent a more
+            diverse group of families in our research. Your answers to these questions will help
+            us understand what audience we reach, as well as how factors like speaking multiple languages or
+            having older siblings affect children's learning.</p>
 
-    <p>Even if you allow your study videos to be published for scientific or publicity purposes, your demographic information is never published in conjunction with your video.</p>
+        <p>Even if you allow your study videos to be published for scientific or publicity purposes, your demographic
+            information is never published in conjunction with your video.</p>
 
-    <br>
-    {{#bs-form}}
-
-      {{#bs-form-group}}
-      <label>What country do you live in?</label>
-      <select onchange={{action (mut model.demographicsCountry) value="target.value"}} class="form-control">
-        <option value="" disabled selected hidden>Please choose...</option>
-        <option value="US" selected={{eq model.demographicsCountry "US"}}>United States</option>
-            <option disabled>─────────────────────</option>
-
-          {{#each countryOptions as |countryOption|}}
-            <option value={{countryOption.code}} selected={{eq model.demographicsCountry countryOption.code}}>{{countryOption.country}}</option>
-          {{/each}}
-      </select>
-      {{/bs-form-group}}
-
-
-      {{#if (eq model.demographicsCountry "US") }}
-      {{#bs-form-group}}
-      <label>What state do you live in?</label>
-      <select disabled={{not-eq model.demographicsCountry "US"}} onchange={{action (mut model.demographicsState) value="target.value"}} class="form-control">
-        <option value="" disabled selected hidden>Please choose...</option>
-          {{#each stateOptions as |stateOption|}}
-            <option value={{stateOption.code}} selected={{eq model.demographicsState stateOption.code}}>{{stateOption.state}}</option>
-          {{/each}}
-      </select>
-      {{/bs-form-group}}
-      {{/if}}
-
-      {{#bs-form-group}}
-          <label>How would you describe the area where you live?</label>
-          <select onchange={{action (mut model.demographicsDensity) value="target.value"}} class="form-control">
-            <option value="" disabled selected hidden>Please choose...</option>
-            {{#each densityOptions as |densityOption|}}
-              <option value={{densityOption}} selected={{eq model.demographicsDensity densityOption}}>{{densityOption}}</option>
-            {{/each}}
-          </select>
-      {{/bs-form-group}}
-
-      {{#bs-form-group}}
-        <label>What language(s) does your family speak at home?</label>
-        {{bs-input type="text" value=model.demographicsLanguagesSpokenAtHome}}
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>How many children do you have?</label>
-        <select onchange={{action (mut model.demographicsNumberOfChildren) value="target.value"}}
-          class="form-control">
-          <option value="" disabled selected hidden>Please choose...</option>
-          {{#each childrenCounts as |childrenCount|}}
-            <option value={{childrenCount}} selected={{eq model.demographicsNumberOfChildren childrenCount}}>{{childrenCount}}</option>
-          {{/each}}
-        </select>
-        {{#if (eq model.demographicsNumberOfChildren 'More than 10')}}
         <br>
-        <div class="form-inline">
-          <label>I have {{bs-input class="form-control" type="text" value=nNumberOfChildren}} children</label>
-        </div>
-        {{/if}}
-      {{/bs-form-group}}
-      {{#if (not (eq numberOfChildren 0))}}
-      {{#bs-form-group}}
-        <label>For each child, please enter his or her birthdate below:</label>
-        {{#each-in childBirthdays as |index bd|}}
-        <div class="form-inline">
-          <div class="row">
-            <div class="col-xs-1">
-              <label>{{minus index -1}}.</Label>
-            </div>
-            <div class="col-xs-11">
-              <div class="input-group">
-                {{pikaday-input value=(unbound bd) onPikadaySelect=(action 'setChildBirthday' index) format="MM/DD/YYYY" yearRange="1990,currentYear" maxDate=today class="form-control"}}
-                {{#if bd}}
-                    <span class="input-group-addon">
-                        {{age bd hideSuffix=true}} old
-                    </span>
-                {{/if}}
-              </div>
-            </div>
-          </div>
-        </div>
-        {{/each-in}}
-      {{/bs-form-group}}
-      {{/if}}
-      {{#bs-form-group}}
-        <label>How many parents/guardians do your children live with?</label>
-        <br />If the answer varies due to shared custody arrangements or travel,
-        please enter the number of parents/guardians your children are usually
-        living with or explain below.
-        <select onchange={{action (mut model.demographicsNumberOfGuardians) value="target.value"}}
-          class="form-control">
-          <option value="" disabled selected hidden>Please choose...</option>
-          {{#each guardianOptions as |guardianOption|}}
-            <option value={{guardianOption}} selected={{eq model.demographicsNumberOfGuardians guardianOption}}>{{guardianOption}}</option>
-          {{/each}}
-        </select>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-          {{#if (eq model.demographicsNumberOfGuardians "varies")}}
-              <label>If you answered "varies" above, please explain:</label>
-                  {{bs-input type="text" value=model.demographicsNumberOfGuardiansExplanation}}
-          {{/if}}
-      {{/bs-form-group}}
+        {{#bs-form}}
 
-      {{#bs-form-group}}
-        <label>What category(ies) does your family identify as?</label>
-        <div onchange={{action 'selectRaceIdentification' value='target'}} id="raceIdentification">
-          {{#each raceCategories as |raceCategory|}}
-            <label class="checkbox">
-              <input type="checkbox" value={{raceCategory}} checked={{include model.demographicsRaceIdentification raceCategory}}> {{raceCategory}}
-            </label>
-          {{/each}}
-        </div>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>What is your age?</label>
-        <select onchange={{action (mut model.demographicsAge) value="target.value"}} class="form-control" >
-          <option value="" disabled selected hidden>Please choose...</option>
-          {{#each ageChoices as |ageChoice|}}
-            <option value={{ageChoice}} selected={{eq model.demographicsAge ageChoice}}>{{ageChoice}}</option>
-          {{/each}}
-        </select>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>What is your gender?</label>
-        <select onchange={{action (mut model.demographicsGender) value="target.value"}} class="form-control" >
-          <option value="" disabled selected hidden>Please choose...</option>
-          {{#each genderOptions as |genderOption|}}
-            <option value={{genderOption}} selected={{eq model.demographicsGender genderOption}}>{{genderOption}}</option>
-          {{/each}}
-        </select>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>What is the highest level of education you've completed?</label>
-        <select onchange={{action (mut model.demographicsEducationLevel) value="target.value"}} class="form-control" >
-          <option value="" disabled selected hidden>Please choose...</option>
-          {{#each educationOptions as |educationOption|}}
-            <option value={{educationOption}} selected={{eq model.demographicsEducationLevel educationOption}}>{{educationOption}}</option>
-          {{/each}}
-        </select>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>What is the highest level of education your spouse has completed?</label>
-        <select onchange={{action (mut model.demographicsSpouseEducationLevel) value="target.value"}} class="form-control" >
-          <option value="" disabled selected hidden>Please choose...</option>
-          {{#each spouseEducationOptions as |spouseEducationOption|}}
-            <option value={{spouseEducationOption}} selected={{eq model.demographicsSpouseEducationLevel spouseEducationOption}}>{{spouseEducationOption}}</option>
-          {{/each}}
-        </select>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>What is your approximate family yearly income (in US dollars)?</label>
-        <select onchange={{action (mut model.demographicsAnnualIncome) value="target.value"}} class="form-control" >
-          <option value="" disabled selected hidden>Please choose...</option>
-          {{#each annualIncomeOptions as |annualIncomeOption|}}
-           <option value={{annualIncomeOption}} selected={{eq model.demographicsAnnualIncome annualIncomeOption}}>{{annualIncomeOption}}</option>
-          {{/each}}
-        </select>
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>About how many children's books are there in your home?</label>
-        {{bs-input type="number" value=model.demographicsNumberOfBooks min=0}}
-	{{#if (not (gte model.demographicsNumberOfBooks 0)) }}
-	  <span class="text-danger">Please enter a value greater than or equal to zero</span>
-	{{/if}}
-      {{/bs-form-group}}
-      {{#bs-form-group}}
-        <label>Anything else you'd like us to know?</label>
-        {{bs-textarea value=model.demographicsAdditionalComments}}
-      {{/bs-form-group}}
-      <br />
-      {{#bs-button type="success" action="saveDemographicsPreferences" disabled=(not isValid) class="pull-right"}}Save{{/bs-button}}
-    {{/bs-form}}
-  </div>
+            {{#bs-form-group}}
+                <label>What country do you live in?</label>
+                <select onchange={{action (mut model.demographicsCountry) value="target.value"}} class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    <option value="US" selected={{eq model.demographicsCountry "US"}}>United States</option>
+                    <option disabled>─────────────────────</option>
+
+                    {{#each countryOptions as |countryOption|}}
+                        <option value={{countryOption.code}} selected={{eq model.demographicsCountry
+                                                                           countryOption.code}}>{{countryOption.country}}</option>
+                    {{/each}}
+                </select>
+            {{/bs-form-group}}
+
+
+            {{#if (eq model.demographicsCountry "US") }}
+                {{#bs-form-group}}
+                    <label>What state do you live in?</label>
+                    <select disabled={{not-eq model.demographicsCountry "US"}} onchange={{action
+                        (mut model.demographicsState) value="target.value"}} class="form-control">
+                        <option value="" disabled selected hidden>Please choose...</option>
+                        {{#each stateOptions as |stateOption|}}
+                            <option value={{stateOption.code}} selected={{eq model.demographicsState
+                                                                             stateOption.code}}>{{stateOption.state}}</option>
+                        {{/each}}
+                    </select>
+                {{/bs-form-group}}
+            {{/if}}
+
+            {{#bs-form-group}}
+                <label>How would you describe the area where you live?</label>
+                <select onchange={{action (mut model.demographicsDensity) value="target.value"}} class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    {{#each densityOptions as |densityOption|}}
+                        <option value={{densityOption}} selected={{eq model.demographicsDensity
+                                                                      densityOption}}>{{densityOption}}</option>
+                    {{/each}}
+                </select>
+            {{/bs-form-group}}
+
+            {{#bs-form-group}}
+                <label>What language(s) does your family speak at home?</label>
+                {{bs-input type="text" value=model.demographicsLanguagesSpokenAtHome}}
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                <label>How many children do you have?</label>
+                <select onchange={{action (mut model.demographicsNumberOfChildren) value="target.value"}}
+                            class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    {{#each childrenCounts as |childrenCount|}}
+                        <option value={{childrenCount}} selected={{eq model.demographicsNumberOfChildren
+                                                                      childrenCount}}>{{childrenCount}}</option>
+                    {{/each}}
+                </select>
+                {{#if (eq model.demographicsNumberOfChildren 'More than 10')}}
+                    <br>
+                    <div class="form-inline">
+                        <label>I have {{bs-input class="form-control" type="text" value=nNumberOfChildren}}
+                            children</label>
+                    </div>
+                {{/if}}
+            {{/bs-form-group}}
+            {{#if (not (eq numberOfChildren 0))}}
+                {{#bs-form-group}}
+                    <label>For each child, please enter his or her birthdate below:</label>
+                    {{#each model.demographicsChildBirthdays as |bd index|}}
+                        <div class="form-inline">
+                            <div class="row">
+                                <div class="col-xs-1">
+                                    <label>{{minus index -1}}.</Label>
+                                </div>
+                                <div class="col-xs-11">
+                                    <div class="input-group">
+                                        {{pikaday-input value=(unbound bd)
+                                                        onPikadaySelect=(action 'setChildBirthday' index)
+                                                        format="MM/DD/YYYY" yearRange="1990,currentYear" maxDate=today
+                                                        class="form-control"}}
+                                        {{#if bd}}
+                                            <span class="input-group-addon">
+                                                {{age bd hideSuffix=true}} old
+                                            </span>
+                                        {{/if}}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {{/each}}
+                {{/bs-form-group}}
+            {{/if}}
+            {{#bs-form-group}}
+                <label>How many parents/guardians do your children live with?</label>
+                <br/>If the answer varies due to shared custody arrangements or travel,
+                please enter the number of parents/guardians your children are usually
+                living with or explain below.
+                <select onchange={{action (mut model.demographicsNumberOfGuardians) value="target.value"}}
+                            class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    {{#each guardianOptions as |guardianOption|}}
+                        <option value={{guardianOption}} selected={{eq model.demographicsNumberOfGuardians
+                                                                       guardianOption}}>{{guardianOption}}</option>
+                    {{/each}}
+                </select>
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                {{#if (eq model.demographicsNumberOfGuardians "varies")}}
+                    <label>If you answered "varies" above, please explain:</label>
+                    {{bs-input type="text" value=model.demographicsNumberOfGuardiansExplanation}}
+                {{/if}}
+            {{/bs-form-group}}
+
+            {{#bs-form-group}}
+                <label>What category(ies) does your family identify as?</label>
+                <div onchange={{action 'selectRaceIdentification' value='target'}} id="raceIdentification">
+                    {{#each raceCategories as |raceCategory|}}
+                        <label class="checkbox">
+                            <input type="checkbox" value={{raceCategory}} checked={{include
+                                model.demographicsRaceIdentification raceCategory}}> {{raceCategory}}
+                        </label>
+                    {{/each}}
+                </div>
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                <label>What is your age?</label>
+                <select onchange={{action (mut model.demographicsAge) value="target.value"}} class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    {{#each ageChoices as |ageChoice|}}
+                        <option value={{ageChoice}} selected={{eq model.demographicsAge
+                                                                  ageChoice}}>{{ageChoice}}</option>
+                    {{/each}}
+                </select>
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                <label>What is your gender?</label>
+                <select onchange={{action (mut model.demographicsGender) value="target.value"}} class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    {{#each genderOptions as |genderOption|}}
+                        <option value={{genderOption}} selected={{eq model.demographicsGender
+                                                                     genderOption}}>{{genderOption}}</option>
+                    {{/each}}
+                </select>
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                <label>What is the highest level of education you've completed?</label>
+                <select onchange={{action (mut model.demographicsEducationLevel)
+                                          value="target.value"}} class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    {{#each educationOptions as |educationOption|}}
+                        <option value={{educationOption}} selected={{eq model.demographicsEducationLevel
+                                                                        educationOption}}>{{educationOption}}</option>
+                    {{/each}}
+                </select>
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                <label>What is the highest level of education your spouse has completed?</label>
+                <select onchange={{action (mut model.demographicsSpouseEducationLevel)
+                                          value="target.value"}} class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    {{#each spouseEducationOptions as |spouseEducationOption|}}
+                        <option value={{spouseEducationOption}} selected={{eq model.demographicsSpouseEducationLevel
+                                                                              spouseEducationOption}}>{{spouseEducationOption}}</option>
+                    {{/each}}
+                </select>
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                <label>What is your approximate family yearly income (in US dollars)?</label>
+                <select
+                    onchange={{action (mut model.demographicsAnnualIncome) value="target.value"}} class="form-control">
+                    <option value="" disabled selected hidden>Please choose...</option>
+                    {{#each annualIncomeOptions as |annualIncomeOption|}}
+                        <option value={{annualIncomeOption}} selected={{eq model.demographicsAnnualIncome
+                                                                           annualIncomeOption}}>{{annualIncomeOption}}</option>
+                    {{/each}}
+                </select>
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                <label>About how many children's books are there in your home?</label>
+                {{bs-input type="number" value=model.demographicsNumberOfBooks min=0}}
+                {{#if (not (gte model.demographicsNumberOfBooks 0)) }}
+                    <span class="text-danger">Please enter a value greater than or equal to zero</span>
+                {{/if}}
+            {{/bs-form-group}}
+            {{#bs-form-group}}
+                <label>Anything else you'd like us to know?</label>
+                {{bs-textarea value=model.demographicsAdditionalComments}}
+            {{/bs-form-group}}
+            <br/>
+            {{#bs-button type="success" action="saveDemographicsPreferences" disabled=(not isValid) class="pull-right"}}
+                Save{{/bs-button}}
+        {{/bs-form}}
+    </div>
 </div>

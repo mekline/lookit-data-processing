@@ -430,24 +430,7 @@ export default Ember.Controller.extend({
         }
         this.get('model.demographicsChildBirthdays').setObjects(birthdays);
     }),
-    childBirthdays: Ember.computed('model.demographicsChildBirthdays.[]', {
-        get: function() {
-            var ret = Ember.Object.create();
-            this.get('model.demographicsChildBirthdays').toArray().forEach(function(bd, i) {
-                ret.set(i.toString(), bd);
-            });
-            return ret;
-        },
-        set: function(_, birthdays) {
-            var ret = [];
-            Object.keys(birthdays).forEach(function(key) {
-                ret[parseInt(key)] = birthdays[key];
-            });
-            this.get('model.demographicsChildBirthdays').setObjects(ret);
-            this.propertyDidChange('childBirthdays');
-            return this.get('childBirthdays');
-        }
-    }),
+
     actions: {
         selectRaceIdentification: function(item) {
             var selectedRaceIdentification = this.get('selectedRaceIdentification') || [];
@@ -466,9 +449,7 @@ export default Ember.Controller.extend({
             });
         },
         setChildBirthday(index, birthday) {
-            var childBirthdays = this.get('childBirthdays');
-            childBirthdays.set(index.toString(), birthday);
-            this.set('childBirthdays', childBirthdays);
+            this.set(`model.demographicsChildBirthdays.${index}`, birthday);
         }
     }
 });
