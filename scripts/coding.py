@@ -2268,7 +2268,7 @@ Partial updates:
 		and videos are converted to mp4 and concatenated by session, with the results stored
 		under sessions/STUDYID. (Existing videos are not overwritten.)'''
 
-	ignoreProfiles = ['kim2.smtS6', 'sam.pOE5w', 'abought.hqReV']
+	ignoreProfiles = ['kim2.smtS6', 'kim2.HVv94', 'bostoncollege.uJG4X', 'sam.pOE5w', 'abought.hqReV']
 
 	includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
 							'57adc3373de08a003fb12aad': [],
