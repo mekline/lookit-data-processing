@@ -49,7 +49,7 @@ python client.py -c .env-stage
 
 This file mostly contains some examples and utilites for interacting with the JamDB API.
 
-#### sengrid_client.py
+#### sendgrid_client.py
 
 This file gives some examples of using the sendgrid Python client to interact with SendGrid's suppression groups and send emails to users. 
 You can add the`SENDGRID_KEY` setting to your .env to avoid having to pass an `apikey` argument to the sendgrid_client.SendGrid constructor.
