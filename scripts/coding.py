@@ -726,7 +726,7 @@ class Experiment(object):
 
 		print "Making concatenated session videos for study {}".format(self.expId)
 
-		useTrimmedFrames = ['pref-phys-videos']
+		useTrimmedFrames = ['pref-phys-videos'] # TODOGEOM
 		useWholeVideoFrames = ['video-preview', 'video-consent']
 		skipFrames = ['video-consent']
 
@@ -788,6 +788,7 @@ class Experiment(object):
 				vidData = [vid for vid in vidData if skip not in vid[0]]
 
 			# Also skip any other frames where video was ended early
+			# TODOGEOM
 			vidData = [vid for vid in vidData if not self.coding[sessKey]['endedEarly'][vid[1]]]
 
 			# Sort the vidData found by timestamp so we concat in order.
@@ -829,8 +830,10 @@ class Experiment(object):
 
 			vidsShown = [self.coding[sessKey]['videosShown'][vid[1]] for vid in vidData]
 
+			 # TODOGEOM
 			self.coding[sessKey]['concatShowedAlternate'] = [self.coding[sessKey]['showedAlternate'][i] for (vidName, i, t, useW) in vidData]
 			self.coding[sessKey]['concatVideosShown'] = vidsShown
+
 			self.coding[sessKey]['expectedDuration'] = expDur
 			self.coding[sessKey]['actualDuration']	 = vidDur
 			self.coding[sessKey]['concatVideos'] = concatVids
@@ -840,7 +843,7 @@ class Experiment(object):
 
 	def sync_coding_data(self, codeDataName):
 		'''Hopefully one-time script to update coding data when replacing concatenated
-		files by those made on a different computer'''
+		files by those made on a different computer - specific to physics study'''
 
 		otherCodingFile = os.path.join(paths.DATA_DIR, codeDataName)
 
@@ -1124,10 +1127,9 @@ class Experiment(object):
 			self.coding[sessId]['endedEarly'] = []
 			self.coding[sessId]['videosShown'] = []
 			for (frameId, frameData) in expData.iteritems():
-				#TODO: generalize for other frames, event names
+				# TODO: generalize for other frames, event names
+				# TODOGEOM
 				if 'videoId' in frameData.keys() and not frameId=='32-32-pref-phys-videos':
-
-
 					if 'pref-phys-videos' in frameId:
 
 						# Check events: was the video paused?
@@ -1395,6 +1397,7 @@ class Experiment(object):
 				record['coded'] = 'yes' if coderName in record['allcoders'] else 'no'
 
 		# Continue predetermined starting list
+		# TODOGEOM
 		headerStart = headerStart + ['attributes.feedback',
 			'attributes.hasReadFeedback', 'attributes.completed', 'nVideosExpected',
 			'nVideosFound', 'expectedDuration', 'actualDuration', 'concatVideosShown'] + includeFields + \
@@ -2270,63 +2273,35 @@ Partial updates:
 
 	ignoreProfiles = ['kim2.smtS6', 'kim2.HVv94', 'bostoncollege.uJG4X', 'sam.pOE5w', 'abought.hqReV']
 
+	standardFields = [	'exit-survey.withdrawal',
+						 'exit-survey.useOfMedia',
+						 'exit-survey.databraryShare',
+						 'exit-survey.feedback',
+						 'instructions.confirmationCode',
+						 'mood-survey.active',
+						 'mood-survey.childHappy',
+						 'mood-survey.rested',
+						 'mood-survey.healthy',
+						 'mood-survey.doingBefore',
+						 'mood-survey.lastEat',
+						 'mood-survey.napWakeUp',
+						 'mood-survey.nextNap',
+						 'mood-survey.usualNapSchedule',
+						 'mood-survey.ontopofstuff',
+						 'mood-survey.parentHappy',
+						 'mood-survey.energetic']
+
 	includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
 							'57adc3373de08a003fb12aad': [],
-							'57dae6f73de08a0056fb4165': ['exit-survey.withdrawal',
-														 'exit-survey.useOfMedia',
-														 'exit-survey.databraryShare',
-														 'exit-survey.feedback',
-														 'instructions.confirmationCode',
-														 'mood-survey.active',
-														 'mood-survey.childHappy',
-														 'mood-survey.rested',
-														 'mood-survey.healthy',
-														 'mood-survey.doingBefore',
-														 'mood-survey.lastEat',
-														 'mood-survey.napWakeUp',
-														 'mood-survey.nextNap',
-														 'mood-survey.usualNapSchedule',
-														 'mood-survey.ontopofstuff',
-														 'mood-survey.parentHappy',
-														 'mood-survey.energetic'],
-							'57bc591dc0d9d70055f775db': ['exit-survey.withdrawal',
-														 'exit-survey.useOfMedia',
-														 'exit-survey.databraryShare',
-														 'exit-survey.feedback',
-														 'instructions.confirmationCode',
-														 'mood-survey.active',
-														 'mood-survey.childHappy',
-														 'mood-survey.rested',
-														 'mood-survey.healthy',
-														 'mood-survey.doingBefore',
-														 'mood-survey.lastEat',
-														 'mood-survey.napWakeUp',
-														 'mood-survey.nextNap',
-														 'mood-survey.usualNapSchedule',
-														 'mood-survey.ontopofstuff',
-														 'mood-survey.parentHappy',
-														 'mood-survey.energetic'],
-							'583c892ec0d9d70082123d94': ['exit-survey.withdrawal',
-														 'exit-survey.useOfMedia',
-														 'exit-survey.databraryShare',
-														 'exit-survey.feedback',
-														 'instructions.confirmationCode',
-														 'mood-survey.active',
-														 'mood-survey.childHappy',
-														 'mood-survey.rested',
-														 'mood-survey.healthy',
-														 'mood-survey.doingBefore',
-														 'mood-survey.lastEat',
-														 'mood-survey.napWakeUp',
-														 'mood-survey.nextNap',
-														 'mood-survey.usualNapSchedule',
-														 'mood-survey.ontopofstuff',
-														 'mood-survey.parentHappy',
-														 'mood-survey.energetic']}
+							'57dae6f73de08a0056fb4165': standardFields,
+							'57bc591dc0d9d70055f775db': standardFields,
+							'583c892ec0d9d70082123d94': standardFields,
+							'58cc039ec0d9d70097f26220': standardFields}
 
 	trimLength = 20
 	batchLengthMinutes = 5
 
+	# Fields required for each action
 	actions = {'fetchcodesheet': ['coder', 'study'],
 			   'commitcodesheet': ['coder', 'study'],
 			   'fetchconsentsheet': ['coder', 'study'],
