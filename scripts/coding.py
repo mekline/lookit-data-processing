@@ -347,6 +347,7 @@ class Experiment(object):
 		allheaders = set()
 		for (userid, acc) in cls.accounts.items():
 			thisAcc = acc['attributes']
+			thisAcc['meta.created-on'] = acc['meta']['created-on']
 			thisAcc['username'] = userid
 			profiles = thisAcc['profiles']
 			del thisAcc['profiles']
@@ -365,7 +366,7 @@ class Experiment(object):
 			allheaders = allheaders | set(thisAcc.keys())
 
 		# Order headers in the file: initial list, then regular, then child-profile
-		initialHeaders = [u'username']
+		initialHeaders = [u'username', u'meta.created-on']
 		childHeaders = allheaders - headers
 		headers = list(headers - set(initialHeaders))
 		headers.sort()
@@ -374,10 +375,12 @@ class Experiment(object):
 		headerList = initialHeaders + headers + childHeaders
 		headerList = [h.encode('utf-8') for h in headerList]
 
+		# Order accounts based on date created
+		accs.sort(key=lambda b: b['meta.created-on'])
+
 		# Back up any existing accounts csv file by the same name
 		accountsheetPath = paths.accountsheet_filename()
 		backup_and_save_dict(accountsheetPath, accs, headerList)
-
 
 	def __init__(self, expId, trimLength=None):
 		self.expId = expId
