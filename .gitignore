@@ -37,3 +37,4 @@ migration/output/*
 
 
 *.pyc
+scripts/*.json
