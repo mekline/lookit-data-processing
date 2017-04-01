@@ -328,3 +328,44 @@ def summarize_results(Exp):
         f.savefig(os.path.join(paths.FIG_DIR, 'calibration.png'))
 
     plt.show()
+
+def parse_stimuli_name(stimVid):
+
+	unexpectedOutcomes = {'ramp': ['up'],
+						'toss':	 ['up'],
+						'table':  ['up', 'continue'],
+						'stay': ['near', 'next-to', 'slightly-on'],
+						'fall': ['mostly-on'],
+						'salience': ['interesting'],
+						'same': []}
+
+	if not stimVid:
+		concept = None
+		unexpectedLeft = False
+		unexpectedRight = False
+		event = None
+		flip = None
+
+	elif 'calibration' in stimVid:
+		concept = 'calibration'
+		unexpectedLeft = False
+		unexpectedRight = False
+		event = 'calibration'
+		flip = 'RL' if 'RL' in stimVid else 'LR'
+	else:
+		(_, event, leftOutcome, rightOutcome, object, camera, background, flip) = stimVid.split('_')
+		if event in ['ramp', 'toss', 'table']:
+			concept = 'gravity'
+		elif event in ['stay', 'fall']:
+			concept = 'support'
+		elif event in ['same', 'salience']:
+			concept = 'control'
+		else:
+			warn('Unrecognized event type')
+
+		unexpectedLeft = leftOutcome in unexpectedOutcomes[event]
+		unexpectedRight = rightOutcome in unexpectedOutcomes[event]
+
+	return {'concept': concept, 'unexpectedLeft': unexpectedLeft,
+			'unexpectedRight': unexpectedRight, 'event': event,
+			'flip': flip}

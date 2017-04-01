@@ -1291,7 +1291,7 @@ class Experiment(object):
 		backup_and_save(paths.batch_filename(self.expId), self.batchData)
 
 	def generate_codesheet(self, coderName, showOtherCoders=True, showAllHeaders=False,
-	includeFields=[], filter={}, ignoreProfiles=[]):
+	includeFields=[], excludeFields=[], filter={}, ignoreProfiles=[]):
 		'''Create a .csv coding sheet for a particular study and coder
 
 		csv will be named expID_coderName.csv and live in the CODING_DIR.
@@ -1311,6 +1311,10 @@ class Experiment(object):
 			corresponding data stored under this partial name, so they should
 			be unique endings within sessions. (Using just the ending allows
 			for variation in which segment the field is associated with.)
+
+		excludeFields: list of field ENDINGS to exclude.
+			For each session, any field ENDING in a string in this list will
+			be excluded.
 
 		filter: dictionary of header:[value1, value2, ...] pairs that should be required in
 			order for the session to be included in the codesheet. Only records
@@ -1362,6 +1366,13 @@ class Experiment(object):
 				for field in val.keys():
 					if field[-len(fieldEnd):] == fieldEnd:
 						val[fieldEnd] = val[field]
+						del val[field]
+
+			# Look for fields that end in any of the suffixes in excludeFields.
+			# If one is found, remove that data.
+			for fieldEnd in excludeFields:
+				for field in val.keys():
+					if field[-len(fieldEnd):] == fieldEnd:
 						del val[field]
 
 			val['shortId'] = paths.parse_session_key(key)[1]
@@ -1757,48 +1768,6 @@ def filter_keys(sessDict, filter):
 			(key not in sessDict[sKey].keys() and None in vals)]
 	return filteredKeys
 
-def parse_stimuli_name(stimVid):
-
-	unexpectedOutcomes = {'ramp': ['up'],
-						'toss':	 ['up'],
-						'table':  ['up', 'continue'],
-						'stay': ['near', 'next-to', 'slightly-on'],
-						'fall': ['mostly-on'],
-						'salience': ['interesting'],
-						'same': []}
-
-	if not stimVid:
-		concept = None
-		unexpectedLeft = False
-		unexpectedRight = False
-		event = None
-		flip = None
-
-	elif 'calibration' in stimVid:
-		concept = 'calibration'
-		unexpectedLeft = False
-		unexpectedRight = False
-		event = 'calibration'
-		flip = 'RL' if 'RL' in stimVid else 'LR'
-	else:
-		(_, event, leftOutcome, rightOutcome, object, camera, background, flip) = stimVid.split('_')
-		if event in ['ramp', 'toss', 'table']:
-			concept = 'gravity'
-		elif event in ['stay', 'fall']:
-			concept = 'support'
-		elif event in ['same', 'salience']:
-			concept = 'control'
-		else:
-			warn('Unrecognized event type')
-
-		unexpectedLeft = leftOutcome in unexpectedOutcomes[event]
-		unexpectedRight = rightOutcome in unexpectedOutcomes[event]
-
-	return {'concept': concept, 'unexpectedLeft': unexpectedLeft,
-			'unexpectedRight': unexpectedRight, 'event': event,
-			'flip': flip}
-
-
 if __name__ == '__main__':
 
 	helptext = '''
@@ -1988,12 +1957,25 @@ Partial updates:
 						 'mood-survey.parentHappy',
 						 'mood-survey.energetic']
 
+	standardExclude = [  'meta.created-by',
+	                     'meta.modified-by',
+	                     'meta.modified-on',
+	                     'meta.permissions',
+	                     'relationships.history.links.related',
+	                     'relationships.history.links.self',
+	                     'attributes.permissions',
+	                     'attributes.experimentVersion']
+
 	includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
 							'57adc3373de08a003fb12aad': [],
 							'57dae6f73de08a0056fb4165': standardFields,
 							'57bc591dc0d9d70055f775db': standardFields,
 							'583c892ec0d9d70082123d94': standardFields,
 							'58cc039ec0d9d70097f26220': standardFields}
+
+	excludeFieldsByStudy = {'58cc039ec0d9d70097f26220': ['eventTimings'] + standardExclude,
+	                        '583c892ec0d9d70082123d94': standardExclude}
+
 
 	trimLength = 20
 	batchLengthMinutes = 5
@@ -2046,6 +2028,7 @@ Partial updates:
 		args.study = paths.studyNicknames.get(args.study, args.study)
 		exp = Experiment(args.study, trimLength)
 		includeFields = includeFieldsByStudy.get(args.study, [])
+		excludeFields = excludeFieldsByStudy.get(args.study, [])
 
 	### Process individual actions
 
@@ -2061,7 +2044,7 @@ Partial updates:
 	elif args.action == 'fetchconsentsheet':
 		print 'Fetching consentsheet...'
 		exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(0,100)}, showAllHeaders=True,
-			includeFields=includeFields, ignoreProfiles=ignoreProfiles)
+			includeFields=includeFields, excludeFields=excludeFields, ignoreProfiles=ignoreProfiles)
 
 		#'consent': ['yes'], 'withdrawn': [False], 'exit-survey.useOfMedia': ['public']
 
