@@ -1,5 +1,5 @@
 import os
-from client import Account, ExperimenterClient
+from experimenter import ExperimenterClient
 #from sendgrid_client import SendGrid
 from utils import indent, printer
 import subprocess as sp
@@ -32,15 +32,11 @@ def pull_from_wowza():
 	thisDir = os.path.dirname(os.path.realpath(__file__))
 	sp.call(['ssh', '-i', os.path.join(thisDir, 'lookit2016.pem'), 'ec2-user@lookit-streaming.mit.edu', 'aws', 's3', 'sync', '/home/ec2-user/content', 's3://mitLookit'])
 
+### TODO: USE JSON
 def update_session_data(experimentId, display=False):
 	'''Get session data from the server for this experiment ID and save'''
-	client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
-	exps = client.fetch_experiments()
-	expIDs = [paths.parse_expId(exp['id']) for exp in exps]
-
-	iExp = expIDs.index(experimentId)
-	exp = exps[iExp]
-	exp['sessions'] = client.fetch_sessions_for_experiment(exp)
+	client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN, base_url=conf.JAM_HOST, namespace=conf.JAM_NAMESPACE)
+	exp = {'sessions': client.fetch_collection_records(paths.make_long_expId(experimentId))}
 
 	backup_and_save(paths.session_filename(experimentId), exp)
 
@@ -49,32 +45,11 @@ def update_session_data(experimentId, display=False):
 
 	print "Synced session data for experiment: {}".format(experimentId)
 
+
 def update_account_data():
 	'''Get current account data from the server and save to the account file'''
-	client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
-	accounts = client.fetch_accounts()
-	allusernames = [acc.id.split('.')[-1] for acc in accounts]
-
-    # Flag new accounts
-	if os.path.exists(paths.ACCOUNT_FILENAME):
-	    with open(paths.ACCOUNT_FILENAME,'rb') as f:
-	        existingData = pickle.load(f)
-            newUsernames = set(allusernames) - set(existingData.keys())
-            print "New accounts:"
-            printer.pprint(newUsernames)
-            print "---End new accounts"
-
-    # TODO: change back to all accounts!!
-	allAccounts = existingData # {}
-	for username in newUsernames: #allusernames
-		print username
-		accData = client.fetch_account(username)
-		allAccounts[username] = accData
+	client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN, base_url=conf.JAM_HOST, namespace=conf.JAM_NAMESPACE)
+	accountData = client.fetch_collection_records('accounts')
+	print('Download complete. Found {} records'.format(len(accountData)))
+	allAccounts = {acc[u'id'].split('.')[-1]: acc for acc in accountData}
 	backup_and_save(paths.ACCOUNT_FILENAME, allAccounts)
-
-def show_all_experiments():
-	'''Display a list of all experiments listed on the server (no return value)'''
-	client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
-	exps = client.fetch_experiments()
-	for (iExp, exp) in enumerate(exps):
-		print  exp['id'] + ' ' + exp['attributes']['title']

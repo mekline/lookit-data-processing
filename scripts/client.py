@@ -3,6 +3,7 @@ import requests
 
 import conf
 
+## NOTE: This is no longer used by updatefromlookit, in favor of experimenter.py. It is still needed for setting feedback!
 
 class Account(object):
 

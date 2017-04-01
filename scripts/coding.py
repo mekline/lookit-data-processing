@@ -14,7 +14,7 @@ from warnings import warn
 import datetime
 import lookitpaths as paths
 import conf
-from updatefromlookit import sync_S3, pull_from_wowza, update_account_data, show_all_experiments, update_session_data
+from updatefromlookit import sync_S3, pull_from_wowza, update_account_data, update_session_data
 import csv
 import random
 import string

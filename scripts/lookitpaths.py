@@ -100,6 +100,10 @@ def parse_expId(expId):
     # prefix = '.'.join(pieces[:-1])
     return id
 
+def make_long_expId(expId):
+    '''move from experiment ID to collection name'''
+    return 'session' + expId + 's'
+
 def parse_videoname(vidName):
     '''Extracts meaningful pieces of video name.
 
