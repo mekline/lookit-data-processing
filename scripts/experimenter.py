@@ -20,7 +20,7 @@ import requests
 
 # Prepackaged defaults for convenience when distributing this script to users
 JAMDB_SERVER_URL = 'https://staging-metadata.osf.io'
-JAMDB_NAMESPACE = 'experimenter'
+JAMDB_NAMESPACE = 'lookit'
 
 DEFAULT_CONFIG = {
     'host': JAMDB_SERVER_URL,

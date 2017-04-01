@@ -22,6 +22,15 @@ export default Ember.Controller.extend({
         return experiment.isEligible(child);
     }),
 
+    isAgeOldEnough: Ember.computed('selectedChild', function () {
+        let child = this.get('selectedChild');
+        if (!child) {
+            return true;
+        }
+        let experiment = this.get('model');
+        return experiment.isOldEnough(child);
+    }),
+
     route: Ember.computed('model', function () {
         return `${Ember.getOwner(this).lookup('router:main').get('currentPath')}:${this.get('model.id')}`;
     }),

@@ -182,8 +182,8 @@ export default Ember.Component.extend({
         ],
         "Delaware": [
             {
-                'url': 'http://www.udel.edu/ILP/about/team.html',
-                'name': 'University of Delaware Infant Language Project'
+                'url': 'http://www.childsplay.udel.edu/',
+                'name': "University of Delaware Child's Play, Learning and Development Lab"
             }
         ],
         "Florida": [

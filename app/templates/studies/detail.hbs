@@ -57,7 +57,11 @@
                 </select>
               </div>
 	      {{#if (and selectedChild (not isAgeEligible))}}
-		  <p class="text-warning">Your child is outside of the recommended age range for this study. You're welcome to try the study anyway, but we won't be able to use the collected data in our research.</p>
+	        {{#if (and selectedChild (not isAgeOldEnough))}}
+	            <p class="text-warning">Your child is still younger than the recommended age range for this study. If you can wait until he or she is old enough, we'll be able to use the collected data in our research! </p>
+	        {{else}}
+	            <p class="text-warning">Your child is older than the recommended age range for this study. You're welcome to try the study anyway, but we won't be able to use the collected data in our research.</p>
+	        {{/if}}
 	      {{/if}}
               <button disabled={{if (not selectedChildId) true false}} class="btn btn-lg btn-primary {{if (not selectedChildId) 'disabled'}}" onclick={{action 'pickChild'}}>Participate now!</button>
             {{/if}}
