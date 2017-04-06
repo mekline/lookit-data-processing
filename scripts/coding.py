@@ -101,7 +101,7 @@ class Experiment(object):
 
 	@classmethod
 	def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='',
-	    replace=False, whichFrames=[]):
+		replace=False, whichFrames=[]):
 		''' Convert flvs in VIDEO_DIR to mp4s organized in SESSION_DIR for a
 		particular session
 
@@ -115,11 +115,15 @@ class Experiment(object):
 			display: whether to display information about progress
 
 			trimming: False (default) not to do any trimming of video
-				file, or a maximum clip duration in seconds. The last
-				trimming seconds (counted from the end of the
+				file. Negative number to specify a maximum clip duration in seconds:
+				the last -trimming seconds (counted from the end of the
 				shortest stream--generally video rather than audio)
 				will be kept, or if the video is shorter than
-				trimming, the entire video will be kept.
+				trimming, the entire video will be kept. Positive number to specify
+				a start point in the video, from the start of audio and video streams.
+				Can also provide a vector, of hte same length of vidNames, of
+				positive or negative numbers (can be mixed) to specify trim values per
+				clip.
 
 			suffix: string to append to the mp4 filenames (they'll be
 				named as their originating flv filenames, plus
@@ -171,6 +175,17 @@ class Experiment(object):
 		vidData = {}
 		concat = [paths.FFMPEG]
 
+		# Expand a single 'trimming' value into a vector if needed
+		doTrimming = bool(trimming) and not(len(trimming) == 1 and not trimming[0])
+		if doTrimming:
+			if type(trimming) in [int, float]:
+				trimming = [trimming] * len(vidNames)
+			else:
+				if not(len(vidNames) == len(trimming)):
+					print trimming
+					print vidNames
+					raise ValueError("Must provide a single trimming value or vector of same length as vidNames")
+
 		# Get full path to the session directory
 		sessionDir = os.path.join(paths.SESSION_DIR, sessDirRel)
 
@@ -211,18 +226,15 @@ class Experiment(object):
 
 			trimStrVideo = ''
 			trimStrAudio = ''
-			# TODOGEOM: do the following if trimming is a number. If trimming is an
-			# event name, instead find the first matching event and use the streamtime.
-			# {
-#                             "eventType": "exp-alternation:exp-alternation:startCalibration",
-#                             "videoId": "58cc039ec0d9d70097f26220_8-alt-trials_58d3c25ec0d9d70098f26663",
-#                             "location": "center",
-#                             "timestamp": "2017-03-23T12:42:15.690Z",
-#                             "streamTime": 7.786000000000001
-#                         },
-			if trimming:
-				startTimeVideo = max(0, origDur - trimming)
-				startTimeAudio = max(0, origDur - trimming)
+			# For negative trim values, take the last -trimming[iVid] s. For
+			# positive trim values, start from trimming[iVid].
+			if doTrimming:
+				if trimming[iVid] < 0:
+					startTimeVideo = max(0, origDur - trimming[iVid])
+					startTimeAudio = max(0, origDur - trimming[iVid])
+				else:
+					startTimeVideo = trimming[iVid]
+					startTimeAudio = trimming[iVid]
 				trimStrVideo = ",trim=" + str(startTimeVideo)+":,setpts=PTS-STARTPTS"
 				trimStrAudio = "asetpts=PTS-STARTPTS,atrim="+ str(startTimeAudio)+':,'
 
@@ -240,6 +252,9 @@ class Experiment(object):
 			if videoOnlyDur > 0:
 				if display:
 					print "Making {} mp4 for vid: {}".format(suffix, vid)
+					if doTrimming:
+					    print "Starting at time: {}".format(trimming[iVid])
+
 
 				# Make audio-only file
 				filterComplexAudio = '[0:a]' + trimStrAudio + 'asetpts=PTS-STARTPTS,apad=pad_len=100000'
@@ -439,7 +454,7 @@ class Experiment(object):
 				continue
 			key = paths.make_session_key(expId, sessId)
 
-			# TODO: if it's a consent video, copy it to a separate consent directory
+			# If it's a consent video, copy it to a separate consent directory
 			# (sessions/study/consents/)
 			if 'consent' in frameId:
 				consentDir = os.path.join(paths.SESSION_DIR, expId, 'consents')
@@ -636,8 +651,35 @@ class Experiment(object):
 
 			# Expand the list of videos we'll need to process
 			vidNames = []
-			for vids in self.coding[sessKey]['videosFound']:
+
+			trimmingList = []
+
+			# sess = self.find_session(self.sessions, sessKey)
+			# expData = self.sessions['sessions'][iSess]['attributes']['expData']
+
+			for (iVid, vids) in enumerate(self.coding[sessKey]['videosFound']):
 				vidNames = vidNames + vids
+
+				if len(vids) > 1:
+					warn('Multiple videos found!') # TODO: expand warning
+
+				# If an event name was specified for trimming, also build the appropriate list of
+				# trimming values for this session.
+				if type(trimming) == str:
+					# for (frameId, frameData) in expData.iteritems(): # TODO: remove
+					#	  if 'videoId' in frameData.keys():
+					#		  allEvents = [e['eventType'] for e in frameData['eventTimings']]
+					theseEventTimes = [e['streamTime'] for e in self.coding[sessKey]['allEventTimings'][iVid] if e['eventType'].endswith(trimming)]
+					if not theseEventTimes:
+						warn('No event found to use for trimming') # TODO: expand warning
+						trimmingList = trimmingList + [False] * len(vids)
+					else:
+						trimmingList = trimmingList + [min(theseEventTimes)] * len(vids)
+
+			if type(trimming) == str:
+			    sessionTrimming = trimmingList
+			else:
+			    sessionTrimming = trimming
 
 			# Choose a location for the concatenated videos
 			sessDirRel = os.path.join(self.expId, sessId)
@@ -651,7 +693,7 @@ class Experiment(object):
 
 			replace = sessionsToProcess == 'all'
 
-			mp4Data = self.make_mp4s(sessDirRel, vidNames, display, trimming=trimming,
+			mp4Data = self.make_mp4s(sessDirRel, vidNames, display, trimming=sessionTrimming,
 				suffix=suffix, replace=replace, whichFrames=whichFrames)
 
 			for vid in mp4Data.keys():
@@ -670,7 +712,8 @@ class Experiment(object):
 
 		return sessionsAffected
 
-	def concatenate_session_videos(self, sessionKeys, filter={}, replace=False, display=False, useTrimmedFrames=[]):
+	def concatenate_session_videos(self, sessionKeys, filter={}, replace=False,
+	    display=False, useTrimmedFrames=[], skipIfEndedEarly=False):
 		'''Concatenate videos within the same session for the specified sessions.
 
 		Should be run after update_videos_found as it relies on videosFound
@@ -700,6 +743,9 @@ class Experiment(object):
 
 		useTrimmedFrames: list of substrings of frame names for which trimmed frames should be used
 			(e.g. ['pref-phys-videos'])
+
+		skipIfEndedEarly: whether to omit from concatenated videos any where the coding
+		    record indicates the video was ended early (e.g. by pausing)
 
 		For each session, this: - uses videosFound in the coding file to
 			locate (after creating if necessary) single-clip mp4s
@@ -772,8 +818,8 @@ class Experiment(object):
 				vidData = [vid for vid in vidData if skip not in vid[0]]
 
 			# Also skip any other frames where video was ended early
-			# TODOGEOM
-			vidData = [vid for vid in vidData if not self.coding[sessKey]['endedEarly'][vid[1]]]
+			if skipIfEndedEarly:
+			    vidData = [vid for vid in vidData if not self.coding[sessKey]['endedEarly'][vid[1]]]
 
 			# Sort the vidData found by timestamp so we concat in order.
 			vidData = sorted(vidData, key=lambda x: x[2])
@@ -900,9 +946,10 @@ class Experiment(object):
 			sessId = self.sessions['sessions'][iSess]['id']
 			expData = self.sessions['sessions'][iSess]['attributes']['expData']
 
-			# Get list of video files expected
+			# Get list of video files expected & unique events
 			self.coding[sessId]['videosExpected'] = []
 			self.coding[sessId]['uniqueEventsOrdered'] = []
+			self.coding[sessId]['allEventTimings'] = []
 			for (frameId, frameData) in expData.iteritems():
 				if 'videoId' in frameData.keys():
 					self.coding[sessId]['videosExpected'].append(frameData['videoId'])
@@ -912,6 +959,7 @@ class Experiment(object):
 						if e not in allEventsDeDup:
 							allEventsDeDup.append(e)
 					self.coding[sessId]['uniqueEventsOrdered'].append(allEventsDeDup)
+					self.coding[sessId]['allEventTimings'].append(frameData['eventTimings'])
 
 			# Processing based on events - specific to physics
 			if doPhysicsProcessing:
@@ -1573,7 +1621,8 @@ Partial updates:
 						 'relationships.history.links.related',
 						 'relationships.history.links.self',
 						 'attributes.permissions',
-						 'attributes.experimentVersion']
+						 'attributes.experimentVersion',
+						 'allEventTimings']
 
 	includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
 							'57adc3373de08a003fb12aad': [],
@@ -1588,8 +1637,8 @@ Partial updates:
 	excludeFieldsByStudy = {'58cc039ec0d9d70097f26220': ['eventTimings'] + standardExclude,
 							'583c892ec0d9d70082123d94': standardExclude}
 
-	trimLengthByStudy = {'583c892ec0d9d70082123d94': 20,
-						 '58cc039ec0d9d70097f26220': 72}
+	trimLengthByStudy = {'583c892ec0d9d70082123d94': -20,
+						 '58cc039ec0d9d70097f26220': ':startCalibration'}
 
 	videoFramesByStudy = {	'583c892ec0d9d70082123d94': 'pref-phys-video',
 							'58cc039ec0d9d70097f26220': 'alt-trials'}
@@ -1708,19 +1757,19 @@ Partial updates:
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
-		exp.concatenate_session_videos('all', display=True, replace=False, useTrimmedFrames=[videoFrameName])
+		exp.concatenate_session_videos('all', display=True, replace=False, useTrimmedFrames=[videoFrameName], skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'))
 
 	elif args.action == 'update':
 		print '\nStarting Lookit update, {:%Y-%m-%d %H:%M:%S}\n'.format(datetime.datetime.now())
-		update_account_data()
-		Experiment.export_accounts()
+		#update_account_data()
+		#Experiment.export_accounts()
 		exp.accounts = exp.load_account_data()
-		newVideos = sync_S3(pull=True)
-		exp.update_session_data()
+		#newVideos = sync_S3(pull=True)
+		#exp.update_session_data()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
-		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
-		assert len(unmatched) == 0
-		exp.update_videos_found()
+		#sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
+		#assert len(unmatched) == 0
+		#exp.update_videos_found()
 		if doConcatForAll:
 			exp.concatenate_session_videos('missing', filter={'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName])
 		else:
