@@ -45,17 +45,6 @@ class Experiment(object):
 		return -1
 
 	@classmethod
-	def load_batch_data(cls, expId):
-		'''Return saved batch data for this experiment. Empty if no data.'''
-		batchFile = paths.batch_filename(expId)
-		if os.path.exists(batchFile):
-			with open(batchFile,'rb') as f:
-				batches = pickle.load(f)
-			return batches
-		else:
-			return {}
-
-	@classmethod
 	def load_session_data(cls, expId):
 		'''Return saved session data for this experiment, or [] if none saved'''
 		sessionFile = paths.session_filename(expId)
@@ -111,7 +100,8 @@ class Experiment(object):
 		return accountData
 
 	@classmethod
-	def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='', replace=False, whichFrames=[]):
+	def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='',
+	    replace=False, whichFrames=[]):
 		''' Convert flvs in VIDEO_DIR to mp4s organized in SESSION_DIR for a
 		particular session
 
@@ -323,18 +313,6 @@ class Experiment(object):
 		return vidDur
 
 	@classmethod
-	def batch_id_for_filename(cls, expId, batchFilename):
-		'''Returns the batch ID for a given experiment & batch filename.'''
-
-		batches = load_batch_data(expId)
-		if not len(batchFilename):
-			raise ValueError('remove_batch: must provide either batchId or batchFilename')
-		for id in batches.keys():
-			if batches[id]['batchFile'] == batchFilename:
-				return id
-		raise ValueError('remove_batch: no batch found for filename {}'.format(batchFilename))
-
-	@classmethod
 	def export_accounts(cls):
 		'''Create a .csv sheet showing all account data.
 
@@ -386,7 +364,6 @@ class Experiment(object):
 
 	def __init__(self, expId, trimLength=None):
 		self.expId = expId
-		self.batchData = self.load_batch_data(expId)
 		self.coding = self.load_coding(expId)
 		self.sessions = self.load_session_data(expId)
 		self.videoData = self.load_video_data()
@@ -414,7 +391,7 @@ class Experiment(object):
 
 		reprocess: Whether to
 			reprocess filenames that are already in the data file. If true,
-			recompute framerate/duration (BUT DO NOT CLEAR BATCH DATA).
+			recompute framerate/duration.
 			Default false (skip filenames already there). Irrelevant if
 			newVideos==[].
 
@@ -506,7 +483,7 @@ class Experiment(object):
 				if alreadyHaveRecord:
 					thisVideo = self.videoData[vidName]
 				else:
-					thisVideo = {'inBatches': {}}
+					thisVideo = {}
 
 				# Add basic attributes
 				thisVideo['shortname'] = shortname
@@ -872,214 +849,6 @@ class Experiment(object):
 
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
 
-	def batch_videos(self, batchLengthMinutes=5, codingCriteria={'consent':['yes'], 'usable':['yes']},
-		includeIncompleteBatches=True):
-		''' Create video batches for a study.
-
-		expId: experiment id, string (ex.: 574db6fa3de08a005bb8f844)
-
-		batchLengthMinutes: minimum batch length in minutes. Videos will be
-			added to one batch until they exceed this length.
-
-		codingCriteria: a dictionary of requirements on associated coding
-			data for videos to be included in a batch. keys are keys within a
-			coding record (e.g. 'consent') and values are lists of acceptable
-			values. Default {'consent':['yes'], 'usable':['yes']}. Values are
-			insensitive to case and leading/trailing whitespace.
-
-		includeIncompleteBatches: whether to create a batch for the
-			"leftover" files even though they haven't gotten to
-			batchLengthMinutes long yet.
-
-		Trimmed mp4s (ending in _trimmed.mp4) are used for the batches. These
-			must already exist--call make_mp4s_for_study first. Only videos
-			not currently in any batch will be added to a batch.
-
-		Batch mp4s are named [expId]_[short random code].mp4 and are stored
-			in paths.BATCH_DIR. Information about the newly created batches
-			is stored in two places: - batch data: adds new mapping batchKey
-			: {'batchFile': batchFilename, 'videos': [(sessionKey, flvName,
-			duration), ...] } - videoData: add
-			videoData[flvName]['inBatches'][batchId] = index in batch
-
-		'''
-
-		print "Making video batches for study {}".format(self.expId)
-
-		vidsToProcess = []
-
-		# First, find all trimmed, not-currently-in-batches videos for this study.
-		for sessKey in self.coding.keys():
-			for vidList in self.coding[sessKey]['videosFound']:
-				for vid in vidList:
-					if 'mp4Path_trimmed' in self.videoData[vid].keys():
-						mp4Path = self.videoData[vid]['mp4Path_trimmed']
-						mp4Dur	= self.videoData[vid]['mp4Dur_trimmed']
-						if len(mp4Path) and mp4Dur and not len(self.videoData[vid]['inBatches']):
-							vidsToProcess.append((sessKey, vid))
-
-		# Check for coding criteria (e.g. consent, usable)
-		for (criterion, values) in codingCriteria.items():
-			values = [v.lower().strip() for v in values]
-			vidsToProcess = [(sessKey, vid) for (sessKey, vid) in vidsToProcess if self.coding[sessKey][criterion].lower().strip() in values]
-
-		# Separate list into batches; break off a batch whenever length exceeds
-		# batchLengthMinutes
-		batches = []
-		batchDurations = []
-		currentBatch = []
-		currentBatchLen = 0
-		for (iVid, (sessKey, vid)) in enumerate(vidsToProcess):
-			dur = self.videoData[vid]['mp4Dur_trimmed']
-			currentBatch.append((sessKey, vid, dur))
-			currentBatchLen += dur
-
-			# Check if size of videos changes between this & next video
-			sizeMismatch = False
-			if (iVid + 1) < len(vidsToProcess):
-				currentBatchWidth = videoutils.get_video_details(vid, 'width')
-				nextBatchWidth = videoutils.get_video_details(vidsToProcess[iVid+1][1], 'width')
-				sizeMismatch = nextBatchWidth != currentBatchWidth
-
-			if sizeMismatch or (currentBatchLen > batchLengthMinutes * 60):
-				batches.append(currentBatch)
-				batchDurations.append(currentBatchLen)
-				currentBatch = []
-				currentBatchLen = 0
-
-		# If anything's left in the last batch, include it
-		if len(currentBatch):
-			if includeIncompleteBatches:
-				batches.append(currentBatch)
-				batchDurations.append(currentBatchLen)
-			else:
-				warn('Some videos not being batched because they are not long enough for a complete batch')
-
-		for [iBatch, batchList] in enumerate(batches):
-			# Name the batch file
-			done = False
-			while not done:
-				concatFilename = self.expId + '_' + ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5)) + '.mp4'
-				done = concatFilename not in paths.get_batchfiles()
-			concatPath = os.path.join(paths.BATCH_DIR, concatFilename)
-			print concatPath
-
-			# Get full paths to videos
-			batchPaths = [os.path.join(paths.SESSION_DIR, self.videoData[vid]['mp4Path_trimmed']) for (sessKey, vid, dur) in batchList]
-
-			# Create the batch file
-			batchDur = self.concat_mp4s(concatPath, batchPaths)
-
-			print "Batch duration -- actual: {}, expected: {}".format(batchDur, batchDurations[iBatch])
-			durDiff = batchDur - batchDurations[iBatch]
-			if durDiff > 0.033: # Greater than one frame at 30fps
-				warn('Difference between predicted and actual batch length, batch filename {}'.format(concatFilename))
-
-			# Add the batch to the videoData file
-			self.add_batch(concatFilename, batchList)
-
-	def add_batch(self, batchFilename, videos):
-		'''Add a batched video to data files.
-
-		expId: experiment id, string (ex.: 574db6fa3de08a005bb8f844)
-			batchFilename: filename of batch video file within batch dir (not
-			full path)
-
-		videos: ordered list of (sessionId, videoFilename,
-			duration) tuples. sessionId is an index into the coding
-			directory, videoFilename is the individual filename (not full
-			path).
-
-		The batch data file for this experiment will be updated to include
-			this batch (see bat definition) and the videoData for all
-			included videos will be updated with their positions within this
-			batch: videoData[videoname]['inBatches'][batId] = iVid (index in
-			this batch) '''
-
-		batchDur = videoutils.get_video_details(os.path.join(paths.BATCH_DIR, batchFilename),
-			 'vidduration', fullpath=True)
-
-		# Create a batch dict for this batch
-		bat = { 'batchFile': batchFilename,
-				'videos': videos,
-				'duration': batchDur,
-				'expected': sum([v[2] for v in videos]),
-				'addedOn': '{:%Y-%m-%d%H:%M:%S}'.format(datetime.datetime.now()),
-				'codedBy': [] }
-
-		# Add this batch to the existing batches
-		batId = uuid.uuid4().hex
-		self.batchData[batId] = bat
-
-		# Add references to this batch in each videoData record affected
-		for (iVid, (sessionId, videoname, dur)) in enumerate(videos):
-			self.videoData[videoname]['inBatches'][batId] = iVid
-
-		# Save batch and video data
-		backup_and_save(paths.batch_filename(self.expId), self.batchData)
-		backup_and_save(paths.VIDEO_FILENAME, self.videoData)
-
-	def remove_batch(self, batchId='', batchFilename='', deleteVideos=False):
-		'''Remove a batched video from the data files (batch and video data).
-
-		Either batchId or batchFilename must be provided. batchId is the ID
-			used as a key in the batch data file for this experiment;
-			batchFilename is the filename within the batch directory. If both
-			are provided, only batchId is used.
-
-		If batchId is 'all', all batches for this study are removed from the
-			batch and video data files.
-
-		deleteVideos (default false): whether to remove the specified batch
-			videos in the batch dir as well as records of them
-
-		Batch data will be removed from the batch file for this experiment
-			and from each included video in videoData.'''
-
-		# First handle special case of removing all batches for this experiment
-		if batchId == 'all':
-			# Remove references to batches in all videoData for this study
-			for (vid, vidData) in self.videoData.items():
-				vidExpId = paths.parse_videoname(vid)[0]
-				if vidExpId == self.expId:
-					self.videoData[vid]['inBatches'] = {}
-			backup_and_save(paths.VIDEO_FILENAME, self.videoData)
-			# Empty batch data file
-			backup_and_save(paths.batch_filename(self.expId), {})
-			# Remove batch videos
-			if deleteVideos:
-				for batchVideoname in paths.get_batchfiles():
-					vidExpId = batchVideoname.split('_')[0]
-					if vidExpId == self.expId:
-						sp.call('rm ' + os.path.join(paths.BATCH_DIR, batchVideoname), shell=True)
-
-			return
-
-		# Use filename if provided instead of batchId
-		if not batchId:
-			batchId = self.batch_id_for_filename(self.expId, batchFilename)
-
-		# Remove this batch from batch data
-		videos = self.batchData[batchId]['videos']
-		vidName = self.batchData[batchId]['batchFile']
-		del self.batchData[batchId]
-
-		# Remove references to this batch in each videoData record affected
-		for (iVid, (sessionId, videoname, dur)) in enumerate(videos):
-			del self.videoData[videoname]['inBatches'][batchId]
-
-		# Backup and save batch and video data
-		backup_and_save(paths.batch_filename(expId), self.batchData)
-		backup_and_save(paths.VIDEO_FILENAME, self.videoData)
-		print 'Removed batch from batch and video data'
-
-		# Delete video
-		if deleteVideos:
-			batchPath = os.path.join(paths.BATCH_DIR, vidName)
-			if os.path.exists(batchPath):
-				sp.call('rm ' + batchPath, shell=True)
-				print 'Deleted batch video'
-
 	def empty_coding_record(self):
 		'''Return a new instance of an empty coding dict'''
 		emptyRecord = {'consent': 'orig',
@@ -1224,97 +993,6 @@ class Experiment(object):
 			printer.pprint(self.coding)
 
 		print "Updated coding with {} new records for experiment: {}".format(len(newCoding), self.expId)
-
-	def generate_batchsheet(self, coderName):
-		'''Create a .csv sheet for a coder to mark whether batches are coded.
-
-		coderName: coder in paths.CODERS (e.g. 'Kim') or 'all' to display
-			coding status for all coders. Error raised if unknown coder used.
-
-		Fields will be id, minutes (duration of batch in minutes, estimated
-			from sum of individual files), batchFile (filename of batch) and
-			codedBy-coderName.'''
-
-		if coderName != 'all' and coderName not in paths.CODERS:
-			raise ValueError('Unknown coder name', coderName)
-
-		if coderName == 'all':
-			coders = paths.CODERS
-		else:
-			coders = [coderName]
-
-		batchList = []
-		for (batchId, bat) in self.batchData.items():
-
-			batchEntry = {	'id': batchId,
-							'minutesSum': sum([v[2] for v in bat['videos']])/60,
-							'minutesActual': bat.get('duration', -60)/60,
-							'addedOn': bat['addedOn'],
-							'batchFile': bat['batchFile'],
-							'allCoders': ' '.join(bat['codedBy'])}
-
-			for c in coders:
-				batchEntry['codedBy-' + c] = 'yes' if c in bat['codedBy'] else 'no'
-
-
-
-			batchList.append(batchEntry)
-
-		headers = ['batchFile', 'addedOn', 'id', 'minutesSum', 'minutesActual', 'allCoders']
-		for c in coders:
-			headers.append('codedBy-' + c)
-
-		for b in batchList:
-			for k in b.keys():
-				if type(b[k]) is unicode:
-					b[k] = b[k].encode('utf-8')
-
-		batchList.sort(key=lambda b: b['addedOn'])
-
-		# Back up any existing batch file by the same name & save
-		batchsheetPath = paths.batchsheet_filename(self.expId, coderName)
-		backup_and_save_dict(batchsheetPath, batchList, headers)
-
-	def commit_batchsheet(self, coderName):
-		'''Update codedBy in the batch file based on a CSV batchsheet.
-
-		Raises IOError if the CSV batchsheet is not found.
-
-		Batch keys are used to match CSV to pickled data records. Only
-			whether this coder has completed coding is updated, based on
-			the codedBy-[coderName] column. '''
-
-		batchsheetPath = paths.batchsheet_filename(self.expId, coderName)
-
-		field = 'codedBy-' + coderName
-
-		if not os.path.exists(batchsheetPath):
-			raise IOError('Batch sheet not found: {}'.format(codesheetPath))
-
-		# Read each row of the coder CSV. 'rU' is important for Mac-formatted CSVs
-		# saved in Excel.
-		with open(batchsheetPath, 'rU') as csvfile:
-			reader = csv.DictReader(csvfile)
-			for row in reader:
-				id = row['id']
-				if id in self.batchData.keys(): # Match to the actual batch
-					if field in row.keys():
-						coded = row[field].strip().lower() # Should be 'yes' or 'no'
-						if coded == 'yes':
-							if coderName not in self.batchData[id]['codedBy']:
-								self.batchData[id]['codedBy'].append(coderName)
-						elif coded == 'no':
-							if coderName in self.batchData[id]['codedBy']:
-								self.batchData[id]['codedBy'].remove(coderName)
-						else:
-							raise ValueError('Unexpected value for whether coding is done for batch {} (should be yes or no): {}'.format(id, coded))
-					else:
-						warn('Missing expected row header in batch CSV: {}'.format(field))
-				else: # Couldn't find this batch ID in the batch dict.
-					warn('ID found in batch CSV but not in batch file, ignoring: {}'.format(id))
-
-		# Actually save coding
-		backup_and_save(paths.batch_filename(self.expId), self.batchData)
 
 	def generate_codesheet(self, coderName, showOtherCoders=True, showAllHeaders=False,
 	includeFields=[], studyFields=[], excludeFields=[], filter={}, ignoreProfiles=[],
@@ -1678,35 +1356,6 @@ class Experiment(object):
 
 		print "Sent updated feedback to server for exp {}".format(self.expId)
 
-	def read_batch_coding(self):
-		'''TODO: DOC'''
-		for (batchID, batch) in self.batchData.items():
-			theseCoders = batch['codedBy']
-			printer.pprint([batch['batchFile'], theseCoders])
-			# Extract list of lengths to use for demarcating trials
-			vidLengths = [v[2] for v in batch['videos']]
-			for coderName in theseCoders:
-				vcodeFilename = paths.vcode_batchfilename(batch['batchFile'], coderName)
-				# Check that the VCode file exists
-				if not os.path.isfile(vcodeFilename):
-					warn('Expected Vcode file {} for coder {} not found'.format(os.path.basename(vcodeFilename), coderName))
-					continue
-				# Read in file
-				(durations, leftLookTime, rightLookTime, oofTime) = \
-					vcode.read_preferential(vcodeFilename, interval=[], videoLengths=vidLengths)
-				# Save data
-				vcodeData = {'durations': durations, 'leftLookTime': leftLookTime,
-					'rightLookTime': rightLookTime, 'oofTime': oofTime}
-
-				if 'vcode' in batch.keys():
-					batch['vcode'][coderName] = vcodeData
-				else:
-					batch['vcode'] = {coderName: vcodeData}
-				self.batchData[batchID] = batch
-
-		# Save batch and video data
-		backup_and_save(paths.batch_filename(self.expId), self.batchData)
-
 	def read_vcode_coding(self, filter={}):
 		'''Check all sessions for this study for expected VCode files & read into coding data.
 		TODO: full doc'''
@@ -1745,36 +1394,9 @@ class Experiment(object):
 					codeRec['vcode'] = {coderName: vcodeData}
 				self.coding[sessKey] = codeRec
 
-		# Save batch and video data
+		# Save coding data
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
 
-
-
-
-def get_batch_info(expId='', batchId='', batchFilename=''):
-		'''Helper: Given either a batchId or batch filename, return batch data for this
-		batch. Must supply either expId or batchFilename.
-
-		Returns the dictionary associated with this batch, with field:
-			batchFile - filename of batch, within BATCH_DIR videos - list of
-			(sessionKey, videoFilename, duration) tuples in order videos
-			appear in batch codedBy - list of coders who have coded this
-			batch'''
-
-		# Load the batch data for this experiment
-		if len(expId):
-			batches = load_batch_data(expId)
-		elif len('batchFilename'):
-			expId = batchFilename.split('_')[0]
-			batches = Experiment.load_batch_data(expId)
-		else:
-			raise ValueError('get_batch_info: must supply either batchFilename or expId')
-
-		# Use filename if provided instead of batchId
-		if not len(batchId):
-			batchId = Experiment.batch_id_for_filename(expId, batchFilename)
-
-		return batches[batchId]
 
 def filter_keys(sessDict, filter):
 	'''Return only session keys from dict that satisfy query given by filter.
@@ -1809,7 +1431,7 @@ you would actually type
 python coding.py --coder Audrey
 
 STUDY is the study name, which can be either the full ID (found in the URL if you find the
-correct study on Lookit) or a nickname you'll be told (e.g. 'physics'). Coding/batch sheets
+correct study on Lookit) or a nickname you'll be told (e.g. 'physics'). Coding sheets
 and video data are always stored under the full ID.
 
 To get an updated coding sheet for a particular study:
@@ -1829,24 +1451,6 @@ To commit your coding sheet:
 
 	This updates the stored coding data to reflect changes you have made in any fields
 	with a .YOURNAME ending in your coder sheet. Your coder sheet must exist and be in the
-	expected location/filename for this to work.
-
-To get an updated batch sheet for a particular study:
-	python coding.py fetchbatchsheet --coder YOURNAME --study STUDY
-
-	This creates a batch spreadsheet named STUDYID_batches_YOURNAME.csv in the coding
-	directory so you can mark which batches you have coded. Each row is a batch; batches
-	are sorted by date created. batchFile gives the filename of the batch within the
-	batches directory.
-
-	Do NOT edit the 'id' column or move/rename your spreadsheet. When you have coded a
-	batch, change the value in the 'codedBy-YOURNAME' field from 'no' to 'yes'.
-
-To commit your batch sheet:
-	python coding.py commitbatchsheet --coder YOURNAME --study STUDY
-
-	This updates the stored batch data to reflect changes you have made in the
-	codedBy-YOURNAME field of your batch sheet. Your batch sheet must exist and be in the
 	expected location/filename for this to work.
 
 ----------------- Advanced users & consent coders only -----------------------------------
@@ -1877,15 +1481,14 @@ To send feedback to users:
 	This sends feedback currently in the coding data to the site, where it will be
 	displayed to users. Feedback must first be updated, e.g. using commitconsentsheet.
 
-To view all current coding/batches:
+To view all current coding:
 	python coding.py fetchcodesheet --coder all
 	python coding.py fetchconsentsheet --coder all
-	python coding.py fetchbatchsheet --coder all
 
 	Using --coder all will show coder-specific fields from all coders.
 
 To change the list of coders:
-	change in .env file. You won't be able to generate a new coding or batch sheet for
+	change in .env file. You won't be able to generate a new coding sheet for
 	a coder removed from the list, but existing data won't be affected.
 
 To change what fields coders enter in their coding sheets:
@@ -1897,29 +1500,10 @@ To change what fields coders enter in their coding sheets:
 	new coder sheet is created, a warning will be displayed that an expected field is
 	missing.
 
-To create batches of video:
-	python coding.py makebatches --study STUDY
-
-	Using any video not already in a batch, forms batches of approximately batchLengthMinutes
-	(defined in coding.py) long and adds them to batch data. These will show up on
-	batch sheets. Only videos from sessions with usability & consent confirmed are included.
-
-To remove a video batch:
-	python coding.py removebatch --study STUDY [--batchID batchID] [--batchFile batchFile]
-
-	Remove the .mp4 and the record of a particular batch. Must provide either batch ID
-	(from a batch sheet) or filename within the batch directory. Use --batchID all to
-	remove all batches from a given study.
-
 To check for missing video:
 	Look at a coding sheet -- can see nVideosExpected and nVideosFound fields.
 
-To check for issues with batch concatenation, where total file length != sum of individual
-	file lengths:
-	Look at a batch sheet -- compare minutesSum (sum of individual file lengths) and
-	minutesActual (duration of video stream of batch mp4).
-
-To look for and process VCode files for batch videos:
+To look for and process VCode files:
 	python coding.py updatevcode --study STUDY
 
 To use the staging database:
@@ -2016,7 +1600,6 @@ Partial updates:
 	onlyMakeConcatIfConsent = {	 '583c892ec0d9d70082123d94': True,
 							'58cc039ec0d9d70097f26220': False}
 
-	batchLengthMinutes = 5
 
 	# Fields required for each action
 	actions = {'fetchcodesheet': ['coder', 'study'],
@@ -2024,16 +1607,11 @@ Partial updates:
 			   'fetchconsentsheet': ['coder', 'study'],
 			   'commitconsentsheet': ['coder', 'study'],
 			   'sendfeedback': ['study'],
-			   'fetchbatchsheet': ['coder', 'study'],
-			   'commitbatchsheet': ['coder', 'study'],
 			   'updateaccounts': [],
 			   'getvideos': [],
 			   'updatesessions': ['study'],
 			   'processvideo': ['study'],
 			   'update': ['study'],
-			   'makebatches': ['study'],
-			   'removebatch': ['study'],  # must provide batchID or batchFile
-			   'exportmat': ['study'],
 			   'updatevcode': ['study'],
 			   'tests': ['study'],
 			   'updatevideodata': ['study']}
@@ -2049,8 +1627,6 @@ Partial updates:
 	parser.add_argument('--study', help='Study ID')
 	parser.add_argument('--fields', help='Fields to commit (used for commitconsentsheet only)',
 		action='append', default=['consent', 'feedback', 'usable', 'consentnotes'])
-	parser.add_argument('--batchID', help='Batch ID to remove, or "all" (used for removebatch only)')
-	parser.add_argument('--batchFile', help='Batch filename to remove (used for removebatch only)')
 	parser.add_argument('-c', '--config', type=str, default='.env-prod', help='.env file to use; defaults to .env-prod')
 
 	args = parser.parse_args()
@@ -2113,14 +1689,6 @@ Partial updates:
 		print 'Committing consentsheet...'
 		exp.commit_global(args.coder, args.fields)
 
-	elif args.action == 'fetchbatchsheet':
-		print 'Making batchsheet...'
-		exp.generate_batchsheet(args.coder)
-
-	elif args.action == 'commitbatchsheet':
-		print 'Committing batchsheet...'
-		exp.commit_batchsheet(args.coder)
-
 	elif args.action == 'updateaccounts':
 		print 'Updating accounts...'
 		update_account_data()
@@ -2159,17 +1727,7 @@ Partial updates:
 			exp.concatenate_session_videos('missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName])
 		print '\nUpdate complete'
 
-	elif args.action == 'makebatches': # TODO: update criteria
-		print 'Making batches...'
-		exp.make_mp4s_for_study(sessionsToProcess='missing', display=True, trimming=trimLength, suffix='trimmed')
-		exp.batch_videos(batchLengthMinutes=batchLengthMinutes, codingCriteria={'consent':['yes'], 'usable':[''], 'withdrawn':[None, False]})
-
-	elif args.action == 'removebatch':
-		print 'Removing batch(es)...'
-		exp.remove_batch(batchId=args.batchID, batchFilename=args.batchFile, deleteVideos=True)
-
 	elif args.action == 'updatevcode':
-		#exp.read_batch_coding()
 		exp.read_vcode_coding(filter={'consent':['yes'], 'withdrawn':[None, False]})
 		exp.summarize_results()
 

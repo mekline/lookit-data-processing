@@ -7,7 +7,6 @@ import conf
 CODERS = eval(os.environ['CODERS'])
 BASE_DIR=os.environ.get("BASE_DIR")
 VIDEO_DIR = os.path.join(BASE_DIR, os.environ.get("VIDEO_DIR"))
-BATCH_DIR = os.path.join(BASE_DIR, os.environ.get("BATCH_DIR"))
 DATA_DIR = os.path.join(BASE_DIR, os.environ.get("DATA_DIR"))
 CODING_DIR = os.path.join(BASE_DIR, os.environ.get("CODING_DIR"))
 SESSION_DIR = os.path.join(BASE_DIR, os.environ.get("SESSION_DIR"))
@@ -16,7 +15,6 @@ FFMPEG = os.environ.get("FFMPEG_PATH")
 FFPROBE = os.path.join(os.path.split(FFMPEG)[0], 'ffprobe')
 
 make_sure_path_exists(VIDEO_DIR)
-make_sure_path_exists(BATCH_DIR)
 make_sure_path_exists(DATA_DIR)
 make_sure_path_exists(CODING_DIR)
 make_sure_path_exists(SESSION_DIR)
@@ -43,15 +41,6 @@ def coding_filename(expId):
     '''Return full path to the coding data filename for experiment expId'''
     return os.path.join(DATA_DIR, 'coding_data_' + expId + '.bin')
 
-def batch_filename(expId):
-    '''Return full path to the batch data filename for experiment expId'''
-    return os.path.join(DATA_DIR, 'batch_data_' +  expId + '.bin')
-
-def vcode_batchfilename(batchFilename, coderName):
-    '''Return full path to expected VCode file for a given batch & coder'''
-    batchStub, ext = os.path.splitext(batchFilename)
-    return os.path.join(CODING_DIR, coderName, batchStub + '-evts.txt')
-
 def vcode_filename(sessKey, coderName, short=False):
     '''Return full path to expected VCode file for a given study, session & coder. short=True to use just the session ID instead of exp + session.'''
     (expId, shortSess) = parse_session_key(sessKey)
@@ -65,15 +54,9 @@ def codesheet_filename(expId, coderName):
     '''Return full path to the .csv coding file for experiment expId & coderName'''
     return os.path.join(CODING_DIR, expId + '_' + coderName + '.csv')
 
-def batchsheet_filename(expId, coderName):
-    '''Return full path to the .csv batch file for experiment expId & coderName'''
-    return os.path.join(CODING_DIR, expId + '_batches_' + coderName + '.csv')
-
-
 def accountsheet_filename():
     '''Return full path to the .csv account file'''
     return os.path.join(CODING_DIR, 'accounts' + conf.VERSION + '.csv')
-
 
 def make_session_key(expId, sessId):
     if conf.VERSION == 'prod':
@@ -144,9 +127,3 @@ def get_videolist():
     return [f for f in os.listdir(VIDEO_DIR) if \
                     not(os.path.isdir(os.path.join(VIDEO_DIR, f))) and \
                     f[-4:] in ['.flv'] ]
-
-def get_batchfiles():
-    '''Return the list of video files in the batch directory'''
-    return [f for f in os.listdir(BATCH_DIR) if \
-                    not(os.path.isdir(os.path.join(BATCH_DIR, f))) and \
-                    f[-4:] in ['.flv', '.mp4'] ]
