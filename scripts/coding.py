@@ -221,6 +221,15 @@ class Experiment(object):
 
 			trimStrVideo = ''
 			trimStrAudio = ''
+			# TODOGEOM: do the following if trimming is a number. If trimming is an
+			# event name, instead find the first matching event and use the streamtime.
+			# {
+#                             "eventType": "exp-alternation:exp-alternation:startCalibration",
+#                             "videoId": "58cc039ec0d9d70097f26220_8-alt-trials_58d3c25ec0d9d70098f26663",
+#                             "location": "center",
+#                             "timestamp": "2017-03-23T12:42:15.690Z",
+#                             "streamTime": 7.786000000000001
+#                         },
 			if trimming:
 				startTimeVideo = max(0, origDur - trimming)
 				startTimeAudio = max(0, origDur - trimming)
@@ -684,7 +693,7 @@ class Experiment(object):
 
 		return sessionsAffected
 
-	def concatenate_session_videos(self, sessionKeys, filter={}, replace=False, display=False):
+	def concatenate_session_videos(self, sessionKeys, filter={}, replace=False, display=False, useTrimmedFrames=[]):
 		'''Concatenate videos within the same session for the specified sessions.
 
 		Should be run after update_videos_found as it relies on videosFound
@@ -712,6 +721,9 @@ class Experiment(object):
 
 		display: whether to show debugging output (default False)
 
+		useTrimmedFrames: list of substrings of frame names for which trimmed frames should be used
+			(e.g. ['pref-phys-videos'])
+
 		For each session, this: - uses videosFound in the coding file to
 			locate (after creating if necessary) single-clip mp4s
 			with text labels - creates a concatenated mp4 with all video for
@@ -722,7 +734,6 @@ class Experiment(object):
 
 		print "Making concatenated session videos for study {}".format(self.expId)
 
-		useTrimmedFrames = ['pref-phys-videos'] # TODOGEOM
 		useWholeVideoFrames = ['video-preview', 'video-consent']
 		skipFrames = ['video-consent']
 
@@ -1089,9 +1100,12 @@ class Experiment(object):
 			emptyRecord[field] = {} # CoderName: 'comment'
 		return emptyRecord
 
-	def update_coding(self, display=False):
+	def update_coding(self, display=False, doPhysicsProcessing=False):
 		'''Update coding data with empty records for any new sessions in saved session
-		data, which video files are expected, withdrawn status, & birthdates.'''
+		data, which video files are expected, withdrawn status, & birthdates.
+
+		doPhysicsProcessing additionally updates coding fields showedAlternate,
+		endedEarly, and videosShown based on events stored in pref-phys-videos frames.'''
 
 		updated = False
 
@@ -1119,50 +1133,62 @@ class Experiment(object):
 
 			# Get list of video files expected
 			self.coding[sessId]['videosExpected'] = []
-			self.coding[sessId]['showedAlternate'] = []
-			self.coding[sessId]['endedEarly'] = []
-			self.coding[sessId]['videosShown'] = []
+			self.coding[sessId]['uniqueEventsOrdered'] = []
 			for (frameId, frameData) in expData.iteritems():
-				# TODO: generalize for other frames, event names
-				# TODOGEOM
-				if 'videoId' in frameData.keys() and not frameId=='32-32-pref-phys-videos':
-					if 'pref-phys-videos' in frameId:
-
-						# Check events: was the video paused?
-						events = [e['eventType'] for e in frameData['eventTimings']]
-						showAlternate = 'exp-physics:startAlternateVideo' in events
-
-						# Was the alternate video also paused, if applicable?
-						# TODO: once we have an F1 event, add this as a way the study could be ended early
-						# Ended early if we never saw either test or alternate video (check
-						# for alternate b/c of rare case where due to lots of pausing only
-						# alternate is shown)
-						endedEarly = 'exp-physics:startTestVideo' not in events and 'exp-physics:startAlternateVideo' not in events
-						# Check that the alternate video wasn't paused
-						if showAlternate:
-							lastAlternateEvent = len(events) - events[::-1].index('exp-physics:startAlternateVideo') - 1
-							endedEarly = endedEarly or ('exp-physics:pauseVideo' in events[lastAlternateEvent:])
-						# Check we didn't pause test video, but never get to alternate (e.g. F1)
-						if not endedEarly and 'exp-physics:pauseVideo' in events and 'exp-physics:startTestVideo' in events:
-							lastPause = len(events) - events[::-1].index('exp-physics:pauseVideo') - 1
-							firstTest = events.index('exp-physics:startTestVideo')
-							endedEarly = endedEarly or (lastPause > firstTest and not showAlternate)
-
-						# Which video file was actually shown?
-						thisVideo = ''
-						if 'videosShown' in frameData.keys() and len(frameData['videosShown']):
-							videos = frameData['videosShown']
-							thisVideo = os.path.splitext(os.path.split(videos[0 + showAlternate])[1])[0]
-
-					else:
-						showAlternate = None
-						thisVideo = None
-						endedEarly = None
-
+				if 'videoId' in frameData.keys():
 					self.coding[sessId]['videosExpected'].append(frameData['videoId'])
-					self.coding[sessId]['showedAlternate'].append(showAlternate)
-					self.coding[sessId]['videosShown'].append(thisVideo)
-					self.coding[sessId]['endedEarly'].append(endedEarly)
+					allEvents = [e['eventType'] for e in frameData['eventTimings']]
+					allEventsDeDup = []
+					for e in allEvents:
+						if e not in allEventsDeDup:
+							allEventsDeDup.append(e)
+					self.coding[sessId]['uniqueEventsOrdered'].append(allEventsDeDup)
+
+			# Processing based on events - specific to physics
+			if doPhysicsProcessing:
+				self.coding[sessId]['videosExpected'] = []
+				self.coding[sessId]['showedAlternate'] = []
+				self.coding[sessId]['endedEarly'] = []
+				self.coding[sessId]['videosShown'] = []
+				for (frameId, frameData) in expData.iteritems():
+					if 'videoId' in frameData.keys() and not frameId=='32-32-pref-phys-videos':
+						if 'pref-phys-videos' in frameId:
+
+							# Check events: was the video paused?
+							events = [e['eventType'] for e in frameData['eventTimings']]
+							showAlternate = 'exp-physics:startAlternateVideo' in events
+
+							# Was the alternate video also paused, if applicable?
+							# TODO: once we have an F1 event, add this as a way the study could be ended early
+							# Ended early if we never saw either test or alternate video (check
+							# for alternate b/c of rare case where due to lots of pausing only
+							# alternate is shown)
+							endedEarly = 'exp-physics:startTestVideo' not in events and 'exp-physics:startAlternateVideo' not in events
+							# Check that the alternate video wasn't paused
+							if showAlternate:
+								lastAlternateEvent = len(events) - events[::-1].index('exp-physics:startAlternateVideo') - 1
+								endedEarly = endedEarly or ('exp-physics:pauseVideo' in events[lastAlternateEvent:])
+							# Check we didn't pause test video, but never get to alternate (e.g. F1)
+							if not endedEarly and 'exp-physics:pauseVideo' in events and 'exp-physics:startTestVideo' in events:
+								lastPause = len(events) - events[::-1].index('exp-physics:pauseVideo') - 1
+								firstTest = events.index('exp-physics:startTestVideo')
+								endedEarly = endedEarly or (lastPause > firstTest and not showAlternate)
+
+							# Which video file was actually shown?
+							thisVideo = ''
+							if 'videosShown' in frameData.keys() and len(frameData['videosShown']):
+								videos = frameData['videosShown']
+								thisVideo = os.path.splitext(os.path.split(videos[0 + showAlternate])[1])[0]
+
+						else:
+							showAlternate = None
+							thisVideo = None
+							endedEarly = None
+
+						self.coding[sessId]['videosExpected'].append(frameData['videoId'])
+						self.coding[sessId]['showedAlternate'].append(showAlternate)
+						self.coding[sessId]['videosShown'].append(thisVideo)
+						self.coding[sessId]['endedEarly'].append(endedEarly)
 
 			withdrawSegment = 'exit-survey'
 			exitbirthdate = []
@@ -1291,7 +1317,8 @@ class Experiment(object):
 		backup_and_save(paths.batch_filename(self.expId), self.batchData)
 
 	def generate_codesheet(self, coderName, showOtherCoders=True, showAllHeaders=False,
-	includeFields=[], excludeFields=[], filter={}, ignoreProfiles=[]):
+	includeFields=[], studyFields=[], excludeFields=[], filter={}, ignoreProfiles=[],
+	videoFrameName='', nStudyVideosExpected=0):
 		'''Create a .csv coding sheet for a particular study and coder
 
 		csv will be named expID_coderName.csv and live in the CODING_DIR.
@@ -1312,6 +1339,8 @@ class Experiment(object):
 			be unique endings within sessions. (Using just the ending allows
 			for variation in which segment the field is associated with.)
 
+		studyFields: list of exact field names to include beyond basic headers.
+
 		excludeFields: list of field ENDINGS to exclude.
 			For each session, any field ENDING in a string in this list will
 			be excluded.
@@ -1326,6 +1355,12 @@ class Experiment(object):
 			lists to allow records that don't have this key.
 
 		ignoreProfiles: list of profile IDs not to show, e.g. for test accounts
+
+		videoFrameName: substring of frame to expect video for. Used to compute number
+			 of trials with video expected/available.
+
+		nStudyVideosExpected: number of study videos to expect if entire study is
+			completed.
 
 		'''
 
@@ -1404,11 +1439,11 @@ class Experiment(object):
 				record['coded'] = 'yes' if coderName in record['allcoders'] else 'no'
 
 		# Continue predetermined starting list
-		# TODOGEOM
 		headerStart = headerStart + ['attributes.feedback',
 			'attributes.hasReadFeedback', 'attributes.completed', 'nVideosExpected',
-			'nVideosFound', 'expectedDuration', 'actualDuration', 'concatVideosShown'] + includeFields + \
-			['videosExpected', 'videosFound', 'videosShown', 'showedAlternate', 'endedEarly',
+			'nVideosFound', 'expectedDuration', 'actualDuration'] + includeFields + \
+			studyFields + \
+			['videosExpected', 'videosFound',
 			'child.deleted', 'child.gender', 'child.additionalInformation']
 
 		# Add remaining headers from data if using
@@ -1435,70 +1470,60 @@ class Experiment(object):
 
 		codingList.sort(key=lambda b: b['meta.created-on'])
 
-
 		# Back up any existing coding file by the same name & save
 		codesheetPath = paths.codesheet_filename(self.expId, coderName)
 		backup_and_save_dict(codesheetPath, codingList, headerList)
 
 		# Display a quick summary of the data
 
-		#consent / non
-		#for each: none, some, all actual study vids
-		#for some/all: usability.
-
-		# How many records?
+		# 1. How many unique participants & how many total records?
 		profileIds = [sess['child.profileId'] for sess in codingList]
-		print "Number of records: {} ({} unique)".format(len(codingList), len(list(set(profileIds))))
+		print "Number of participants: {} unique ({} total records)".format(len(list(set(profileIds))), len(codingList))
+
+		# 2. How many have completed consent at all?
 		hasVideo = [sess['child.profileId'] for sess in codingList if sess['nVideosExpected'] > 0]
-		print "Completed consent: {} ({} unique)".format(len(hasVideo),
-			len(list(set(hasVideo))))
+		print "Completed consent: {} participants ({} records)".format(len(list(set(hasVideo))), len(hasVideo))
 		for sess in codingList:
 			vidsFound = [v for outer in sess['videosFound'] for v in outer]
-			sess['nPrefPhys'] = len([1 for v in vidsFound if 'pref-phys-videos' in v])
+			sess['nStudyVideo'] = len([1 for v in vidsFound if videoFrameName in v])
 		consentSess = [sess for sess in codingList if sess['consent'] == 'yes']
 		nonconsentSess = [sess for sess in codingList if sess['consent'] != 'yes']
 
-		print "Valid consent: {} ({} unique)".format(
-			len(consentSess),
-			len(list(set([sess['child.profileId'] for sess in consentSess]))))
-		print "\tno physics videos {}, some study videos {}, entire study {} ({} unique)".format(
-			len([1 for sess in consentSess if sess['nPrefPhys'] == 0]),
-			len([1 for sess in consentSess if 0 < sess['nPrefPhys'] < 24]),
-			len([1 for sess in consentSess if sess['nPrefPhys'] >= 24]),
-			len(list(set([sess['child.profileId'] for sess in consentSess if sess['nPrefPhys'] >= 24]))))
+		# 3. How many have at least one valid consent?
+		print "Valid consent: {} participants ({} records)".format(
+			len(list(set([sess['child.profileId'] for sess in consentSess]))),
+			len(consentSess))
+		print "\trecords: no study videos {}, some study videos {}, entire study {} ({} unique)".format(
+			len([1 for sess in consentSess if sess['nStudyVideo'] == 0]),
+			len([1 for sess in consentSess if 0 < sess['nStudyVideo'] < nStudyVideosExpected]),
+			len([1 for sess in consentSess if sess['nStudyVideo'] >= nStudyVideosExpected]),
+			len(list(set([sess['child.profileId'] for sess in consentSess if sess['nStudyVideo'] >= nStudyVideosExpected]))))
 
-		print "Invalid consent: {} ({} unique)".format(
-			len(nonconsentSess),
-			len(list(set([sess['child.profileId'] for sess in nonconsentSess]))))
-		print "\tno physics videos {}, some study videos {}, entire study {} ({} unique)".format(
-			len([1 for sess in nonconsentSess if sess['nPrefPhys'] == 0]),
-			len([1 for sess in nonconsentSess if 0 < sess['nPrefPhys'] < 24]),
-			len([1 for sess in nonconsentSess if sess['nPrefPhys'] >= 24]),
-			len(list(set([sess['child.profileId'] for sess in nonconsentSess if sess['nPrefPhys'] >= 24]))))
-
-		print "Nonconsent values:"
-		display_unique_counts([sess['consent'] for sess in nonconsentSess])
-		#printer.pprint([(sess['consent'], sess.get('consentnotes')) for sess in codingList if sess['consent'] not in ['orig', 'yes']])
-
-		print "Usability (for {} valid consent + some video records):".format(len([1 for sess in consentSess if sess['nPrefPhys'] > 0]))
-		display_unique_counts([sess['usable'] for sess in consentSess if sess['nPrefPhys'] > 0])
+		print "Usability (for {} valid consent + some study video records):".format(len([1 for sess in consentSess if sess['nStudyVideo'] > 0]))
+		display_unique_counts([sess['usable'] for sess in consentSess if sess['nStudyVideo'] > 0])
 
 		print "Number of usable sessions per participant:"
-		display_unique_counts([sess['child.profileId'] for sess in consentSess if sess['usable']])
+		display_unique_counts([sess['child.profileId'] for sess in consentSess if sess['usable'] == 'yes'])
 
-		print "Privacy: data from {} consented. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
+		print "Privacy: data from {} records with consent. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
 			len([sess for sess in consentSess if 'exit-survey.withdrawal' in sess.keys()]),
 			len([sess for sess in consentSess if sess.get('exit-survey.withdrawal', False)]),
 			len([sess for sess in consentSess if not sess.get('exit-survey.withdrawal', False) and sess.get('exit-survey.useOfMedia', False) == 'private']),
 			len([sess for sess in consentSess if not sess.get('exit-survey.withdrawal', False) and sess.get('exit-survey.useOfMedia', False) == 'scientific']),
 			len([sess for sess in consentSess if not sess.get('exit-survey.withdrawal', False) and sess.get('exit-survey.useOfMedia', False) == 'public']))
 
-		print "Databrary: data from {} consented. \n\tyes {}, no {}".format(
+		print "Databrary: data from {} records with consent. \n\tyes {}, no {}".format(
 			len([sess for sess in consentSess if 'exit-survey.databraryShare' in sess.keys()]),
 			len([sess for sess in consentSess if sess.get('exit-survey.databraryShare', False) == 'yes']),
 			len([sess for sess in consentSess if sess.get('exit-survey.databraryShare', False) == 'no']))
 
+		# 4. How many participants have NO valid consent?
+		print "No valid consent: {} participants ({} invalid consent records total)".format(
+			len(list(set([sess['child.profileId'] for sess in nonconsentSess]) - set([sess['child.profileId'] for sess in consentSess]))),
+			len(nonconsentSess))
 
+		print "Nonconsent values:"
+		display_unique_counts([sess['consent'] for sess in nonconsentSess])
 
 	def commit_coding(self, coderName):
 		'''Update the coding file for expId based on a CSV edited by a coder.
@@ -1957,14 +1982,14 @@ Partial updates:
 						 'mood-survey.parentHappy',
 						 'mood-survey.energetic']
 
-	standardExclude = [  'meta.created-by',
-	                     'meta.modified-by',
-	                     'meta.modified-on',
-	                     'meta.permissions',
-	                     'relationships.history.links.related',
-	                     'relationships.history.links.self',
-	                     'attributes.permissions',
-	                     'attributes.experimentVersion']
+	standardExclude = [	 'meta.created-by',
+						 'meta.modified-by',
+						 'meta.modified-on',
+						 'meta.permissions',
+						 'relationships.history.links.related',
+						 'relationships.history.links.self',
+						 'attributes.permissions',
+						 'attributes.experimentVersion']
 
 	includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
 							'57adc3373de08a003fb12aad': [],
@@ -1973,11 +1998,24 @@ Partial updates:
 							'583c892ec0d9d70082123d94': standardFields,
 							'58cc039ec0d9d70097f26220': standardFields}
 
+	studyFieldsByStudy = {'583c892ec0d9d70082123d94': ['videosShown', 'showedAlternate', 'endedEarly'],
+						  '58cc039ec0d9d70097f26220': ['uniqueEventsOrdered']}
+
 	excludeFieldsByStudy = {'58cc039ec0d9d70097f26220': ['eventTimings'] + standardExclude,
-	                        '583c892ec0d9d70082123d94': standardExclude}
+							'583c892ec0d9d70082123d94': standardExclude}
 
+	trimLengthByStudy = {'583c892ec0d9d70082123d94': 20,
+						 '58cc039ec0d9d70097f26220': 72}
 
-	trimLength = 20
+	videoFramesByStudy = {	'583c892ec0d9d70082123d94': 'pref-phys-video',
+							'58cc039ec0d9d70097f26220': 'alt-trials'}
+
+	nVideosExpByStudy = {  '583c892ec0d9d70082123d94': 24,
+							'58cc039ec0d9d70097f26220': 4}
+
+	onlyMakeConcatIfConsent = {	 '583c892ec0d9d70082123d94': True,
+							'58cc039ec0d9d70097f26220': False}
+
 	batchLengthMinutes = 5
 
 	# Fields required for each action
@@ -2026,9 +2064,14 @@ Partial updates:
 	# Process any study nicknames
 	if args.study:
 		args.study = paths.studyNicknames.get(args.study, args.study)
+		trimLength = trimLengthByStudy.get(args.study, False)
 		exp = Experiment(args.study, trimLength)
 		includeFields = includeFieldsByStudy.get(args.study, [])
 		excludeFields = excludeFieldsByStudy.get(args.study, [])
+		studyFields	  = studyFieldsByStudy.get(args.study, [])
+		videoFrameName = videoFramesByStudy.get(args.study, '')
+		nVideosExp	  = nVideosExpByStudy.get(args.study, 0)
+		doConcatForAll = not(onlyMakeConcatIfConsent.get(args.study, True))
 
 	### Process individual actions
 
@@ -2038,13 +2081,27 @@ Partial updates:
 
 	elif args.action == 'fetchcodesheet':
 		print 'Fetching codesheet...'
-		exp.generate_codesheet(args.coder, filter={'consent':['yes'], 'exit-survey.withdrawal': [False, None]}, showAllHeaders=False,
-			includeFields=includeFields, ignoreProfiles=ignoreProfiles)
+		exp.generate_codesheet(args.coder,
+			filter={'consent':['yes'], 'exit-survey.withdrawal': [False, None]},
+			showAllHeaders=False,
+			includeFields=includeFields,
+			ignoreProfiles=ignoreProfiles,
+			excludeFields=excludeFields,
+			studyFields=studyFields,
+			videoFrameName=videoFrameName,
+			nStudyVideosExpected=nVideosExp)
 
 	elif args.action == 'fetchconsentsheet':
 		print 'Fetching consentsheet...'
-		exp.generate_codesheet(args.coder, filter={'nVideosExpected': range(0,100)}, showAllHeaders=True,
-			includeFields=includeFields, excludeFields=excludeFields, ignoreProfiles=ignoreProfiles)
+		exp.generate_codesheet(args.coder,
+			filter={'nVideosExpected': range(0,100)},
+			showAllHeaders=True,
+			includeFields=includeFields,
+			excludeFields=excludeFields,
+			ignoreProfiles=ignoreProfiles,
+			studyFields=studyFields,
+			videoFrameName=videoFrameName,
+			nStudyVideosExpected=nVideosExp)
 
 		#'consent': ['yes'], 'withdrawn': [False], 'exit-survey.useOfMedia': ['public']
 
@@ -2076,14 +2133,14 @@ Partial updates:
 	elif args.action == 'updatesessions':
 		print 'Updating session and coding data...'
 		exp.update_session_data()
-		exp.update_coding(display=False)
+		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 
 	elif args.action == 'processvideo':
 		print 'Processing video...'
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
-		exp.concatenate_session_videos('all', display=True, replace=False)
+		exp.concatenate_session_videos('all', display=True, replace=False, useTrimmedFrames=[videoFrameName])
 
 	elif args.action == 'update':
 		print '\nStarting Lookit update, {:%Y-%m-%d %H:%M:%S}\n'.format(datetime.datetime.now())
@@ -2092,11 +2149,14 @@ Partial updates:
 		exp.accounts = exp.load_account_data()
 		newVideos = sync_S3(pull=True)
 		exp.update_session_data()
-		exp.update_coding(display=False)
+		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
-		exp.concatenate_session_videos('missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=False)
+		if doConcatForAll:
+			exp.concatenate_session_videos('missing', filter={'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName])
+		else:
+			exp.concatenate_session_videos('missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName])
 		print '\nUpdate complete'
 
 	elif args.action == 'makebatches': # TODO: update criteria
