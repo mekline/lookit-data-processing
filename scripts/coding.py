@@ -176,7 +176,7 @@ class Experiment(object):
 		concat = [paths.FFMPEG]
 
 		# Expand a single 'trimming' value into a vector if needed
-		doTrimming = bool(trimming) and not(len(trimming) == 1 and not trimming[0])
+		doTrimming = bool(trimming) and not(type(trimming) == list and len(trimming) == 1 and not trimming[0])
 		if doTrimming:
 			if type(trimming) in [int, float]:
 				trimming = [trimming] * len(vidNames)
@@ -230,8 +230,8 @@ class Experiment(object):
 			# positive trim values, start from trimming[iVid].
 			if doTrimming:
 				if trimming[iVid] < 0:
-					startTimeVideo = max(0, origDur - trimming[iVid])
-					startTimeAudio = max(0, origDur - trimming[iVid])
+					startTimeVideo = max(0, origDur + trimming[iVid])
+					startTimeAudio = max(0, origDur + trimming[iVid])
 				else:
 					startTimeVideo = trimming[iVid]
 					startTimeAudio = trimming[iVid]
@@ -253,7 +253,7 @@ class Experiment(object):
 				if display:
 					print "Making {} mp4 for vid: {}".format(suffix, vid)
 					if doTrimming:
-					    print "Starting at time: {}".format(trimming[iVid])
+						print "Starting at time: {}".format(trimming[iVid])
 
 
 				# Make audio-only file
@@ -595,10 +595,16 @@ class Experiment(object):
 			progress
 
 		trimming: False (default) not to do any trimming of video file, or a
-			maximum clip duration in seconds. The last trimming seconds
-			(counted from the end of the shortest stream--generally video
-			rather than audio) will be kept, or if the video is shorter than
-			trimming, the entire video will be kept. As used by make_mp4s.
+			number of seconds, or an event name suffix (string).
+			If a number of seconds is given: positive numbers indicate how much
+			to trim from the START of the video; negative numbers indicate where
+			to start relative to the END of the video (counted from the end of the
+			shortest stream - generally video rather than audio; if the video is
+			shorter than that, the entire video will be kept). If a string is given,
+			then we look for the FIRST occurrence of an even ending in that string
+			during this video
+			and start from that streamTime (or from the start of the video if the
+			event isn't found).
 
 		suffix: string to append to the mp4 filenames (they'll be named as
 			their originating flv filenames, plus "_[suffix]") and to the
@@ -677,9 +683,9 @@ class Experiment(object):
 						trimmingList = trimmingList + [min(theseEventTimes)] * len(vids)
 
 			if type(trimming) == str:
-			    sessionTrimming = trimmingList
+				sessionTrimming = trimmingList
 			else:
-			    sessionTrimming = trimming
+				sessionTrimming = trimming
 
 			# Choose a location for the concatenated videos
 			sessDirRel = os.path.join(self.expId, sessId)
@@ -713,7 +719,8 @@ class Experiment(object):
 		return sessionsAffected
 
 	def concatenate_session_videos(self, sessionKeys, filter={}, replace=False,
-	    display=False, useTrimmedFrames=[], skipIfEndedEarly=False):
+		display=False, useTrimmedFrames=[], skipIfEndedEarly=False,
+		doPhysicsProcessing=False):
 		'''Concatenate videos within the same session for the specified sessions.
 
 		Should be run after update_videos_found as it relies on videosFound
@@ -745,7 +752,10 @@ class Experiment(object):
 			(e.g. ['pref-phys-videos'])
 
 		skipIfEndedEarly: whether to omit from concatenated videos any where the coding
-		    record indicates the video was ended early (e.g. by pausing)
+			record indicates the video was ended early (e.g. by pausing)
+
+		doPhysicsProcessing: store a few fields in coding specific to physics videos,
+			concatVideosShown and concatShowedAlternate
 
 		For each session, this: - uses videosFound in the coding file to
 			locate (after creating if necessary) single-clip mp4s
@@ -819,7 +829,7 @@ class Experiment(object):
 
 			# Also skip any other frames where video was ended early
 			if skipIfEndedEarly:
-			    vidData = [vid for vid in vidData if not self.coding[sessKey]['endedEarly'][vid[1]]]
+				vidData = [vid for vid in vidData if not self.coding[sessKey]['endedEarly'][vid[1]]]
 
 			# Sort the vidData found by timestamp so we concat in order.
 			vidData = sorted(vidData, key=lambda x: x[2])
@@ -858,11 +868,10 @@ class Experiment(object):
 			if abs(expDur - vidDur) > 1./30:
 				warn('Predicted {}, actual {}'.format(expDur, vidDur))
 
-			vidsShown = [self.coding[sessKey]['videosShown'][vid[1]] for vid in vidData]
-
-			 # TODOGEOM
-			self.coding[sessKey]['concatShowedAlternate'] = [self.coding[sessKey]['showedAlternate'][i] for (vidName, i, t, useW) in vidData]
-			self.coding[sessKey]['concatVideosShown'] = vidsShown
+			if doPhysicsProcessing:
+				vidsShown = [self.coding[sessKey]['videosShown'][vid[1]] for vid in vidData]
+				self.coding[sessKey]['concatShowedAlternate'] = [self.coding[sessKey]['showedAlternate'][i] for (vidName, i, t, useW) in vidData]
+				self.coding[sessKey]['concatVideosShown'] = vidsShown
 
 			self.coding[sessKey]['expectedDuration'] = expDur
 			self.coding[sessKey]['actualDuration']	 = vidDur
@@ -1640,7 +1649,7 @@ Partial updates:
 	trimLengthByStudy = {'583c892ec0d9d70082123d94': -20,
 						 '58cc039ec0d9d70097f26220': ':startCalibration'}
 
-	videoFramesByStudy = {	'583c892ec0d9d70082123d94': 'pref-phys-video',
+	videoFramesByStudy = {	'583c892ec0d9d70082123d94': 'pref-phys-videos',
 							'58cc039ec0d9d70097f26220': 'alt-trials'}
 
 	nVideosExpByStudy = {  '583c892ec0d9d70082123d94': 24,
@@ -1649,6 +1658,7 @@ Partial updates:
 	onlyMakeConcatIfConsent = {	 '583c892ec0d9d70082123d94': True,
 							'58cc039ec0d9d70097f26220': False}
 
+	# TODO: combine the above into a 'settings' field
 
 	# Fields required for each action
 	actions = {'fetchcodesheet': ['coder', 'study'],
@@ -1757,23 +1767,29 @@ Partial updates:
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
-		exp.concatenate_session_videos('all', display=True, replace=False, useTrimmedFrames=[videoFrameName], skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'))
+		exp.concatenate_session_videos('all', display=True, replace=False, useTrimmedFrames=[videoFrameName],
+			skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
+			doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 
 	elif args.action == 'update':
 		print '\nStarting Lookit update, {:%Y-%m-%d %H:%M:%S}\n'.format(datetime.datetime.now())
-		#update_account_data()
-		#Experiment.export_accounts()
-		exp.accounts = exp.load_account_data()
-		#newVideos = sync_S3(pull=True)
-		#exp.update_session_data()
+		# update_account_data()
+# 		Experiment.export_accounts()
+# 		exp.accounts = exp.load_account_data()
+		newVideos = sync_S3(pull=True)
+		exp.update_session_data()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
-		#sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
-		#assert len(unmatched) == 0
-		#exp.update_videos_found()
+		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
+		assert len(unmatched) == 0
+		exp.update_videos_found()
 		if doConcatForAll:
-			exp.concatenate_session_videos('missing', filter={'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName])
+			exp.concatenate_session_videos('missing', filter={'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName],
+			skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
+			doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		else:
-			exp.concatenate_session_videos('missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName])
+			exp.concatenate_session_videos('missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName],
+			skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
+			doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		print '\nUpdate complete'
 
 	elif args.action == 'updatevcode':
