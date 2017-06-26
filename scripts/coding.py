@@ -208,8 +208,8 @@ class Experiment(object):
 			if not replace and os.path.exists(mergedPath) and vid in cls.videoData.keys() and \
 				('mp4Dur_' + suffix) in cls.videoData[vid].keys() and ('mp4Path_' + suffix) in cls.videoData[vid].keys() and \
 				cls.videoData[vid]['mp4Path_' + suffix]:
-				if display:
-					print "Already have {} mp4 for video {}, skipping".format(suffix, vid)
+				#if display:
+				#	print "Already have {} mp4 for video {}, skipping".format(suffix, vid)
 				continue
 
 			# Add this to the video data file, with default values in case we can't
@@ -808,7 +808,8 @@ class Experiment(object):
 
 			# Skip if not replacing & file exists & we haven't made any new mp4s for this session
 			if not replace and os.path.exists(concatPath) and sessKey not in sessionsAffected:
-				print "Skipping, already have concat file: {}".format(concatFilename)
+				#if display:
+				#    print "Skipping, already have concat file: {}".format(concatFilename)
 				continue
 
 			# Which videos match the expected patterns? Keep track of inds, timestamps, names.
@@ -837,7 +838,6 @@ class Experiment(object):
 			# Check we have the duration stored (proxy for whether video conversion worked/have any video)
 			vidData = [vid for vid in vidData if  (not vid[3] and len(self.videoData[vid[0]]['mp4Path_trimmed'])) or \
 													  (vid[3] and len(self.videoData[vid[0]]['mp4Path_whole']))]
-
 
 			if len(vidData) == 0:
 				warn('No video data for session {}'.format(sessKey))
@@ -1033,18 +1033,22 @@ class Experiment(object):
 			(username, child) = profile.split('.')
 			acc = self.accounts[username]
 			childData = [pr for pr in acc['attributes']['profiles'] if pr['profileId']==profile]
-			birthdate = childData[0]['birthday']
+			birthdate = childData[0]['birthday'] if len(childData) else None
 
+			# Compute ages based on registered and exit birthdate
 			testdate = datetime.datetime.strptime(testdate[:10], '%Y-%m-%d')
-			birthdate = datetime.datetime.strptime(birthdate[:10], '%Y-%m-%d')
+
+			if not(birthdate == None):
+				birthdate = datetime.datetime.strptime(birthdate[:10], '%Y-%m-%d')
+				self.coding[sessId]['ageRegistration'] = float((testdate - birthdate).days) * 12.0/365
+			else:
+				self.coding[sessId]['ageRegistration'] = None
+
 			if exitbirthdate:
 				exitbirthdate = datetime.datetime.strptime(exitbirthdate[:10], '%Y-%m-%d')
 				self.coding[sessId]['ageExitsurvey'] = float((testdate - exitbirthdate).days) * 12.0/365
 
-			self.coding[sessId]['ageRegistration'] = float((testdate - birthdate).days) * 12.0/365
-
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
-
 
 		if display:
 			printer.pprint(self.coding)
@@ -1125,8 +1129,11 @@ class Experiment(object):
 			acc = self.accounts[username]
 			childData = [pr for pr in acc['attributes']['profiles'] if pr['profileId']==profile]
 			childDataLabeled = {}
-			for (k,v) in childData[0].items():
-				childDataLabeled['child.' + k] = v
+			if len(childData):
+				for (k,v) in childData[0].items():
+					childDataLabeled['child.' + k] = v
+			else:
+				childDataLabeled['child.profileId'] = profile
 			val.update(childDataLabeled)
 
 			# Look for fields that end in any of the suffixes in includeFields.
@@ -1239,6 +1246,9 @@ class Experiment(object):
 
 		print "Number of usable sessions per participant:"
 		display_unique_counts([sess['child.profileId'] for sess in consentSess if sess['usable'] == 'yes'])
+
+		print "Number of total sessions per participant:"
+		display_unique_counts([sess['child.profileId'] for sess in consentSess if sess['consent'] == 'yes'])
 
 		print "Privacy: data from {} records with consent. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
 			len([sess for sess in consentSess if 'exit-survey.withdrawal' in sess.keys()]),
@@ -1667,12 +1677,13 @@ Partial updates:
 			   'commitconsentsheet': ['coder', 'study'],
 			   'sendfeedback': ['study'],
 			   'updateaccounts': [],
+			   'updatecoding': ['study'],
 			   'getvideos': [],
 			   'updatesessions': ['study'],
 			   'processvideo': ['study'],
 			   'update': ['study'],
 			   'updatevcode': ['study'],
-			   'tests': ['study'],
+			   'export': ['study'],
 			   'updatevideodata': ['study']}
 
 	# Parse command-line arguments
@@ -1717,7 +1728,7 @@ Partial updates:
 	elif args.action == 'fetchcodesheet':
 		print 'Fetching codesheet...'
 		exp.generate_codesheet(args.coder,
-			filter={'consent':['yes'], 'exit-survey.withdrawal': [False, None]},
+			filter={'consent':['yes'], 'exit-survey.withdrawal': [False, None], 'usable':['yes']},
 			showAllHeaders=False,
 			includeFields=includeFields,
 			ignoreProfiles=ignoreProfiles,
@@ -1762,6 +1773,10 @@ Partial updates:
 		exp.update_session_data()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 
+	elif args.action == 'updatecoding':
+		print 'Updating coding data...'
+		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+
 	elif args.action == 'processvideo':
 		print 'Processing video...'
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
@@ -1773,9 +1788,9 @@ Partial updates:
 
 	elif args.action == 'update':
 		print '\nStarting Lookit update, {:%Y-%m-%d %H:%M:%S}\n'.format(datetime.datetime.now())
-		# update_account_data()
-# 		Experiment.export_accounts()
-# 		exp.accounts = exp.load_account_data()
+		update_account_data()
+		Experiment.export_accounts()
+		exp.accounts = exp.load_account_data()
 		newVideos = sync_S3(pull=True)
 		exp.update_session_data()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
@@ -1799,24 +1814,19 @@ Partial updates:
 	elif args.action == 'updatevideodata':
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(newVideos='all', reprocess=True, resetPaths=False, display=False)
 
-	elif args.action == 'tests':
-		#sessionsToProcess = ['lookit.session57bc591dc0d9d70055f775dbs.57ddba23c0d9d70060c67d14',
-		#					  'lookit.session57bc591dc0d9d70055f775dbs.57ddd64ac0d9d70060c67dd8',
-		#					  'lookit.session57bc591dc0d9d70055f775dbs.57de081fc0d9d70061c67e39',
-		#					  'lookit.session57bc591dc0d9d70055f775dbs.57ec14a6c0d9d70060c68595',
-		#					  'lookit.session57bc591dc0d9d70055f775dbs.57eae5cac0d9d70061c684e2',
-		#					  'lookit.session57bc591dc0d9d70055f775dbs.57ea1af0c0d9d70061c684b5']
-		#exp.concatenate_session_videos(sessionsToProcess, display=True, replace=False)
-		#exp.concatenate_session_videos('all', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=True)
-		#exp.summarize_results()
-		#
-		#sessions = ['lookit.session57bc591dc0d9d70055f775dbs.57e68be1c0d9d70061c682da',
-		#			 'lookit.session57bc591dc0d9d70055f775dbs.57e70cfbc0d9d70061c68364']
-		#exp.concatenate_session_videos(sessions, filter={}, display=True, replace=False)
-
-		#printer.pprint(exp.videoData)
-		#printer.pprint(exp.coding)
-		#exp.sync_coding_data('coding_data_57bc591dc0d9d70055f775db_kms.bin')
-		#sessions = ['lookit.session57bc591dc0d9d70055f775dbs.57dd71bcc0d9d70061c67bec']
-		#exp.concatenate_session_videos(sessions, filter={}, display=True, replace=True)
-		pass
+	elif args.action == 'export':
+		for sessKey, sessCoding in exp.coding.items():
+			if sessCoding['consent'] == 'yes' and not sessCoding['withdrawn']:
+				sessData = exp.find_session(exp.sessions, sessKey)
+				exitSurveyName = '33-33-exit-survey' if '33-33-exit-survey' in sessData['attributes']['expData'].keys() else '32-32-exit-survey'
+				privacy = 'private' if not(sessData['attributes']['completed']) else sessData['attributes']['expData'][exitSurveyName]['useOfMedia']
+				childId = sessData['attributes']['profileId'][-5:]
+				print (sessKey, privacy, childId)
+				shortKey = paths.parse_session_key(sessKey)[1]
+				mp4Path = os.path.join(paths.SESSION_DIR, exp.expId, shortKey, exp.expId + '_' + shortKey + '.mp4')
+				print mp4Path
+				exportDir = os.path.join(paths.EXPORT_DIR, exp.expId)
+				make_sure_path_exists(exportDir)
+				exportPath = os.path.join(exportDir, exp.expId + '_' + childId + '_' + shortKey + '_' + privacy + '.mp4')
+				print exportPath
+				sp.call(['cp', mp4Path, exportPath])

@@ -43,7 +43,6 @@ def generate_email(allSessions, child, message, nCompleted, justFeedback=False):
 	else:
 		body += message + "This study will be one of the first to look in detail not just at infants' abilities collectively, but at individual differences in their expectations and styles of responding. But to do that, we need families to keep coming back so we can gather enough data from each child.<br><br>Our goal--unprecedented in cognitive development research--is to observe as many participants as possible over at least " + str(idealSessions) + " sessions each. Will you and " + childName + " <a href='https://lookit.mit.edu' target=_blank>come back to Lookit</a> to help out? We're ready if you are, and you can participate any time that's convenient for you!<br><br> "
 
-	body += "Note: the graduate student running this study (Kim Scott) is on maternity leave until 5/26, and may be slow to post feedback about sessions--thank you for your patience!<br><br>"
 
 	if len(feedbackToSend):
 		body += "Here's some new feedback from the research team on your recent sessions: "
