@@ -3,7 +3,7 @@ import os
 import errno
 import pickle
 from client import Account, ExperimenterClient
-#from sendgrid_client import SendGrid
+from sendgrid_client import EmailPreferences, SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, flatten_dict, backup, backup_and_save_dict, display_unique_counts
 import uuid
 import subprocess as sp
@@ -328,14 +328,26 @@ class Experiment(object):
 		return vidDur
 
 	@classmethod
-	def export_accounts(cls):
+	def export_accounts(cls, expId='all'):
 		'''Create a .csv sheet showing all account data.
 
 		All fields except password and profiles will be included. Instead of the list of child
 		profile dicts under 'profiles', the individual dicts will be expanded as
 		child[N].[fieldname] with N starting at 0.
+
+		The current contact settings (SendGrid unsubscribe groups) will also be included
+		as okayToSend.[groupname]. TRUE means the user has (at the time of export) NOT unsubscribed.
+
+		If an expId is provided, then only users who have participated at least once in
+		the given study will be exported, and the filename will include the expId.
 		'''
 		cls.load_account_data() # since this may be called without initializing an instance
+
+		# Get SendGrid object & unsubscribe group for notifications
+		sg = SendGrid()
+		unsubgroups = {}
+		for (groupName, group) in sg.groups().items():
+			unsubgroups[groupName] = sg.unsubscribes_for(group)
 
 		accs = []
 		headers = set()
@@ -347,6 +359,8 @@ class Experiment(object):
 			profiles = thisAcc['profiles']
 			del thisAcc['profiles']
 			del thisAcc['password']
+			for (groupName, unsubscribedList) in unsubgroups.items():
+				thisAcc['okayToSend.' + groupName] = not (thisAcc['email'] in unsubscribedList)
 			headers = headers | set(thisAcc.keys())
 			iCh = 0
 			if profiles:
@@ -360,8 +374,10 @@ class Experiment(object):
 			accs.append(thisAcc)
 			allheaders = allheaders | set(thisAcc.keys())
 
+
 		# Order headers in the file: initial list, then regular, then child-profile
-		initialHeaders = [u'username', u'meta.created-on']
+		initialHeaders = [u'username', u'meta.created-on', u'email',
+		                  u'okayToSend.personalCommunication']
 		childHeaders = allheaders - headers
 		headers = list(headers - set(initialHeaders))
 		headers.sort()
@@ -373,8 +389,15 @@ class Experiment(object):
 		# Order accounts based on date created
 		accs.sort(key=lambda b: b['meta.created-on'])
 
-		# Back up any existing accounts csv file by the same name
-		accountsheetPath = paths.accountsheet_filename()
+		# Filter if needed to show only participants for this study
+		if not expId=='all':
+		    thisExp = Experiment(expId)
+		    thisExpUsers = [sess['attributes']['profileId'].split('.')[0] for sess in thisExp.sessions['sessions']]
+
+		    accs = [acc for acc in accs if acc['username'] in thisExpUsers]
+
+		# Back up any existing accounts csv file by the same name, & save
+		accountsheetPath = paths.accountsheet_filename(expId)
 		backup_and_save_dict(accountsheetPath, accs, headerList)
 
 	def __init__(self, expId, trimLength=None):
@@ -1762,7 +1785,9 @@ Partial updates:
 	elif args.action == 'updateaccounts':
 		print 'Updating accounts...'
 		update_account_data()
-		Experiment.export_accounts()
+		whichStudy = args.study if args.study else 'all'
+		print 'Exporting for ' + whichStudy
+		Experiment.export_accounts(expId=whichStudy)
 
 	elif args.action == 'getvideos':
 		print 'Syncing videos with server...'
