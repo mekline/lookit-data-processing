@@ -2,7 +2,7 @@ import sysconfig
 import os
 import errno
 import pickle
-from client import Account, ExperimenterClient
+from experimenter import ExperimenterClient
 from sendgrid_client import EmailPreferences, SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, flatten_dict, backup, backup_and_save_dict, display_unique_counts
 import uuid
@@ -1430,7 +1430,9 @@ class Experiment(object):
 		self.sessions = self.load_session_data(self.expId)
 
 		# Set up connection to JamDB
-		client = ExperimenterClient(access_token=conf.OSF_ACCESS_TOKEN).authenticate()
+		client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN,
+		    base_url=conf.JAM_HOST,
+		    namespace=conf.JAM_NAMESPACE)
 
 		# For each session, look at old and new feedback; update if needed
 		for sessKey in self.coding.keys():

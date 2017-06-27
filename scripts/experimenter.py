@@ -172,6 +172,24 @@ class ExperimenterClient(object):
 
         return res
 
+    def set_session_feedback(self, session, feedback):
+        url = '{}/v1/id/documents/{}/'.format(
+            self.BASE_URL,
+            session['id']
+        )
+        return self._make_request(
+            'patch',
+            url,
+            headers={
+                'content-type': 'application/vnd.api+json; ext=jsonpatch',
+            },
+            data=json.dumps([{
+                'op': 'add',
+                'path': '/feedback',
+                'value': feedback
+            }])
+        )
+
     def _fetch_all(self, response):
         # TODO: Rewrite this as a generator
         res_json = response.json()

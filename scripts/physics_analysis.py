@@ -2,7 +2,6 @@ import sysconfig
 import os
 import errno
 import pickle
-from client import Account, ExperimenterClient
 #from sendgrid_client import SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, flatten_dict, backup, backup_and_save_dict, display_unique_counts
 import uuid
