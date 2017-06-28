@@ -1437,42 +1437,6 @@ class Experiment(object):
 
 		print "Sent updated feedback to server for exp {}".format(self.expId)
 
-	def read_vcode_coding(self, filter={}):
-		'''Check all sessions for this study for expected VCode files & read into coding data.
-		TODO: full doc'''
-
-		sessionKeys = self.filter_keys(self.coding, filter)
-		for sessKey in sessionKeys:
-			codeRec = self.coding[sessKey]
-			theseCoders = codeRec['allcoders']
-			vidLengths = codeRec['concatDurations']
-			# printer.pprint((sessKey, theseCoders))
-
-			for coderName in theseCoders:
-				vcodeFilename = paths.vcode_filename(sessKey, coderName, short=True)
-				# Check that VCode file exists
-				if not os.path.isfile(vcodeFilename):
-					warn('Expected Vcode file {} for coder {} not found'.format(os.path.basename(vcodeFilename), coderName))
-					continue
-				# Read in file
-				(durations, leftLookTime, rightLookTime, oofTime) = \
-					vcode.read_preferential(vcodeFilename, interval=[], videoLengths=vidLengths, shift=0)
-
-				vcodeData = {'durations': durations, 'leftLookTime': leftLookTime,
-					'rightLookTime': rightLookTime, 'oofTime': oofTime}
-
-				if 'vcode' in codeRec.keys():
-					codeRec['vcode'][coderName] = vcodeData
-				else:
-					codeRec['vcode'] = {coderName: vcodeData}
-				self.coding[sessKey] = codeRec
-
-		# Save coding data
-		backup_and_save(paths.coding_filename(self.expId), self.coding)
-
-
-
-
 
 if __name__ == '__main__':
 
@@ -1778,25 +1742,25 @@ Partial updates:
 		exp.update_saved_sessions()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(
-		    reprocess=False, resetPaths=False, display=False)
+			reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
 		if doConcatForAll:
 			exp.concatenate_session_videos('missing',
-			    filter={'withdrawn': [None, False]},
-			    display=True,
-			    replace=False,
-			    useTrimmedFrames=[videoFrameName],
-			    skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
-			    doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+				filter={'withdrawn': [None, False]},
+				display=True,
+				replace=False,
+				useTrimmedFrames=[videoFrameName],
+				skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
+				doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		else:
 			exp.concatenate_session_videos('missing',
-			    filter={'consent':['yes'], 'withdrawn':[None, False]},
-			    display=True,
-			    replace=False,
-			    useTrimmedFrames=[videoFrameName],
-			    skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
-			    doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+				filter={'consent':['yes'], 'withdrawn':[None, False]},
+				display=True,
+				replace=False,
+				useTrimmedFrames=[videoFrameName],
+				skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
+				doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		print '\nUpdate complete'
 
 	elif args.action == 'updatevcode':
@@ -1805,10 +1769,10 @@ Partial updates:
 
 	elif args.action == 'updatevideodata':
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(
-		    newVideos='all',
-		    reprocess=True,
-		    resetPaths=False,
-		    display=False)
+			newVideos='all',
+			reprocess=True,
+			resetPaths=False,
+			display=False)
 
 	elif args.action == 'export':
 		for sessKey, sessCoding in exp.coding.items():
