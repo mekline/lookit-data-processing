@@ -32,16 +32,15 @@ def pull_from_wowza():
 	thisDir = os.path.dirname(os.path.realpath(__file__))
 	sp.call(['ssh', '-i', os.path.join(thisDir, 'lookit2016.pem'), 'ec2-user@lookit-streaming.mit.edu', 'aws', 's3', 'sync', '/home/ec2-user/content', 's3://mitLookit'])
 
-### TODO: USE JSON
 def update_session_data(experimentId, display=False):
 	'''Get session data from the server for this experiment ID and save'''
 	client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN, base_url=conf.JAM_HOST, namespace=conf.JAM_NAMESPACE)
-	exp = {'sessions': client.fetch_collection_records(paths.make_long_expId(experimentId))}
+	exp = client.fetch_collection_records(paths.make_long_expId(experimentId))
 
 	backup_and_save(paths.session_filename(experimentId), exp)
 
 	if display:
-		printer.pprint(exp['sessions'])
+		printer.pprint(exp)
 
 	print "Synced session data for experiment: {}".format(experimentId)
 

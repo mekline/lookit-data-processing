@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     # Check that these children DIDN'T participate in the pilot...
     pilot = Experiment('57bc591dc0d9d70055f775db')
-    pilotSubjects = list(set([sess['attributes']['profileId'] for sess in pilot.sessions['sessions']])) # full profile ID, e.g. kim2.zwmst
+    pilotSubjects = list(set([sess['attributes']['profileId'] for sess in pilot.sessions])) # full profile ID, e.g. kim2.zwmst
 
     # Get SendGrid object & unsubscribe group for notifications
     sg = SendGrid()

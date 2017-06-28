@@ -33,13 +33,14 @@ class Experiment(object):
 	# updated. If an existing codesheet is committed before coding is updated OR a
 	# new coder sheet is created, a warning will be displayed that an expected field is
 	# missing.
+	# TODO: allow setting this more flexibly
 	coderFields = ['coderComments']
 	videoData = {}
 	accounts = {}
 
 	@classmethod
 	def find_session(cls, sessionData, sessionKey):
-		for sess in sessionData['sessions']:
+		for sess in sessionData:
 			if sess['id'] == sessionKey:
 				return sess
 		return -1
@@ -392,7 +393,7 @@ class Experiment(object):
 		# Filter if needed to show only participants for this study
 		if not expId=='all':
 		    thisExp = Experiment(expId)
-		    thisExpUsers = [sess['attributes']['profileId'].split('.')[0] for sess in thisExp.sessions['sessions']]
+		    thisExpUsers = [sess['attributes']['profileId'].split('.')[0] for sess in thisExp.sessions]
 
 		    accs = [acc for acc in accs if acc['username'] in thisExpUsers]
 
@@ -461,7 +462,7 @@ class Experiment(object):
 
 		print "Updating video data. Processing {} videos.".format(len(newVideos))
 
-		sessionData = self.sessions['sessions']
+		sessionData = self.sessions
 
 		sessionsAffected = []
 		improperFilenames = []
@@ -684,7 +685,7 @@ class Experiment(object):
 			trimmingList = []
 
 			# sess = self.find_session(self.sessions, sessKey)
-			# expData = self.sessions['sessions'][iSess]['attributes']['expData']
+			# expData = self.sessions[iSess]['attributes']['expData']
 
 			for (iVid, vids) in enumerate(self.coding[sessKey]['videosFound']):
 				vidNames = vidNames + vids
@@ -964,8 +965,8 @@ class Experiment(object):
 				updated = True
 
 		# Create empty coding records for all the new session IDs & update coding dict
-		sessIds = [self.sessions['sessions'][iSess]['id'] for iSess in \
-						range(len(self.sessions['sessions']))]
+		sessIds = [self.sessions[iSess]['id'] for iSess in \
+						range(len(self.sessions))]
 		newIds = list(set(sessIds) - set(self.coding.keys()))
 		newCoding = dict((k, self.empty_coding_record()) for k in newIds)
 
@@ -974,9 +975,9 @@ class Experiment(object):
 		# For all sessions, update some critical information - videos expected,
 		# withdrawn status, age
 
-		for iSess in range(len(self.sessions['sessions'])):
-			sessId = self.sessions['sessions'][iSess]['id']
-			expData = self.sessions['sessions'][iSess]['attributes']['expData']
+		for iSess in range(len(self.sessions)):
+			sessId = self.sessions[iSess]['id']
+			expData = self.sessions[iSess]['attributes']['expData']
 
 			# Get list of video files expected & unique events
 			self.coding[sessId]['videosExpected'] = []
@@ -1048,7 +1049,7 @@ class Experiment(object):
 					if 'birthDate' in v.keys():
 						exitbirthdate = v['birthDate']
 
-			session = self.sessions['sessions'][iSess]
+			session = self.sessions[iSess]
 			testdate = session['meta']['created-on']
 
 			# Get the (registered) birthdate

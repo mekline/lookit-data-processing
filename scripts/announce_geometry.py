@@ -40,7 +40,7 @@ if __name__ == '__main__':
     nSent = 0
 
     geom = Experiment('58cc039ec0d9d70097f26220')
-    geomSubjects = list(set([sess['attributes']['profileId'] for sess in geom.sessions['sessions']])) # full profile ID, e.g. kim2.zwmst
+    geomSubjects = list(set([sess['attributes']['profileId'] for sess in geom.sessions])) # full profile ID, e.g. kim2.zwmst
 
     # Go through accounts looking for people with birthdays in age range
     for (uname, acc) in accounts.items():

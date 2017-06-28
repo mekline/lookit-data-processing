@@ -122,7 +122,7 @@ if __name__ == '__main__':
 	exp.update_session_data()
 
 	# Get list of all participants
-	children = list(set([sess['attributes']['profileId'] for sess in exp.sessions['sessions']])) # full profile ID, e.g. kim2.zwmst
+	children = list(set([sess['attributes']['profileId'] for sess in exp.sessions])) # full profile ID, e.g. kim2.zwmst
 
 	print("Sending reminder emails. All accounts participating in this study:")
 	print(", ".join(list(set([get_username(child) for child in children]))))
@@ -141,7 +141,7 @@ if __name__ == '__main__':
 		print "***********	" + child
 
 		# Get list of all sessions completed by this child
-		allSessions = [sess for sess in exp.sessions['sessions'] if sess['attributes']['profileId'] == child]
+		allSessions = [sess for sess in exp.sessions if sess['attributes']['profileId'] == child]
 
 		# Sort by time completed
 		allSessions = sorted(allSessions, key=lambda sess:datetime.datetime.strptime(sess['meta']['created-on'], '%Y-%m-%dT%H:%M:%S.%f'))
