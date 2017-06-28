@@ -36,7 +36,7 @@ def session_filename(expId):
     return os.path.join(DATA_DIR, 'session_data_' + expId + '.bin')
 
 def email_filename(expId):
-    '''Return full path to the session data filename for experiment expId'''
+    '''Return full path to the email data filename for experiment expId'''
     return os.path.join(DATA_DIR, 'email_data_' + expId + conf.VERSION + '.bin')
 
 def coding_filename(expId):

@@ -378,7 +378,7 @@ class Experiment(object):
 
 		# Order headers in the file: initial list, then regular, then child-profile
 		initialHeaders = [u'username', u'meta.created-on', u'email',
-		                  u'okayToSend.personalCommunication']
+						  u'okayToSend.personalCommunication']
 		childHeaders = allheaders - headers
 		headers = list(headers - set(initialHeaders))
 		headers.sort()
@@ -392,10 +392,10 @@ class Experiment(object):
 
 		# Filter if needed to show only participants for this study
 		if not expId=='all':
-		    thisExp = Experiment(expId)
-		    thisExpUsers = [sess['attributes']['profileId'].split('.')[0] for sess in thisExp.sessions]
+			thisExp = Experiment(expId)
+			thisExpUsers = [sess['attributes']['profileId'].split('.')[0] for sess in thisExp.sessions]
 
-		    accs = [acc for acc in accs if acc['username'] in thisExpUsers]
+			accs = [acc for acc in accs if acc['username'] in thisExpUsers]
 
 		# Back up any existing accounts csv file by the same name, & save
 		accountsheetPath = paths.accountsheet_filename(expId)
@@ -654,15 +654,12 @@ class Experiment(object):
 		print "Making {} mp4s for study {}".format(suffix, self.expId)
 
 		if sessionsToProcess in ['missing', 'all']:
-			sessionKeys = self.coding.keys()
+			sessionsToProcess = self.coding
 		else:
-			# Make sure list of sessions is unique
-			sessionKeys = list(set(sessionsToProcess))
+			sessionsToProcess = {sKey: self.coding[sKey] for sKey in sessionsToProcess}
 
 		# Only process data that passes filter
-		for (key, vals) in filter.items():
-			sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
-				(key not in self.coding[sKey].keys() and None in vals)]
+		sessionKeys = filter_keys(sessionsToProcess, filter)
 
 		sessionsAffected = []
 
@@ -795,15 +792,13 @@ class Experiment(object):
 		skipFrames = ['video-consent']
 
 		if sessionKeys in ['missing', 'all']:
-			sessionKeys = self.coding.keys()
+			sessionsToProcess = self.coding
 		else:
 			# Make sure list of sessions is unique
-			sessionKeys = list(set(sessionKeys))
+			sessionsToProcess = {sKey: self.coding[sKey] for sKey in sessionKeys}
 
 		# Only process data that passes filter
-		for (key, vals) in filter.items():
-		   sessionKeys = [sKey for sKey in sessionKeys if (key in self.coding[sKey].keys() and self.coding[sKey][key] in vals) or
-			   (key not in self.coding[sKey].keys() and None in vals)]
+		sessionKeys = filter_keys(sessionToProcess, filter)
 
 		sessionsAffected = self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
 			trimming=self.trimLength, suffix='trimmed', whichFrames=useTrimmedFrames)
@@ -833,7 +828,7 @@ class Experiment(object):
 			# Skip if not replacing & file exists & we haven't made any new mp4s for this session
 			if not replace and os.path.exists(concatPath) and sessKey not in sessionsAffected:
 				#if display:
-				#    print "Skipping, already have concat file: {}".format(concatFilename)
+				#	 print "Skipping, already have concat file: {}".format(concatFilename)
 				continue
 
 			# Which videos match the expected patterns? Keep track of inds, timestamps, names.
@@ -901,30 +896,6 @@ class Experiment(object):
 			self.coding[sessKey]['actualDuration']	 = vidDur
 			self.coding[sessKey]['concatVideos'] = concatVids
 			self.coding[sessKey]['concatDurations'] = concatDurations
-
-		backup_and_save(paths.coding_filename(self.expId), self.coding)
-
-	def sync_coding_data(self, codeDataName):
-		'''Hopefully one-time script to update coding data when replacing concatenated
-		files by those made on a different computer - specific to physics study'''
-
-		otherCodingFile = os.path.join(paths.DATA_DIR, codeDataName)
-
-		if os.path.exists(otherCodingFile):
-			with open(otherCodingFile,'rb') as f:
-				otherCoding = pickle.load(f)
-
-		replaceFields = ['concatShowedAlternate', 'concatVideosShown', 'expectedDuration',
-			'actualDuration', 'concatVideos', 'concatDurations']
-
-		for sessKey in self.coding.keys():
-			for field in replaceFields:
-				print field
-				if sessKey in otherCoding.keys() and field in otherCoding[sessKey].keys():
-					print otherCoding[sessKey][field]
-					self.coding[sessKey][field] = otherCoding[sessKey][field]
-				else:
-					print "skipping"
 
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
 
@@ -1361,7 +1332,7 @@ class Experiment(object):
 								self.coding[id]['allcoders'].remove(coderName)
 								print('Marking session {} as NOT coded by {}').format(id, coderName)
 						else:
-							raise ValueError('Unexpected value for whether coding is done for session {} (should be yes or no): {}'.format(id, coded))
+							raise ValueError('Unexpected value for whether coding is done for session {} (should be yes or no): {}\nNot changing coding mark.'.format(id, coded))
 					else:
 						warn('Missing expected row header "coded" in coding CSV')
 
@@ -1431,8 +1402,8 @@ class Experiment(object):
 
 		# Set up connection to JamDB
 		client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN,
-		    base_url=conf.JAM_HOST,
-		    namespace=conf.JAM_NAMESPACE)
+			base_url=conf.JAM_HOST,
+			namespace=conf.JAM_NAMESPACE)
 
 		# For each session, look at old and new feedback; update if needed
 		for sessKey in self.coding.keys():
@@ -1459,8 +1430,6 @@ class Experiment(object):
 			vidLengths = codeRec['concatDurations']
 			# printer.pprint((sessKey, theseCoders))
 
-			# Extract list of lengths to use for demarcating trials
-
 			for coderName in theseCoders:
 				vcodeFilename = paths.vcode_filename(sessKey, coderName, short=True)
 				# Check that VCode file exists
@@ -1468,14 +1437,8 @@ class Experiment(object):
 					warn('Expected Vcode file {} for coder {} not found'.format(os.path.basename(vcodeFilename), coderName))
 					continue
 				# Read in file
-				if coderName == 'Realtime':
-					#shift = 500
-					shift = 0
-				else:
-					shift = 0
-
 				(durations, leftLookTime, rightLookTime, oofTime) = \
-					vcode.read_preferential(vcodeFilename, interval=[], videoLengths=vidLengths, shift=shift)
+					vcode.read_preferential(vcodeFilename, interval=[], videoLengths=vidLengths, shift=0)
 
 				vcodeData = {'durations': durations, 'leftLookTime': leftLookTime,
 					'rightLookTime': rightLookTime, 'oofTime': oofTime}
@@ -1497,7 +1460,7 @@ def filter_keys(sessDict, filter):
 
 	sessDict is a dictionary of sessKey:session pairs.
 
-	The returned keys will contain only sessKey:session pairs for which,
+	The returned keys will only be from sessKey:session pairs for which,
 	for all of the pairs in filter, session[filtKey] is in filter[filtKey] OR
 	None is in filter[filtKey] and filtKey is not in session.keys().'''
 
@@ -1506,6 +1469,7 @@ def filter_keys(sessDict, filter):
 		filteredKeys = [sKey for sKey in filteredKeys if (key in sessDict[sKey].keys() and sessDict[sKey][key] in vals) or
 			(key not in sessDict[sKey].keys() and None in vals)]
 	return filteredKeys
+
 
 if __name__ == '__main__':
 
@@ -1600,12 +1564,6 @@ To look for and process VCode files:
 
 To use the staging database:
 	add the argument --config .env-staging to any other command
-
-If videos had to be created on a different computer:
-	move videodata file to TMI
-	move videos to TMI
-	move coding data file to TMI under new name in data dir
-	run exp.sync_coding_data(newCodingFileName)
 
 Partial updates:
 
@@ -1702,7 +1660,6 @@ Partial updates:
 			   'commitconsentsheet': ['coder', 'study'],
 			   'sendfeedback': ['study'],
 			   'updateaccounts': [],
-			   'updatecoding': ['study'],
 			   'getvideos': [],
 			   'updatesessions': ['study'],
 			   'processvideo': ['study'],
@@ -1800,10 +1757,6 @@ Partial updates:
 		exp.update_saved_sessions()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 
-	elif args.action == 'updatecoding':
-		print 'Updating coding data...'
-		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
-
 	elif args.action == 'processvideo':
 		print 'Processing video...'
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
@@ -1821,17 +1774,26 @@ Partial updates:
 		newVideos = sync_S3(pull=True)
 		exp.update_saved_sessions()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
-		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
+		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(
+		    reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
 		if doConcatForAll:
-			exp.concatenate_session_videos('missing', filter={'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName],
-			skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
-			doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+			exp.concatenate_session_videos('missing',
+			    filter={'withdrawn': [None, False]},
+			    display=True,
+			    replace=False,
+			    useTrimmedFrames=[videoFrameName],
+			    skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
+			    doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		else:
-			exp.concatenate_session_videos('missing', filter={'consent':['yes'], 'withdrawn':[None, False]}, display=True, replace=False, useTrimmedFrames=[videoFrameName],
-			skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
-			doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+			exp.concatenate_session_videos('missing',
+			    filter={'consent':['yes'], 'withdrawn':[None, False]},
+			    display=True,
+			    replace=False,
+			    useTrimmedFrames=[videoFrameName],
+			    skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
+			    doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		print '\nUpdate complete'
 
 	elif args.action == 'updatevcode':
@@ -1839,7 +1801,11 @@ Partial updates:
 		exp.summarize_results()
 
 	elif args.action == 'updatevideodata':
-		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(newVideos='all', reprocess=True, resetPaths=False, display=False)
+		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(
+		    newVideos='all',
+		    reprocess=True,
+		    resetPaths=False,
+		    display=False)
 
 	elif args.action == 'export':
 		for sessKey, sessCoding in exp.coding.items():
