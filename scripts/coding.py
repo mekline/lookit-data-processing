@@ -411,7 +411,7 @@ class Experiment(object):
 		self.trimLength = trimLength
 		print 'initialized study {}'.format(expId)
 
-	def update_session_data(self):
+	def update_saved_sessions(self):
 		'''Pull updated session data from server, save, and load into this experiment.'''
 		update_session_data(self.expId, display=False)
 		self.sessions = self.load_session_data(self.expId)
@@ -1427,8 +1427,7 @@ class Experiment(object):
 		'''
 
 		# Update session data
-		update_session_data(self.expId)
-		self.sessions = self.load_session_data(self.expId)
+		self.update_saved_sessions()
 
 		# Set up connection to JamDB
 		client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN,
@@ -1798,7 +1797,7 @@ Partial updates:
 
 	elif args.action == 'updatesessions':
 		print 'Updating session and coding data...'
-		exp.update_session_data()
+		exp.update_saved_sessions()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 
 	elif args.action == 'updatecoding':
@@ -1820,7 +1819,7 @@ Partial updates:
 		Experiment.export_accounts()
 		exp.accounts = exp.load_account_data()
 		newVideos = sync_S3(pull=True)
-		exp.update_session_data()
+		exp.update_saved_sessions()
 		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
