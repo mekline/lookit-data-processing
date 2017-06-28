@@ -39,6 +39,24 @@ class Experiment(object):
 	accounts = {}
 
 	@classmethod
+	def filter_keys(cls, sessDict, filter):
+		'''Return only session keys from dict that satisfy query given by filter.
+
+		filter is a dictionary of filtKey:[val1, val2, val3, ...] pairs.
+
+		sessDict is a dictionary of sessKey:session pairs.
+
+		The returned keys will only be from sessKey:session pairs for which,
+		for all of the pairs in filter, session[filtKey] is in filter[filtKey] OR
+		None is in filter[filtKey] and filtKey is not in session.keys().'''
+
+		filteredKeys = sessDict.keys()
+		for (key, vals) in filter.items():
+			filteredKeys = [sKey for sKey in filteredKeys if (key in sessDict[sKey].keys() and sessDict[sKey][key] in vals) or
+				(key not in sessDict[sKey].keys() and None in vals)]
+		return filteredKeys
+
+	@classmethod
 	def find_session(cls, sessionData, sessionKey):
 		for sess in sessionData:
 			if sess['id'] == sessionKey:
@@ -659,7 +677,7 @@ class Experiment(object):
 			sessionsToProcess = {sKey: self.coding[sKey] for sKey in sessionsToProcess}
 
 		# Only process data that passes filter
-		sessionKeys = filter_keys(sessionsToProcess, filter)
+		sessionKeys = self.filter_keys(sessionsToProcess, filter)
 
 		sessionsAffected = []
 
@@ -798,7 +816,7 @@ class Experiment(object):
 			sessionsToProcess = {sKey: self.coding[sKey] for sKey in sessionKeys}
 
 		# Only process data that passes filter
-		sessionKeys = filter_keys(sessionToProcess, filter)
+		sessionKeys = self.filter_keys(sessionToProcess, filter)
 
 		sessionsAffected = self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
 			trimming=self.trimLength, suffix='trimmed', whichFrames=useTrimmedFrames)
@@ -1423,7 +1441,7 @@ class Experiment(object):
 		'''Check all sessions for this study for expected VCode files & read into coding data.
 		TODO: full doc'''
 
-		sessionKeys = filter_keys(self.coding, filter)
+		sessionKeys = self.filter_keys(self.coding, filter)
 		for sessKey in sessionKeys:
 			codeRec = self.coding[sessKey]
 			theseCoders = codeRec['allcoders']
@@ -1453,22 +1471,7 @@ class Experiment(object):
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
 
 
-def filter_keys(sessDict, filter):
-	'''Return only session keys from dict that satisfy query given by filter.
 
-	filter is a dictionary of filtKey:[val1, val2, val3, ...] pairs.
-
-	sessDict is a dictionary of sessKey:session pairs.
-
-	The returned keys will only be from sessKey:session pairs for which,
-	for all of the pairs in filter, session[filtKey] is in filter[filtKey] OR
-	None is in filter[filtKey] and filtKey is not in session.keys().'''
-
-	filteredKeys = sessDict.keys()
-	for (key, vals) in filter.items():
-		filteredKeys = [sKey for sKey in filteredKeys if (key in sessDict[sKey].keys() and sessDict[sKey][key] in vals) or
-			(key not in sessDict[sKey].keys() and None in vals)]
-	return filteredKeys
 
 
 if __name__ == '__main__':
