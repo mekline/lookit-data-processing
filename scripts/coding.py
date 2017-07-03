@@ -1538,6 +1538,12 @@ To send feedback to users:
 	This sends feedback currently in the coding data to the site, where it will be
 	displayed to users. Feedback must first be updated, e.g. using commitconsentsheet.
 
+To export video for coding or sharing:
+    python coding.py export --study STUDY
+
+    This creates a directory for the study in EXPORT_DIR/expId/ with mp4 files named by
+    child, session, & privacy level.
+
 To view all current coding:
 	python coding.py fetchcodesheet --coder all
 	python coding.py fetchconsentsheet --coder all
