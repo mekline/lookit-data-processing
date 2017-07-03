@@ -44,7 +44,6 @@ def vcode_filename(sessKey, coderName, short=False):
     else:
         return os.path.join(CODING_DIR, coderName, expId + '_' + shortSess + '-evts.txt')
 
-
 def codesheet_filename(expId, coderName):
     '''Return full path to the .csv coding file for experiment expId & coderName'''
     return os.path.join(CODING_DIR, expId + '_' + coderName + '.csv')
@@ -125,3 +124,7 @@ def get_videolist():
     return [f for f in os.listdir(VIDEO_DIR) if \
                     not(os.path.isdir(os.path.join(VIDEO_DIR, f))) and \
                     f[-4:] in ['.flv'] ]
+
+def session_video_path(expId, child, sessId):
+    '''Return relative path within SESSION_DIR for a given session for this experiment, childID, & session ID.'''
+    return os.path.join(expId, child + '_' + sessId)

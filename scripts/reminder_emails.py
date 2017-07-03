@@ -5,6 +5,8 @@ from updatefromlookit import update_account_data
 import datetime
 import numpy as np
 
+'''Reminder emails for the Lookit physics study. Can also use as starting point to set up reminders for other studies.'''
+
 def get_username(profileId):
 	return profileId.split('.')[0]
 

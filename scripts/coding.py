@@ -207,8 +207,6 @@ class Experiment(object):
 				trimming = [trimming] * len(vidNames)
 			else:
 				if not(len(vidNames) == len(trimming)):
-					print trimming
-					print vidNames
 					raise ValueError("Must provide a single trimming value or vector of same length as vidNames")
 
 		# Get full path to the session directory
@@ -233,8 +231,8 @@ class Experiment(object):
 			if not replace and os.path.exists(mergedPath) and vid in cls.videoData.keys() and \
 				('mp4Dur_' + suffix) in cls.videoData[vid].keys() and ('mp4Path_' + suffix) in cls.videoData[vid].keys() and \
 				cls.videoData[vid]['mp4Path_' + suffix]:
-				#if display:
-				#	print "Already have {} mp4 for video {}, skipping".format(suffix, vid)
+				if display:
+					print "Already have {} mp4 for video {}, skipping".format(suffix, vid)
 				continue
 
 			# Add this to the video data file, with default values in case we can't
@@ -275,11 +273,7 @@ class Experiment(object):
 			videoOnlyDur = videoutils.get_video_details(noAudioPath, ['duration'], fullpath=True)
 
 			if videoOnlyDur > 0:
-				if display:
-					print "Making {} mp4 for vid: {}".format(suffix, vid)
-					if doTrimming:
-						print "Starting at time: {}".format(trimming[iVid])
-
+				print "Making {} mp4 starting at time {} for vid: {}".format(suffix, trimming[iVid] if doTrimming else '0', vid)
 
 				# Make audio-only file
 				filterComplexAudio = '[0:a]' + trimStrAudio + 'asetpts=PTS-STARTPTS,apad=pad_len=100000'
@@ -756,9 +750,6 @@ class Experiment(object):
 				# If an event name was specified for trimming, also build the appropriate list of
 				# trimming values for this session.
 				if type(trimming) == str:
-					# for (frameId, frameData) in expData.iteritems(): # TODO: remove
-					#	  if 'videoId' in frameData.keys():
-					#		  allEvents = [e['eventType'] for e in frameData['eventTimings']]
 					theseEventTimes = [e['streamTime'] for e in self.coding[sessKey]['allEventTimings'][iVid] if e['eventType'].endswith(trimming)]
 					if not theseEventTimes:
 						warn('No event found to use for trimming') # TODO: expand warning
@@ -772,7 +763,7 @@ class Experiment(object):
 				sessionTrimming = trimming
 
 			# Choose a location for the concatenated videos
-			sessDirRel = os.path.join(self.expId, sessId)
+			sessDirRel = paths.session_video_path(self.expId, self.coding[sessKey]['child'], sessId)
 			sessionDir = os.path.join(paths.SESSION_DIR, sessDirRel)
 			make_sure_path_exists(sessionDir)
 
@@ -895,7 +886,7 @@ class Experiment(object):
 				print 'Session: ', sessKey
 
 			# Choose a location for the concatenated videos
-			sessDirRel = os.path.join(self.expId, sessId)
+			sessDirRel = paths.session_video_path(self.expId, self.coding[sessId]['child'], sessId)
 			sessionDir = os.path.join(paths.SESSION_DIR, sessDirRel)
 			make_sure_path_exists(sessionDir)
 			concatFilename = self.expId + '_' +	 sessId + '.mp4'
@@ -903,9 +894,10 @@ class Experiment(object):
 
 			# Skip if not replacing & file exists & we haven't made any new mp4s for this session
 			if not replace and os.path.exists(concatPath) and sessKey not in sessionsAffected:
-				#if display:
-				#	 print "Skipping, already have concat file: {}".format(concatFilename)
+				if display:
+					 print "Skipping, already have concat file: {}".format(concatFilename)
 				continue
+			print "Making concatenated video for session {}".format(sessKey)
 
 			# Which videos match the expected patterns? Keep track of inds, timestamps, names.
 			vidNames = []
@@ -949,14 +941,13 @@ class Experiment(object):
 					for vid in vidData]
 			vidDur = self.concat_mp4s(concatPath, concatVids)
 
-			if display:
-				print 'Total duration: expected {}, actual {}'.format(expDur, vidDur)
-				# Note: "actual total dur" is video duration only, not audio or standard
-				# "overall" duration. This is fine for our purposes so far where we don't
-				# need exactly synchronized audio and video in the concatenated files
-				# (i.e. it's possible that audio from one file might appear to occur during
-				# a different file (up to about 10ms per concatenated file), but would
-				# need to be fixed for other purposes!
+			print 'Total duration: expected {}, actual {}'.format(expDur, vidDur)
+			# Note: "actual total dur" is video duration only, not audio or standard
+			# "overall" duration. This is fine for our purposes so far where we don't
+			# need exactly synchronized audio and video in the concatenated files
+			# (i.e. it's possible that audio from one file might appear to occur during
+			# a different file (up to about 10ms per concatenated file), but would
+			# need to be fixed for other purposes!
 
 			# Warn if we're too far off (more than one video frame at 30fps) on
 			# the total duration
@@ -1010,6 +1001,8 @@ class Experiment(object):
 			ageRegistration: age in months at test, based on birthdate given at registration
 			ageExitsurvey: age in months at test, based on birthdate given during
 				exit survey (if one is given, otherwise field not added/edited)
+			profileId: username.child
+			child: identifier for child (within username)
 
 		processingFunction (optional): study-specific function that edits a coding
 			record based on experiment data. processingFunction(codingRecord, expData)
@@ -1083,6 +1076,8 @@ class Experiment(object):
 			acc = self.accounts[username]
 			childData = [pr for pr in acc['attributes']['profiles'] if pr['profileId']==profile]
 			birthdate = childData[0]['birthday'] if len(childData) else None
+			self.coding[sessId]['profileId'] = profile
+			self.coding[sessId]['child'] = child
 
 			# Compute ages based on registered and exit birthdate
 			testdate = datetime.datetime.strptime(testdate[:10], '%Y-%m-%d')
@@ -1173,6 +1168,8 @@ class Experiment(object):
 			pieces = profile.split('.')
 			username = pieces[0]
 			child = pieces[1]
+			val['username'] = username
+			val['child'] = child
 
 			# Get the associated account data and add it to the session
 			acc = self.accounts[username]
@@ -1210,9 +1207,10 @@ class Experiment(object):
 
 		# Organize the headers we actually want to put in the file - headerStart will come
 		# first, then alphabetized other headers if we're using them
-		headerStart = ['shortId', 'meta.created-on', 'child.profileId', 'consent',
-			'withdrawn', 'consentnotes', 'usable', 'feedback',
-			'ageRegistration', 'ageExitsurvey', 'allcoders']
+		headerStart = ['shortId', 'meta.created-on', 'child.profileId', 'username', 'child',
+			'child.firstName', 'child.gender', 'child.additionalInformation', 'ageRegistration', 'ageExitsurvey',
+			'withdrawn', 'consent', 'consentnotes', 'usable', 'feedback',
+			 'allcoders']
 
 		# Insert this and other coders' data here if using
 		if coderName == 'all':
@@ -1235,7 +1233,7 @@ class Experiment(object):
 			'nVideosFound', 'expectedDuration', 'actualDuration'] + self.studySettings['includeFields'] + \
 			self.studySettings['studyFields'] + \
 			['videosExpected', 'videosFound',
-			'child.deleted', 'child.gender', 'child.additionalInformation']
+			'child.deleted']
 
 		# Add remaining headers from data if using
 		if showAllHeaders:
@@ -1245,13 +1243,13 @@ class Experiment(object):
 		else:
 			headerList = headerStart
 
+		if ignoreProfiles:
+			codingList = [sess for sess in codingList if sess['child.profileId'] not in ignoreProfiles]
+
 		# Filter to show only data that should go in sheet
 		for (key, vals) in filter.items():
 			codingList = [sess for sess in codingList if (key in sess.keys() and sess[key] in vals) or
 				(key not in sess.keys() and None in vals)]
-
-		if ignoreProfiles:
-			codingList = [sess for sess in codingList if sess['child.profileId'] not in ignoreProfiles]
 
 		# Reencode anything in unicode
 		for record in codingList:
@@ -1472,7 +1470,6 @@ class Experiment(object):
 				client.set_session_feedback({'id': sessKey}, newFeedback)
 
 		print "Sent updated feedback to server for exp {}".format(self.expId)
-
 
 
 if __name__ == '__main__':
@@ -1704,6 +1701,7 @@ Partial updates:
 			processingFunction=settings['concatProcessFunction'])
 
 	elif args.action == 'update':
+
 		print '\nStarting Lookit update, {:%Y-%m-%d %H:%M:%S}\n'.format(datetime.datetime.now())
 		update_account_data()
 		Experiment.export_accounts()
@@ -1718,14 +1716,14 @@ Partial updates:
 		if not settings['onlyMakeConcatIfConsent']:
 			exp.concatenate_session_videos('missing',
 				filter={'withdrawn': [None, False]},
-				display=True,
+				display=False,
 				replace=False,
 				skipFunction=settings['concatSkipFunction'],
 				processingFunction=settings['concatProcessFunction'])
 		else:
 			exp.concatenate_session_videos('missing',
 				filter={'consent':['yes'], 'withdrawn':[None, False]},
-				display=True,
+				display=False,
 				replace=False,
 				skipFunction=settings['concatSkipFunction'],
 				processingFunction=settings['concatProcessFunction'])
@@ -1748,15 +1746,15 @@ Partial updates:
 				sessData = exp.find_session(exp.sessions, sessKey)
 
 				for frameName in sessData['attributes']['expData'].keys():
-				    if '-exit-survey' in frameName:
-				        exitSurveyName = frameName
-				        break
+					if '-exit-survey' in frameName:
+						exitSurveyName = frameName
+						break
 
 				privacy = 'private' if not(sessData['attributes']['completed']) else sessData['attributes']['expData'][exitSurveyName]['useOfMedia']
 				childId = sessData['attributes']['profileId'][-5:]
 				print (sessKey, privacy, childId)
 				shortKey = paths.parse_session_key(sessKey)[1]
-				mp4Path = os.path.join(paths.SESSION_DIR, exp.expId, shortKey, exp.expId + '_' + shortKey + '.mp4')
+				mp4Path = os.path.join(paths.SESSION_DIR, paths.session_video_path(exp.expId, sessCoding['child'], shortKey), exp.expId + '_' + shortKey + '.mp4')
 				print mp4Path
 				exportDir = os.path.join(paths.EXPORT_DIR, exp.expId)
 				make_sure_path_exists(exportDir)
