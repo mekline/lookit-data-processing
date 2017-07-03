@@ -154,7 +154,6 @@ Now to run anything that requires matplotlib, use frameworkpython in place of py
 	SESSION_DIR='/Users/kms/lookitcoding/sessions'
 	DATA_DIR='/Users/kms/lookitcoding/data'
 	CODING_DIR='/Users/kms/lookitcoding/coding'
-	CODERS="['Jean', 'Audrey', 'Kim']"
 	FFMPEG_PATH='/usr/local/bin/ffmpeg'
 ```
 

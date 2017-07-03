@@ -1,10 +1,10 @@
 import os
 from utils import make_sure_path_exists
 import conf
+import coding_settings
 
 #OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')
 #SENDGRID_KEY = os.environ.get('SENDGRID_KEY')
-CODERS = eval(os.environ['CODERS'])
 BASE_DIR=os.environ.get("BASE_DIR")
 VIDEO_DIR = os.path.join(BASE_DIR, os.environ.get("VIDEO_DIR"))
 DATA_DIR = os.path.join(BASE_DIR, os.environ.get("DATA_DIR"))
@@ -23,13 +23,6 @@ make_sure_path_exists(EXPORT_DIR)
 
 VIDEO_FILENAME = os.path.join(DATA_DIR, 'video_data.bin')
 ACCOUNT_FILENAME = os.path.join(DATA_DIR, 'accounts' + conf.VERSION + '.bin')
-
-studyNicknames = {'physics': '583c892ec0d9d70082123d94',
-                  'test': '57adc3373de08a003fb12aad',
-                  'pilot': '57dae6f73de08a0056fb4165',
-                  'prodpilot':'57bc591dc0d9d70055f775db',
-                  'staging-geometry': '58a769913de08a0040ead68b',
-                  'geometry': '58cc039ec0d9d70097f26220'}
 
 def session_filename(expId):
     '''Return full path to the session data filename for experiment expId'''

@@ -114,7 +114,7 @@ if __name__ == '__main__':
 	parser.add_argument('--emails', help='Only send emails to these addresses (enter "all" to send to all eligible)',	 action='append', default=['kimber.m.scott@gmail.com'])
 
 	args = parser.parse_args()
-	study = paths.studyNicknames.get(args.study, args.study)
+	study = coding_settings.studyNicknames.get(args.study, args.study)
 
 
 	update_account_data()

@@ -4,7 +4,8 @@ import errno
 import pickle
 from experimenter import ExperimenterClient
 from sendgrid_client import EmailPreferences, SendGrid
-from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, flatten_dict, backup, backup_and_save_dict, display_unique_counts
+from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, \
+	flatten_dict, backup, backup_and_save_dict, display_unique_counts
 import uuid
 import subprocess as sp
 import sys
@@ -14,18 +15,23 @@ from warnings import warn
 import datetime
 import lookitpaths as paths
 import conf
-from updatefromlookit import sync_S3, pull_from_wowza, update_account_data, update_session_data
+from updatefromlookit import sync_S3, pull_from_wowza, update_account_data, \
+	update_session_data
 import csv
 import random
 import string
 import argparse
 import unittest
+import coding_settings
 
 class Experiment(object):
 	'''Represent a Lookit experiment with stored session, coding, & video data.'''
 
 	# Don't have ffmpeg tell us everything it has ever thought about.
 	loglevel = 'error'
+
+	useWholeVideoFrames = ['video-preview', 'video-consent']
+	skipFrames = ['video-consent']
 
 	# Coder-specific fields to create/expect in coding data. If FIELDNAME is one
 	# of these fields, then codingrecord[FIELDNAME] is a dict with keys = coder
@@ -419,14 +425,57 @@ class Experiment(object):
 		accountsheetPath = paths.accountsheet_filename(expId)
 		backup_and_save_dict(accountsheetPath, accs, headerList)
 
-	def __init__(self, expId, trimLength=None):
+	def __init__(self, expId, settings={}):
+		'''Create experiment object to represent Lookit experiment id.
+
+		expId: Lookit experiment string ID
+		settings: dict with fields:
+			includeFields: list of field ENDINGS to include in coding spreadsheets,
+				beyond basic headers.
+				For each session, any field ENDING in a string in this list will
+				be included. The original field name will be removed and the
+				corresponding data stored under this partial name, so they should
+				be unique endings within sessions. (Using just the ending allows
+				for variation in which segment the field is associated with.)
+
+			studyFields: list of exact field names to include in coding spreadsheet,
+				beyond basic headers.
+
+			excludeFields: list of field ENDINGS to exclude from coding spreadsheets.
+				For each session, any field ENDING in a string in this list will
+				be excluded.
+
+			videoFrameNames: list of frame substrings we expect video for. Only these
+				will be trimmed during concatenation prep, according to trimLength.
+				Also used to compute number of trials with video expected/available, for display
+				purposes only when making coding spreadsheet.
+
+			nVideosExp: number of study videos to expect if entire study is
+				completed. Used for display only, when making coding spreadsheet.
+
+			trimLength: For videos we do trimming of:
+				False (default) not to do any trimming of video file, or a
+				number of seconds, or an event name suffix (string).
+				If a number of seconds is given: positive numbers indicate how much
+				to trim from the START of the video; negative numbers indicate where
+				to start relative to the END of the video (counted from the end of the
+				shortest stream - generally video rather than audio; if the video is
+				shorter than that, the entire video will be kept). If a string is given,
+				then we look for the FIRST occurrence of an even ending in that string
+				during this video
+				and start from that streamTime (or from the start of the video if the
+				event isn't found).
+
+			extraCodingFields: dict of additional field:value pairs to include in
+				coding records (values given will be added to empty records as default value.'''
+
 		self.expId = expId
 		self.coding = self.load_coding(expId)
 		self.sessions = self.load_session_data(expId)
 		self.videoData = self.load_video_data()
 		self.accounts = self.load_account_data()
 		self.email = self.load_email_data(expId)
-		self.trimLength = trimLength
+		self.studySettings = settings # TODO: assert required keys included
 		print 'initialized study {}'.format(expId)
 
 	def update_saved_sessions(self):
@@ -696,11 +745,7 @@ class Experiment(object):
 
 			# Expand the list of videos we'll need to process
 			vidNames = []
-
 			trimmingList = []
-
-			# sess = self.find_session(self.sessions, sessKey)
-			# expData = self.sessions[iSess]['attributes']['expData']
 
 			for (iVid, vids) in enumerate(self.coding[sessKey]['videosFound']):
 				vidNames = vidNames + vids
@@ -758,13 +803,13 @@ class Experiment(object):
 		return sessionsAffected
 
 	def concatenate_session_videos(self, sessionKeys, filter={}, replace=False,
-		display=False, useTrimmedFrames=[], skipIfEndedEarly=False,
-		doPhysicsProcessing=False):
+		display=False, skipFunction=None, processingFunction=False):
 		'''Concatenate videos within the same session for the specified sessions.
 
 		Should be run after update_videos_found as it relies on videosFound
 			in coding. Does create any missing _whole mp4s but does not
-			replace existing ones.
+			replace existing ones. Trims videos containing any substrings in
+			self.studySettings['videoFrameNames']
 
 		expId: experiment ID to concatenate videos for. Any sessions
 			associated with other experiments will be ignored (warning
@@ -787,27 +832,40 @@ class Experiment(object):
 
 		display: whether to show debugging output (default False)
 
-		useTrimmedFrames: list of substrings of frame names for which trimmed frames should be used
-			(e.g. ['pref-phys-videos'])
+		skipFunction: optional, function to select videos to actually concatenate.
+			vidDataSublist = skipFunction(vidData, codeRecord).
 
-		skipIfEndedEarly: whether to omit from concatenated videos any where the coding
-			record indicates the video was ended early (e.g. by pausing)
+			vidData: list of video data; each element is a list
+				[vidName, vidInd, vidTimestamp, useWhole].
+				vidInd gives the index of this video in codeRecord['videosFound']
 
-		doPhysicsProcessing: store a few fields in coding specific to physics videos,
-			concatVideosShown and concatShowedAlternate
+			codeRecord: value from coding dictionary, corresponding to this video list.
 
-		For each session, this: - uses videosFound in the coding file to
+			Returns a sublist of vidData.
+
+		processingFunction: optional, function to save extra coding data.
+			codingRecordUpdated = processingFunction(codingRecord, vidData)
+
+
+			vidData: list of video data; each element is a list
+				[vidName, vidInd, vidTimestamp, useWhole].
+				vidInd gives the index of this video in codeRecord['videosFound']
+
+			codeRecord: value from coding dictionary, corresponding to this video list.
+
+			returns codeRecord (ok to update in place also).
+
+		For each session, this:
+			- uses videosFound in the coding file to
 			locate (after creating if necessary) single-clip mp4s
-			with text labels - creates a concatenated mp4 with all video for
+			with text labels
+			- creates a concatenated mp4 with all video for
 			this session (in order) in SESSION_DIR/expId/sessId/, called
 			expId_sessId.mp4
 
 		Saves expectedDuration and actualDuration to coding data. '''
 
 		print "Making concatenated session videos for study {}".format(self.expId)
-
-		useWholeVideoFrames = ['video-preview', 'video-consent']
-		skipFrames = ['video-consent']
 
 		if sessionKeys in ['missing', 'all']:
 			sessionsToProcess = self.coding
@@ -816,13 +874,13 @@ class Experiment(object):
 			sessionsToProcess = {sKey: self.coding[sKey] for sKey in sessionKeys}
 
 		# Only process data that passes filter
-		sessionKeys = self.filter_keys(sessionToProcess, filter)
+		sessionKeys = self.filter_keys(sessionsToProcess, filter)
 
 		sessionsAffected = self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
-			trimming=self.trimLength, suffix='trimmed', whichFrames=useTrimmedFrames)
+			trimming=self.studySettings['trimLength'], suffix='trimmed', whichFrames=self.studySettings['videoFrameNames'])
 
 		sessionsAffected = sessionsAffected + self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
-			trimming=False, suffix='whole', whichFrames=useWholeVideoFrames)
+			trimming=False, suffix='whole', whichFrames=self.useWholeVideoFrames)
 
 		# Process each session...
 		for sessKey in sessionKeys:
@@ -857,17 +915,17 @@ class Experiment(object):
 				vidInds	 = vidInds + [i] * len(vids)
 			vidTimestamps = [(paths.parse_videoname(v)[3], v) for v in vidNames]
 			# whether we should use the 'whole' mp4
-			useWhole = [any([fr in vid for fr in useWholeVideoFrames]) for vid in vidNames]
+			useWhole = [any([fr in vid for fr in self.useWholeVideoFrames]) for vid in vidNames]
 
 			vidData = zip(vidNames, vidInds, vidTimestamps, useWhole)
 
 			# Remove vidNames we don't want in the concat file
-			for skip in skipFrames:
+			for skip in self.skipFrames:
 				vidData = [vid for vid in vidData if skip not in vid[0]]
 
-			# Also skip any other frames where video was ended early
-			if skipIfEndedEarly:
-				vidData = [vid for vid in vidData if not self.coding[sessKey]['endedEarly'][vid[1]]]
+			# Also skip any videos indicated by skipFunction
+			if skipFunction:
+				vidData = skipFunction(vidData, self.coding[sessKey])
 
 			# Sort the vidData found by timestamp so we concat in order.
 			vidData = sorted(vidData, key=lambda x: x[2])
@@ -905,7 +963,9 @@ class Experiment(object):
 			if abs(expDur - vidDur) > 1./30:
 				warn('Predicted {}, actual {}'.format(expDur, vidDur))
 
-			if doPhysicsProcessing:
+			if processingFunction:
+				self.coding[sessKey] = processingFunction(self.coding[sessKey], vidData)
+
 				vidsShown = [self.coding[sessKey]['videosShown'][vid[1]] for vid in vidData]
 				self.coding[sessKey]['concatShowedAlternate'] = [self.coding[sessKey]['showedAlternate'][i] for (vidName, i, t, useW) in vidData]
 				self.coding[sessKey]['concatVideosShown'] = vidsShown
@@ -918,7 +978,9 @@ class Experiment(object):
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
 
 	def empty_coding_record(self):
-		'''Return a new instance of an empty coding dict'''
+		'''Return a new instance of an empty coding dict. Includes a set of common fields
+		and any defined in studySettings['extraCodingFields'], plus empty dictionaries
+		for any coderFields defined.'''
 		emptyRecord = {'consent': 'orig',
 				'consentnotes': '',
 				'usable': '',
@@ -933,16 +995,32 @@ class Experiment(object):
 				'actualDuration': None,
 				'concatDurations': [],
 				'concatVideos': []}
+		emptyRecord.update(self.studySettings['extraCodingFields'])
 		for field in self.coderFields:
 			emptyRecord[field] = {} # CoderName: 'comment'
 		return emptyRecord
 
-	def update_coding(self, display=False, doPhysicsProcessing=False):
+	def update_coding(self, display=False, processingFunction=False):
 		'''Update coding data with empty records for any new sessions in saved session
 		data, which video files are expected, withdrawn status, & birthdates.
 
-		doPhysicsProcessing additionally updates coding fields showedAlternate,
-		endedEarly, and videosShown based on events stored in pref-phys-videos frames.'''
+		The following fields of coding records are edited:
+			withdrawn: whether the video data was withdrawn, based on a 'withdrawal'
+				field in any frame ending with 'exit-survey'
+			ageRegistration: age in months at test, based on birthdate given at registration
+			ageExitsurvey: age in months at test, based on birthdate given during
+				exit survey (if one is given, otherwise field not added/edited)
+
+		processingFunction (optional): study-specific function that edits a coding
+			record based on experiment data. processingFunction(codingRecord, expData)
+			should return an edited coding record given:
+				codingRecord: a value in the Experiment.coding dictionary
+
+				expData: corresponding session['attributes']['expData'] field for this session;
+					dictionary of frameId: frameData pairs.
+
+		Saves new coding file & backs up any old one.
+		'''
 
 		updated = False
 
@@ -983,51 +1061,9 @@ class Experiment(object):
 					self.coding[sessId]['uniqueEventsOrdered'].append(allEventsDeDup)
 					self.coding[sessId]['allEventTimings'].append(frameData['eventTimings'])
 
-			# Processing based on events - specific to physics
-			if doPhysicsProcessing:
-				self.coding[sessId]['videosExpected'] = []
-				self.coding[sessId]['showedAlternate'] = []
-				self.coding[sessId]['endedEarly'] = []
-				self.coding[sessId]['videosShown'] = []
-				for (frameId, frameData) in expData.iteritems():
-					if 'videoId' in frameData.keys() and not frameId=='32-32-pref-phys-videos':
-						if 'pref-phys-videos' in frameId:
-
-							# Check events: was the video paused?
-							events = [e['eventType'] for e in frameData['eventTimings']]
-							showAlternate = 'exp-physics:startAlternateVideo' in events
-
-							# Was the alternate video also paused, if applicable?
-							# TODO: once we have an F1 event, add this as a way the study could be ended early
-							# Ended early if we never saw either test or alternate video (check
-							# for alternate b/c of rare case where due to lots of pausing only
-							# alternate is shown)
-							endedEarly = 'exp-physics:startTestVideo' not in events and 'exp-physics:startAlternateVideo' not in events
-							# Check that the alternate video wasn't paused
-							if showAlternate:
-								lastAlternateEvent = len(events) - events[::-1].index('exp-physics:startAlternateVideo') - 1
-								endedEarly = endedEarly or ('exp-physics:pauseVideo' in events[lastAlternateEvent:])
-							# Check we didn't pause test video, but never get to alternate (e.g. F1)
-							if not endedEarly and 'exp-physics:pauseVideo' in events and 'exp-physics:startTestVideo' in events:
-								lastPause = len(events) - events[::-1].index('exp-physics:pauseVideo') - 1
-								firstTest = events.index('exp-physics:startTestVideo')
-								endedEarly = endedEarly or (lastPause > firstTest and not showAlternate)
-
-							# Which video file was actually shown?
-							thisVideo = ''
-							if 'videosShown' in frameData.keys() and len(frameData['videosShown']):
-								videos = frameData['videosShown']
-								thisVideo = os.path.splitext(os.path.split(videos[0 + showAlternate])[1])[0]
-
-						else:
-							showAlternate = None
-							thisVideo = None
-							endedEarly = None
-
-						self.coding[sessId]['videosExpected'].append(frameData['videoId'])
-						self.coding[sessId]['showedAlternate'].append(showAlternate)
-						self.coding[sessId]['videosShown'].append(thisVideo)
-						self.coding[sessId]['endedEarly'].append(endedEarly)
+			# Processing based on events - study-specific
+			if processingFunction:
+				self.coding[sessId] = processingFunction(self.coding[sessId], expData)
 
 			withdrawSegment = 'exit-survey'
 			exitbirthdate = []
@@ -1069,13 +1105,12 @@ class Experiment(object):
 		print "Updated coding with {} new records for experiment: {}".format(len(newCoding), self.expId)
 
 	def generate_codesheet(self, coderName, showOtherCoders=True, showAllHeaders=False,
-	includeFields=[], studyFields=[], excludeFields=[], filter={}, ignoreProfiles=[],
-	videoFrameName='', nStudyVideosExpected=0):
+		filter={}, ignoreProfiles=[]):
 		'''Create a .csv coding sheet for a particular study and coder
 
 		csv will be named expID_coderName.csv and live in the CODING_DIR.
 
-		coderName: name of coder; must be in paths.CODERS. Use 'all' to show
+		coderName: name of coder; must be in coding_settings.CODERS. Use 'all' to show
 			all coders.
 
 		showOtherCoders: boolean, whether to display columns for other
@@ -1084,39 +1119,40 @@ class Experiment(object):
 		showAllHeaders: boolean, whether to include all headers or only the
 			basics
 
-		includeFields: list of field ENDINGS to include beyond basic headers.
+		filter: dictionary of header:[value1, value2, ...] pairs that should be required in
+			order for the session to be included in the codesheet. Only records
+			with a value in the list for this header will be shown. (Most
+			common usage is {'consent':['yes']} to show only records we have
+			already confirmed consent for.) This is applied AFTER flattening
+			the dict and looking for includeFields (described below), so it's possible to use
+			just the ending of a field if it's also in includeFields. Use 'None' in the
+			lists to allow records that don't have this key.
+
+		ignoreProfiles: list of profile IDs not to show, e.g. for test accounts
+
+		Uses studySettings['includeFields']: list of field ENDINGS to include beyond basic headers.
 			For each session, any field ENDING in a string in this list will
 			be included. The original field name will be removed and the
 			corresponding data stored under this partial name, so they should
 			be unique endings within sessions. (Using just the ending allows
 			for variation in which segment the field is associated with.)
 
-		studyFields: list of exact field names to include beyond basic headers.
+		Uses studySettings['studyFields']: list of exact field names to include beyond basic headers.
 
-		excludeFields: list of field ENDINGS to exclude.
+		Uses studySettings['excludeFields']: list of field ENDINGS to exclude.
 			For each session, any field ENDING in a string in this list will
 			be excluded.
 
-		filter: dictionary of header:[value1, value2, ...] pairs that should be required in
-			order for the session to be included in the codesheet. Only records
-			with a value in the list for this header will be shown. (Most
-			common usage is {'consent':['yes']} to show only records we have
-			already confirmed consent for.) This is applied AFTER flattening
-			the dict and looking for includeFields above, so it's possible to use
-			just the ending of a field if it's also in includeFields. Use 'None' in the
-			lists to allow records that don't have this key.
+		Uses studySettings['videoFrameNames'], list of frame substrings we expect video for.
+			Used to compute number of trials with video expected/available, for display
+			purposes only.
 
-		ignoreProfiles: list of profile IDs not to show, e.g. for test accounts
-
-		videoFrameName: substring of frame to expect video for. Used to compute number
-			 of trials with video expected/available.
-
-		nStudyVideosExpected: number of study videos to expect if entire study is
-			completed.
+		Uses studySettings['nVideosExp'], number of study videos to expect if entire study is
+			completed. For summary display only.
 
 		'''
 
-		if coderName != 'all' and coderName not in paths.CODERS:
+		if coderName != 'all' and coderName not in coding_settings.CODERS:
 			raise ValueError('Unknown coder name', coderName)
 
 		# Make coding into a list instead of dict
@@ -1152,7 +1188,7 @@ class Experiment(object):
 			# Look for fields that end in any of the suffixes in includeFields.
 			# If one is found, move the data from that field to the corresponding
 			# member of includeFields.
-			for fieldEnd in includeFields:
+			for fieldEnd in self.studySettings['includeFields']:
 				for field in val.keys():
 					if field[-len(fieldEnd):] == fieldEnd:
 						val[fieldEnd] = val[field]
@@ -1160,7 +1196,7 @@ class Experiment(object):
 
 			# Look for fields that end in any of the suffixes in excludeFields.
 			# If one is found, remove that data.
-			for fieldEnd in excludeFields:
+			for fieldEnd in self.studySettings['excludeFields']:
 				for field in val.keys():
 					if field[-len(fieldEnd):] == fieldEnd:
 						del val[field]
@@ -1196,8 +1232,8 @@ class Experiment(object):
 		# Continue predetermined starting list
 		headerStart = headerStart + ['attributes.feedback',
 			'attributes.hasReadFeedback', 'attributes.completed', 'nVideosExpected',
-			'nVideosFound', 'expectedDuration', 'actualDuration'] + includeFields + \
-			studyFields + \
+			'nVideosFound', 'expectedDuration', 'actualDuration'] + self.studySettings['includeFields'] + \
+			self.studySettings['studyFields'] + \
 			['videosExpected', 'videosFound',
 			'child.deleted', 'child.gender', 'child.additionalInformation']
 
@@ -1240,7 +1276,7 @@ class Experiment(object):
 		print "Completed consent: {} participants ({} records)".format(len(list(set(hasVideo))), len(hasVideo))
 		for sess in codingList:
 			vidsFound = [v for outer in sess['videosFound'] for v in outer]
-			sess['nStudyVideo'] = len([1 for v in vidsFound if videoFrameName in v])
+			sess['nStudyVideo'] = len([1 for v in vidsFound if any([name in v for name in self.studySettings['videoFrameNames']])])
 		consentSess = [sess for sess in codingList if sess['consent'] == 'yes']
 		nonconsentSess = [sess for sess in codingList if sess['consent'] != 'yes']
 
@@ -1250,9 +1286,9 @@ class Experiment(object):
 			len(consentSess))
 		print "\trecords: no study videos {}, some study videos {}, entire study {} ({} unique)".format(
 			len([1 for sess in consentSess if sess['nStudyVideo'] == 0]),
-			len([1 for sess in consentSess if 0 < sess['nStudyVideo'] < nStudyVideosExpected]),
-			len([1 for sess in consentSess if sess['nStudyVideo'] >= nStudyVideosExpected]),
-			len(list(set([sess['child.profileId'] for sess in consentSess if sess['nStudyVideo'] >= nStudyVideosExpected]))))
+			len([1 for sess in consentSess if 0 < sess['nStudyVideo'] < studySettings['nVideosExp']]),
+			len([1 for sess in consentSess if sess['nStudyVideo'] >= studySettings['nVideosExp']]),
+			len(list(set([sess['child.profileId'] for sess in consentSess if sess['nStudyVideo'] >= studySettings['nVideosExp']]))))
 
 		print "Usability (for {} valid consent + some study video records):".format(len([1 for sess in consentSess if sess['nStudyVideo'] > 0]))
 		display_unique_counts([sess['usable'] for sess in consentSess if sess['nStudyVideo'] > 0])
@@ -1438,6 +1474,7 @@ class Experiment(object):
 		print "Sent updated feedback to server for exp {}".format(self.expId)
 
 
+
 if __name__ == '__main__':
 
 	helptext = '''
@@ -1511,11 +1548,12 @@ To view all current coding:
 	Using --coder all will show coder-specific fields from all coders.
 
 To change the list of coders:
-	change in .env file. You won't be able to generate a new coding sheet for
+	change in coding_settings.py. You won't be able to generate a new coding sheet for
 	a coder removed from the list, but existing data won't be affected.
 
 To change what fields coders enter in their coding sheets:
-	edit coderFields in Experiment (in coding.py), then update coding.
+	edit coderFields in Experiment (in coding.py), or edit extraCodingFields for study in
+	coding_settings.py then update coding.
 	(python coding.py updatesessions --study study)
 
 	New fields will be added to coding records the next time coding is
@@ -1563,63 +1601,6 @@ Partial updates:
 		and videos are converted to mp4 and concatenated by session, with the results stored
 		under sessions/STUDYID. (Existing videos are not overwritten.)'''
 
-	ignoreProfiles = ['kim2.smtS6', 'kim2.HVv94', 'bostoncollege.uJG4X', 'sam.pOE5w', 'abought.hqReV']
-
-	standardFields = [	'exit-survey.withdrawal',
-						 'exit-survey.useOfMedia',
-						 'exit-survey.databraryShare',
-						 'exit-survey.feedback',
-						 'instructions.confirmationCode',
-						 'mood-survey.active',
-						 'mood-survey.childHappy',
-						 'mood-survey.rested',
-						 'mood-survey.healthy',
-						 'mood-survey.doingBefore',
-						 'mood-survey.lastEat',
-						 'mood-survey.napWakeUp',
-						 'mood-survey.nextNap',
-						 'mood-survey.usualNapSchedule',
-						 'mood-survey.ontopofstuff',
-						 'mood-survey.parentHappy',
-						 'mood-survey.energetic']
-
-	standardExclude = [	 'meta.created-by',
-						 'meta.modified-by',
-						 'meta.modified-on',
-						 'meta.permissions',
-						 'relationships.history.links.related',
-						 'relationships.history.links.self',
-						 'attributes.permissions',
-						 'attributes.experimentVersion',
-						 'allEventTimings']
-
-	includeFieldsByStudy = {'57a212f23de08a003c10c6cb': [],
-							'57adc3373de08a003fb12aad': [],
-							'57dae6f73de08a0056fb4165': standardFields,
-							'57bc591dc0d9d70055f775db': standardFields,
-							'583c892ec0d9d70082123d94': standardFields,
-							'58cc039ec0d9d70097f26220': standardFields}
-
-	studyFieldsByStudy = {'583c892ec0d9d70082123d94': ['videosShown', 'showedAlternate', 'endedEarly'],
-						  '58cc039ec0d9d70097f26220': ['uniqueEventsOrdered']}
-
-	excludeFieldsByStudy = {'58cc039ec0d9d70097f26220': ['eventTimings'] + standardExclude,
-							'583c892ec0d9d70082123d94': standardExclude}
-
-	trimLengthByStudy = {'583c892ec0d9d70082123d94': -20,
-						 '58cc039ec0d9d70097f26220': ':startCalibration'}
-
-	videoFramesByStudy = {	'583c892ec0d9d70082123d94': 'pref-phys-videos',
-							'58cc039ec0d9d70097f26220': 'alt-trials'}
-
-	nVideosExpByStudy = {  '583c892ec0d9d70082123d94': 24,
-							'58cc039ec0d9d70097f26220': 4}
-
-	onlyMakeConcatIfConsent = {	 '583c892ec0d9d70082123d94': True,
-							'58cc039ec0d9d70097f26220': False}
-
-	# TODO: combine the above into a 'settings' field
-
 	# Fields required for each action
 	actions = {'fetchcodesheet': ['coder', 'study'],
 			   'commitcodesheet': ['coder', 'study'],
@@ -1641,7 +1622,7 @@ Partial updates:
 	parser.add_argument('action',
 		choices=actions.keys(),
 		help='Action to take')
-	parser.add_argument('--coder', choices=paths.CODERS + ['all'],
+	parser.add_argument('--coder', choices=coding_settings.CODERS + ['all'],
 		help='Coder name to create sheet or commit coding for')
 	parser.add_argument('--study', help='Study ID')
 	parser.add_argument('--fields', help='Fields to commit (used for commitconsentsheet only)',
@@ -1658,15 +1639,14 @@ Partial updates:
 
 	# Process any study nicknames
 	if args.study:
-		args.study = paths.studyNicknames.get(args.study, args.study)
-		trimLength = trimLengthByStudy.get(args.study, False)
-		exp = Experiment(args.study, trimLength)
-		includeFields = includeFieldsByStudy.get(args.study, [])
-		excludeFields = excludeFieldsByStudy.get(args.study, [])
-		studyFields	  = studyFieldsByStudy.get(args.study, [])
-		videoFrameName = videoFramesByStudy.get(args.study, '')
-		nVideosExp	  = nVideosExpByStudy.get(args.study, 0)
-		doConcatForAll = not(onlyMakeConcatIfConsent.get(args.study, True))
+		nickname = args.study
+		args.study = coding_settings.studyNicknames.get(args.study, args.study)
+
+	studySettings = coding_settings.settingsByStudy.get(args.study, coding_settings.settingsByStudy.get(nickname, {}))
+	settings = coding_settings.settings
+	settings.update(studySettings)
+
+	exp = Experiment(args.study, settings)
 
 	### Process individual actions
 
@@ -1679,24 +1659,14 @@ Partial updates:
 		exp.generate_codesheet(args.coder,
 			filter={'consent':['yes'], 'exit-survey.withdrawal': [False, None], 'usable':['yes']},
 			showAllHeaders=False,
-			includeFields=includeFields,
-			ignoreProfiles=ignoreProfiles,
-			excludeFields=excludeFields,
-			studyFields=studyFields,
-			videoFrameName=videoFrameName,
-			nStudyVideosExpected=nVideosExp)
+			ignoreProfiles=coding_settings.ignoreProfiles)
 
 	elif args.action == 'fetchconsentsheet':
 		print 'Fetching consentsheet...'
 		exp.generate_codesheet(args.coder,
 			filter={'nVideosExpected': range(0,100)},
 			showAllHeaders=True,
-			includeFields=includeFields,
-			excludeFields=excludeFields,
-			ignoreProfiles=ignoreProfiles,
-			studyFields=studyFields,
-			videoFrameName=videoFrameName,
-			nStudyVideosExpected=nVideosExp)
+			ignoreProfiles=coding_settings.ignoreProfiles)
 
 		#'consent': ['yes'], 'withdrawn': [False], 'exit-survey.useOfMedia': ['public']
 
@@ -1722,16 +1692,16 @@ Partial updates:
 	elif args.action == 'updatesessions':
 		print 'Updating session and coding data...'
 		exp.update_saved_sessions()
-		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+		exp.update_coding(display=False, processingFunction=settings['codingProcessFunction'])
 
 	elif args.action == 'processvideo':
 		print 'Processing video...'
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
-		exp.concatenate_session_videos('all', display=True, replace=False, useTrimmedFrames=[videoFrameName],
-			skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
-			doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+		exp.concatenate_session_videos('all', display=True, replace=False,
+			skipFunction=settings['concatSkipFunction'],
+			processingFunction=settings['concatProcessFunction'])
 
 	elif args.action == 'update':
 		print '\nStarting Lookit update, {:%Y-%m-%d %H:%M:%S}\n'.format(datetime.datetime.now())
@@ -1740,27 +1710,25 @@ Partial updates:
 		exp.accounts = exp.load_account_data()
 		newVideos = sync_S3(pull=True)
 		exp.update_saved_sessions()
-		exp.update_coding(display=False, doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+		exp.update_coding(display=False, processingFunction=settings['codingProcessFunction'])
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(
 			reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
-		if doConcatForAll:
+		if not settings['onlyMakeConcatIfConsent']:
 			exp.concatenate_session_videos('missing',
 				filter={'withdrawn': [None, False]},
 				display=True,
 				replace=False,
-				useTrimmedFrames=[videoFrameName],
-				skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
-				doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+				skipFunction=settings['concatSkipFunction'],
+				processingFunction=settings['concatProcessFunction'])
 		else:
 			exp.concatenate_session_videos('missing',
 				filter={'consent':['yes'], 'withdrawn':[None, False]},
 				display=True,
 				replace=False,
-				useTrimmedFrames=[videoFrameName],
-				skipIfEndedEarly=(args.study=='583c892ec0d9d70082123d94'),
-				doPhysicsProcessing=(args.study=='583c892ec0d9d70082123d94'))
+				skipFunction=settings['concatSkipFunction'],
+				processingFunction=settings['concatProcessFunction'])
 		print '\nUpdate complete'
 
 	elif args.action == 'updatevcode':
@@ -1778,7 +1746,12 @@ Partial updates:
 		for sessKey, sessCoding in exp.coding.items():
 			if sessCoding['consent'] == 'yes' and not sessCoding['withdrawn']:
 				sessData = exp.find_session(exp.sessions, sessKey)
-				exitSurveyName = '33-33-exit-survey' if '33-33-exit-survey' in sessData['attributes']['expData'].keys() else '32-32-exit-survey'
+
+				for frameName in sessData['attributes']['expData'].keys():
+				    if '-exit-survey' in frameName:
+				        exitSurveyName = frameName
+				        break
+
 				privacy = 'private' if not(sessData['attributes']['completed']) else sessData['attributes']['expData'][exitSurveyName]['useOfMedia']
 				childId = sessData['attributes']['profileId'][-5:]
 				print (sessKey, privacy, childId)
