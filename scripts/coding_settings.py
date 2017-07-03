@@ -99,9 +99,10 @@ def skipIfEndedEarly(vidData, codeRecord):
 
 	return [vid for vid in vidData if not codeRecord['endedEarly'][vid[1]]]
 
-
+# List of current coder names. coding.py will only create/commit coding for coders on this list. Removing an inactive coder will not affect existing data.
 CODERS = ['Jessica', 'Kim', 'Training', 'Realtime', 'Alice']
 
+# Allow usage of study 'nicknames' when calling coding.py or reminder_emails.py
 studyNicknames = {'physics': '583c892ec0d9d70082123d94',
 				  'test': '57adc3373de08a003fb12aad',
 				  'pilot': '57dae6f73de08a0056fb4165',
@@ -109,8 +110,15 @@ studyNicknames = {'physics': '583c892ec0d9d70082123d94',
 				  'staging-geometry': '58a769913de08a0040ead68b',
 				  'geometry': '58cc039ec0d9d70097f26220'}
 
+# Don't show/count these profile IDs when making coding spreadsheets
 ignoreProfiles = ['kim2.smtS6', 'kim2.HVv94', 'bostoncollege.uJG4X', 'sam.pOE5w', 'abought.hqReV']
 
+# Default list of fields endings to include in coding sheets, beyond basic
+# headers. For each session, any field ENDING in a string in this list will
+# be included. The original field name will be removed and the
+# corresponding data stored under this partial name, so they should
+# be unique endings within sessions. (Using just the ending allows
+# for variation in which segment the field is associated with.)
 standardFields = [	'exit-survey.withdrawal',
 						 'exit-survey.useOfMedia',
 						 'exit-survey.databraryShare',
@@ -128,7 +136,11 @@ standardFields = [	'exit-survey.withdrawal',
 						 'mood-survey.ontopofstuff',
 						 'mood-survey.parentHappy',
 						 'mood-survey.energetic']
-standardExclude = [	 'meta.created-by',
+
+# Default list of field ENDINGS to exclude. For each session, any field ENDING
+# in a string in this list will excluded from consent/codesheets.
+standardExclude = [	     'allEventTimings',
+                         'meta.created-by',
 						 'meta.modified-by',
 						 'meta.modified-on',
 						 'meta.permissions',
@@ -137,21 +149,22 @@ standardExclude = [	 'meta.created-by',
 						 'attributes.permissions',
 						 'attributes.experimentVersion']
 
+# Default study settings; overridden by any values in settingsByStudy.
 settings = {
-        'onlyMakeConcatIfConsent': False,
-		'nVideosExp': 0,
-		'videoFrameNames': [],
-		'trimLength': False,
+        'onlyMakeConcatIfConsent': False, # Don't concatenate video unless consent field is 'yes'
+		'nVideosExp': 0, # Study videos to expect; for summary display only
+		'videoFrameNames': [], # Frame substrings we expect video for; these videos will be trimmed
+		'trimLength': False, #For videos we do trimming of: False (default) not to do any trimming of video file, or a number of seconds, or an event name suffix (string). If a number of seconds is given: positive numbers indicate how much to trim from the START of the video; negative numbers indicate where to start relative to the END of the video (counted from the end of the shortest stream - generally video rather than audio; if the video is shorter than that, the entire video will be kept). If a string is given, then we look for the FIRST occurrence of an even ending in that string during this video and start from that streamTime (or from the start of the video if the event isn't found).
 		'excludeFields': standardExclude,
-		'studyFields': [],
+		'studyFields': [], # List of exact field names to include in codesheets, beyond basic headers
 		'includeFields': standardFields,
-		'doPhysicsProcessing': False,
-		'extraCodingFields': [],
-		'codingProcessFunction': None,
-		'concatProcessFunction': None,
-		'concatSkipFunction': None
+		'extraCodingFields': [], # Additional fields to add to coding records
+		'codingProcessFunction': None, # Function for additional coding processing - see Experiment.update_coding
+		'concatProcessFunction': None, # Function for additional coding processing after video concatenation - see Experiment.concatenate_session_videos
+		'concatSkipFunction': None # Function to select videos for concatenation - see Experiment.concatenate_session_videos
 	}
 
+# For each study using coding.py, add a dictionary entry with studyId/studyNickname:settings here. settings (defined above) are the default values; anything here overrides those.
 settingsByStudy = {
 		'physics': {
 			'onlyMakeConcatIfConsent': True,
@@ -161,7 +174,6 @@ settingsByStudy = {
 			'excludeFields': standardExclude,
 			'studyFields': ['videosShown', 'showedAlternate', 'endedEarly'],
 			'includeFields': standardFields,
-			'doPhysicsProcessing': True,
 			'extraCodingFields': {
 				'concatShowedAlternate': None,
 				'concatVideosShown': None,
@@ -184,3 +196,5 @@ settingsByStudy = {
 			'includeFields': standardFields
 		}
 	}
+
+settingsByStudy['prodpilot'] = settingsByStudy['physics']
