@@ -379,7 +379,7 @@ class Experiment(object):
 			del thisAcc['profiles']
 			del thisAcc['password']
 			for (groupName, unsubscribedList) in unsubgroups.items():
-				thisAcc['okayToSend.' + groupName] = not (thisAcc['email'] in unsubscribedList)
+				thisAcc['okayToSend.' + groupName] = not (thisAcc.get('email', '') in unsubscribedList)
 			headers = headers | set(thisAcc.keys())
 			iCh = 0
 			if profiles:
@@ -886,7 +886,7 @@ class Experiment(object):
 				print 'Session: ', sessKey
 
 			# Choose a location for the concatenated videos
-			sessDirRel = paths.session_video_path(self.expId, self.coding[sessId]['child'], sessId)
+			sessDirRel = paths.session_video_path(self.expId, self.coding[sessKey]['child'], sessId)
 			sessionDir = os.path.join(paths.SESSION_DIR, sessDirRel)
 			make_sure_path_exists(sessionDir)
 			concatFilename = self.expId + '_' +	 sessId + '.mp4'
@@ -1539,10 +1539,10 @@ To send feedback to users:
 	displayed to users. Feedback must first be updated, e.g. using commitconsentsheet.
 
 To export video for coding or sharing:
-    python coding.py export --study STUDY
+	python coding.py export --study STUDY
 
-    This creates a directory for the study in EXPORT_DIR/expId/ with mp4 files named by
-    child, session, & privacy level.
+	This creates a directory for the study in EXPORT_DIR/expId/ with mp4 files named by
+	child, session, & privacy level.
 
 To view all current coding:
 	python coding.py fetchcodesheet --coder all
@@ -1645,11 +1645,11 @@ Partial updates:
 		nickname = args.study
 		args.study = coding_settings.studyNicknames.get(args.study, args.study)
 
-	studySettings = coding_settings.settingsByStudy.get(args.study, coding_settings.settingsByStudy.get(nickname, {}))
-	settings = coding_settings.settings
-	settings.update(studySettings)
+		studySettings = coding_settings.settingsByStudy.get(args.study, coding_settings.settingsByStudy.get(nickname, {}))
+		settings = coding_settings.settings
+		settings.update(studySettings)
 
-	exp = Experiment(args.study, settings)
+		exp = Experiment(args.study, settings)
 
 	### Process individual actions
 
