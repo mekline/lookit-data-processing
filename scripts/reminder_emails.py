@@ -36,7 +36,8 @@ def generate_email(allSessions, child, message, nCompleted, justFeedback=False):
 	acc =  exp.accounts[participant]
 	name = acc['attributes']['name']
 	childProfiles = acc['attributes']['profiles']
-	childName = [prof['firstName'] for prof in childProfiles if prof['profileId'] == child][0]
+	childNames = [prof['firstName'] for prof in childProfiles if prof['profileId'] == child]
+	childName = childNames[0] if len(childNames) else 'your child'
 
 	# Generate email text to send
 	body = 'Hi ' + (name if name else participant) + ',<br><br>'
@@ -106,6 +107,7 @@ emailsScheduled = {
 		'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit with your child! "}}
 
 idealSessions = 15
+maxDaysSinceLast = 60
 
 if __name__ == '__main__':
 
@@ -121,7 +123,7 @@ if __name__ == '__main__':
 
 	update_account_data()
 	exp = Experiment(study)
-	exp.update_session_data()
+	exp.update_saved_sessions()
 
 	# Get list of all participants
 	children = list(set([sess['attributes']['profileId'] for sess in exp.sessions])) # full profile ID, e.g. kim2.zwmst
@@ -178,8 +180,8 @@ if __name__ == '__main__':
 
 		# Has it been long enough to send each scheduled email?
 		eligible = sorted([(emailName, emailDesc) for (emailName, emailDesc) in emailsScheduled.items() if sincePrev > emailDesc['days'] and anySuccess == emailDesc['success']], key=lambda e:e[1]['days'])
-		# Make sure subject has participated and NOT completed the study!
-		sendEmail = len(eligible) > 0 and len(theseSessions) < idealSessions
+		# Make sure subject has participated and NOT completed the study! Also require time since last participation isn't already too long
+		sendEmail = len(eligible) > 0 and len(theseSessions) < idealSessions and sincePrev < maxDaysSinceLast
 
 		# Also send an email if we	have feedback to send, even if it hasn't been long enough to trigger a reminder
 		feedbackToSend = getFeedbackToSend(allSessions, child)
@@ -209,20 +211,20 @@ if __name__ == '__main__':
 					print "Actually sending email:"
 					print (recipient, body)
 					status = sg.send_email_to(
-					recipient,
-					emailDesc['subject'],
-					body,
-					group_id=groupId
-				)
-				if status == 200:
-					# Record in list of emails sent to this child
-					emailRecord = {'emailName': emailName,
-								   'message': emailDesc['message'],
-								   'dateSent': td,
-								   'daysPastToSend': emailDesc['days'],
-								   'actualDaysPast': sincePrev,
-								   'success': emailDesc['success'],
-								   'feedbackKeys': [f['sessionId'] for f in feedbackToSend]}
+						recipient,
+						emailDesc['subject'],
+						body,
+						group_id=groupId
+					)
+					if status == 200:
+						# Record in list of emails sent to this child
+						emailRecord = {'emailName': emailName,
+									   'message': emailDesc['message'],
+									   'dateSent': td,
+									   'daysPastToSend': emailDesc['days'],
+									   'actualDaysPast': sincePrev,
+									   'success': emailDesc['success'],
+									   'feedbackKeys': [f['sessionId'] for f in feedbackToSend]}
 					if child in exp.email.keys():
 						exp.email[child].append(emailRecord)
 					else:
