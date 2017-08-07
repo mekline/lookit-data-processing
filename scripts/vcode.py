@@ -40,7 +40,7 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
       leftLookTime: array of ms coded as 'left' per trial, indexed
          by trial number; only valid for non-looking-time trials
 
-      leftLookTime: array of ms coded as 'right' per trial, indexed
+      rightLookTime: array of ms coded as 'right' per trial, indexed
          by trial number; only valid for non-looking-time trials
 
       oofTime: array of ms coded as 'right' per trial, indexed
@@ -97,7 +97,7 @@ def read_preferential(vcodepath, whichTrials=[], lastTrialLength=[], interval=[]
             warnings.warn('Unknown mark type: {}'.format(t))
 
     # Warn if no trials or no looks are detected
-    if not np.any([t in trialNames for t in types]) and not videoLengths:
+    if not np.any([t in trialNames for t in types]) and not len(videoLengths):
         warnings.warn('No trials detected in file {}'.format(vcodepath))
     if not np.any([t in (leftNames + rightNames + awayNames) for t in types]):
         warnings.warn('No looks right/left/away detected in file {}'.format(vcodepath))
