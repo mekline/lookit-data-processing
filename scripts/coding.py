@@ -24,6 +24,8 @@ import argparse
 import unittest
 import coding_settings
 
+import physics_analysis
+
 class Experiment(object):
 	'''Represent a Lookit experiment with stored session, coding, & video data.'''
 
@@ -1736,8 +1738,8 @@ Partial updates:
 		print '\nUpdate complete'
 
 	elif args.action == 'updatevcode':
-		exp.read_vcode_coding(filter={'consent':['yes'], 'withdrawn':[None, False]})
-		exp.summarize_results()
+		physics_analysis.read_vcode_coding(exp, filter={'consent':['yes'], 'withdrawn':[None, False]})
+		physics_analysis.summarize_results(exp)
 
 	elif args.action == 'updatevideodata':
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(

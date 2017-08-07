@@ -22,6 +22,7 @@ def read_vcode_coding(Exp, filter={}):
 		theseCoders = codeRec['allcoders']
 		vidLengths = codeRec['concatDurations']
 		# printer.pprint((sessKey, theseCoders))
+		parsedVidNames = [parse_stimuli_name(stimVid) for stimVid in codeRec.get('concatVideosShown', [])]
 
 		for coderName in theseCoders:
 			vcodeFilename = paths.vcode_filename(sessKey, coderName, short=True)
@@ -31,10 +32,23 @@ def read_vcode_coding(Exp, filter={}):
 				continue
 			# Read in file
 			(durations, leftLookTime, rightLookTime, oofTime) = \
-				vcode.read_preferential(vcodeFilename, interval=[], videoLengths=vidLengths, shift=0)
+				vcode.read_preferential(vcodeFilename, interval=[-17000, 0], videoLengths=vidLengths, shift=0)
+
+			# Get calibration data
+
+			calTimes = [vcode.scoreCalibrationTrials(vcodeFilename,
+			                iTrial,
+			                vidLengths,
+			                parsed['flip'] == 'LR',
+			                [-20000, -15000, -10000, -5000])
+			            if parsed['event'] == 'calibration' else (-1, -1)
+			            for (iTrial, parsed) in
+			                zip(range(len(parsedVidNames)), parsedVidNames)
+			            ]
+			calScores = [float(ct[0])/(ct[0]+ct[1]) if ct[0] + ct[1] and not (ct[0] == -1) else float('nan') for ct in calTimes]
 
 			vcodeData = {'durations': durations, 'leftLookTime': leftLookTime,
-				'rightLookTime': rightLookTime, 'oofTime': oofTime}
+				'rightLookTime': rightLookTime, 'oofTime': oofTime, 'calibration': calScores}
 
 			if 'vcode' in codeRec.keys():
 				codeRec['vcode'][coderName] = vcodeData
