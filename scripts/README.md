@@ -202,8 +202,6 @@ download get-pip.py from https://packaging.python.org/installing/
 sudo python2.7 -m pip install requests
 sudo python2.7 -m pip install -U python-dotenv
 
-- Create an ipython notebook in the scripts directory; it should now be able to import coding.py.
-ipython notebook
 
 ### Local data storage overview 
 

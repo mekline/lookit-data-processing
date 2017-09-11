@@ -2,7 +2,8 @@ import sysconfig
 import os
 import errno
 import pickle
-from experimenter import ExperimenterClient
+from experimenter import ExperimenterClient, update_account_data, \
+	update_session_data
 from sendgrid_client import EmailPreferences, SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, \
 	flatten_dict, backup, backup_and_save_dict, display_unique_counts
@@ -15,8 +16,7 @@ from warnings import warn
 import datetime
 import lookitpaths as paths
 import conf
-from updatefromlookit import sync_S3, pull_from_wowza, update_account_data, \
-	update_session_data
+from updatefromlookit import sync_S3, pull_from_wowza
 import csv
 import random
 import string

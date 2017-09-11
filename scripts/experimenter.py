@@ -59,23 +59,7 @@ class ExperimenterClient(object):
 
         return res
 
-    def set_session_feedback(self, session, feedback):
-        url = '{}/v1/id/documents/{}/'.format(
-            self.BASE_URL,
-            session['id']
-        )
-        return self._make_request(
-            'patch',
-            url,
-            headers={
-                'content-type': 'application/vnd.api+json; ext=jsonpatch',
-            },
-            data=json.dumps([{
-                'op': 'add',
-                'path': '/feedback',
-                'value': feedback
-            }])
-        )
+
 
     def _fetch_all(self, response):
         # TODO: Rewrite this as a generator
@@ -149,3 +133,38 @@ class ExperimenterClient(object):
             return []
         else:
             return self._fetch_all(res)['data']
+
+    def set_session_feedback(self, session, feedback):
+        url = '{}/v1/id/documents/{}/'.format(
+            self.BASE_URL,
+            session['id']
+        )
+        return self._make_request(
+            'patch',
+            url,
+            headers={
+                'content-type': 'application/vnd.api+json; ext=jsonpatch',
+            },
+            data=json.dumps([{
+                'op': 'add',
+                'path': '/feedback',
+                'value': feedback
+            }])
+        )
+
+def update_session_data(experimentId, display=False):
+	'''Get session data from the server for this experiment ID and save'''
+	client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN, base_url=conf.JAM_HOST, namespace=conf.JAM_NAMESPACE)
+	exp = client.fetch_collection_records(paths.make_long_expId(experimentId))
+	backup_and_save(paths.session_filename(experimentId), exp)
+	if display:
+		printer.pprint(exp)
+	print "Synced session data for experiment: {}".format(experimentId)
+
+def update_account_data():
+	'''Get current account data from the server and save to the account file'''
+	client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN, base_url=conf.JAM_HOST, namespace=conf.JAM_NAMESPACE)
+	accountData = client.fetch_collection_records('accounts')
+	print('Download complete. Found {} records'.format(len(accountData)))
+	allAccounts = {acc[u'id'].split('.')[-1]: acc for acc in accountData}
+	backup_and_save(paths.ACCOUNT_FILENAME, allAccounts)
