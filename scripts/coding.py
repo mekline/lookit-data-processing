@@ -128,7 +128,7 @@ class Experiment(object):
 
 	@classmethod
 	def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='',
-		replace=False, whichFrames=[]):
+		replace=False, whichFrames=[], eventsPerVid=[]):
 		''' Convert flvs in VIDEO_DIR to mp4s organized in SESSION_DIR for a
 		particular session
 
@@ -164,6 +164,17 @@ class Experiment(object):
 			whichFrames: list of substrings of video filenames for which we should
 				actually do processing, e.g. ['video-consent', 'video-preview'].
 				Default of [] means process all frames.
+
+			eventsPerVid: optional; list of events for each video, corresponding to
+				vidNames. Default of [] means do not add event annotations to videos.
+				If provided, event annotations will be added in the lower left corner
+				of the new mp4s in blue. Each element of eventsPerVid should be a list
+				of event dictionaries; each dictionary ("event") should have at least
+				the fields 'eventType' and 'streamTime'. 'streamTime' will be used to
+				place the annotation; each annotation starts at streamTime and lasts
+				until the next annotation (or end of video). The eventType field is
+				what will be displayed in the video, along with any other field-value
+				pairs beyond streamTime & timestamp.
 
 			To make the mp4, we first create video-only and
 				audio-only files from the original flv file. Then we
@@ -210,6 +221,10 @@ class Experiment(object):
 			else:
 				if not(len(vidNames) == len(trimming)):
 					raise ValueError("Must provide a single trimming value or vector of same length as vidNames")
+
+		doEvents = len(eventsPerVid)
+		if doEvents:
+			assert(len(eventsPerVid)==len(vidNames))
 
 		# Get full path to the session directory
 		sessionDir = os.path.join(paths.SESSION_DIR, sessDirRel)
@@ -263,9 +278,28 @@ class Experiment(object):
 				trimStrVideo = ",trim=" + str(startTimeVideo)+":,setpts=PTS-STARTPTS"
 				trimStrAudio = "asetpts=PTS-STARTPTS,atrim="+ str(startTimeAudio)+':,'
 
+			# If events to place in video, place them here
+
+			labelList = ""
+			if doEvents:
+				theseEvents = eventsPerVid[iVid]
+				theseEvents.sort(key=lambda e:e.get('streamTime', 0))
+				for (iE, e) in enumerate(theseEvents):
+					textToShow = e['eventType'].split(':')[-1]
+					ignoreKeys = ['eventType', 'streamTime', 'timestamp', 'videoId']
+					for eventkey in [eventkey for eventkey in e if eventkey not in ignoreKeys]:
+						textToShow+= '-' + eventkey + '_' + e[eventkey]
+
+					thisTime = e['streamTime']
+					if iE == (len(theseEvents) - 1):
+						timeframe = 'gte(t, ' + str(thisTime) + ')'
+					else:
+						timeframe = 'between(t, ' + str(thisTime) + ',' + str(theseEvents[iE+1]['streamTime']) + ')'
+					labelList += "drawtext=enable='" + timeframe + "':'fontfile=/Library/Fonts/Arial Black.ttf':text='" + textToShow + "':fontsize=16:fontcolor=blue:x=10:y=460,"
+
 			# Make video-only file
 			(_, frameId, sessStr, timestamp, _) = paths.parse_videoname(vid)
-			filterComplexVideo = "[0:v]drawtext='fontfile=/Library/Fonts/Arial Black.ttf':text='"+frameId + '_' + '_' + sessStr + '_' + timestamp + "':fontsize=16:fontcolor=red:x=10:y=10,setpts=PTS-STARTPTS" + trimStrVideo + "[v0]"
+			filterComplexVideo = "[0:v]" + labelList + "drawtext='fontfile=/Library/Fonts/Arial Black.ttf':text='"+frameId + '_' + '_' + sessStr + '_' + timestamp + "':fontsize=16:fontcolor=red:x=10:y=10,setpts=PTS-STARTPTS" + trimStrVideo + "[v0]"
 			noAudioPath = os.path.join(sessionDir, vid[:-4] + '_video.mp4')
 			sp.call([paths.FFMPEG, '-i', vidPath, '-filter_complex',
 	filterComplexVideo, '-map', '[v0]', '-c:v', 'libx264', '-an', '-vsync', 'cfr', '-r', '30', '-crf', '18', noAudioPath, '-loglevel', cls.loglevel])
@@ -659,7 +693,7 @@ class Experiment(object):
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
 
 	def make_mp4s_for_study(self, sessionsToProcess='missing', filter={}, display=False,
-		trimming=False, suffix='', whichFrames=[]):
+		trimming=False, suffix='', whichFrames=[], whichEventsDisplay=[]):
 		'''Convert flvs to mp4s for sessions in a particular study.
 
 		expId: experiment id, string (ex.: 574db6fa3de08a005bb8f844)
@@ -702,6 +736,10 @@ class Experiment(object):
 			actually do processing, e.g. ['video-consent', 'video-preview'].
 			Default of [] means process all frames.
 
+		whichEventsDisplay: list of event types to annotate in lower left corner
+			of videos; default of [] creates no event annotations. All events
+			ENDING with these event types will be annotated.
+
 		Calls make_mp4s to actually create the mp4s; see documentation there.
 
 		The following values are set in videoData[video]: 'mp4Dur_[suffix]':
@@ -713,6 +751,7 @@ class Experiment(object):
 			created, or '' if as above mp4 was not created.
 
 		Returns a list of session keys for sessions where any video was created.'''
+
 
 		print "Making {} mp4s for study {}".format(suffix, self.expId)
 
@@ -742,12 +781,19 @@ class Experiment(object):
 			# Expand the list of videos we'll need to process
 			vidNames = []
 			trimmingList = []
+			events = []
 
 			for (iVid, vids) in enumerate(self.coding[sessKey]['videosFound']):
 				vidNames = vidNames + vids
 
 				if len(vids) > 1:
 					warn('Multiple videos found!') # TODO: expand warning
+
+				# Also make a list of all events per video that match an event type in
+				# whichEvents
+
+				for v in vids:
+					events += [[e for e in exp.coding[sessKey]['allEventTimings'][iVid] if any([e['eventType'].endswith(includeEvent) for includeEvent in whichEventsDisplay]) and e['streamTime']]]
 
 				# If an event name was specified for trimming, also build the appropriate list of
 				# trimming values for this session.
@@ -777,7 +823,7 @@ class Experiment(object):
 			replace = sessionsToProcess == 'all'
 
 			mp4Data = self.make_mp4s(sessDirRel, vidNames, display, trimming=sessionTrimming,
-				suffix=suffix, replace=replace, whichFrames=whichFrames)
+				suffix=suffix, replace=replace, whichFrames=whichFrames, eventsPerVid=events)
 
 			for vid in mp4Data.keys():
 				# Save the (relative) path to the mp4 and its duration in video data
@@ -870,10 +916,13 @@ class Experiment(object):
 		sessionKeys = self.filter_keys(sessionsToProcess, filter)
 
 		sessionsAffected = self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
-			trimming=self.studySettings['trimLength'], suffix='trimmed', whichFrames=self.studySettings['videoFrameNames'])
+			trimming=self.studySettings['trimLength'], suffix='trimmed',
+			whichFrames=self.studySettings['videoFrameNames'],
+			whichEventsDisplay=self.studySettings['eventsToAnnotate'])
 
 		sessionsAffected = sessionsAffected + self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
-			trimming=False, suffix='whole', whichFrames=self.useWholeVideoFrames)
+			trimming=False, suffix='whole', whichFrames=self.useWholeVideoFrames,
+			whichEventsDisplay=self.studySettings['eventsToAnnotate'])
 
 		# Process each session...
 		for sessKey in sessionKeys:
@@ -1619,7 +1668,8 @@ Partial updates:
 			   'update': ['study'],
 			   'updatevcode': ['study'],
 			   'export': ['study'],
-			   'updatevideodata': ['study']}
+			   'updatevideodata': ['study'],
+			   'test': ['study']}
 
 	# Parse command-line arguments
 	parser = argparse.ArgumentParser(description='Coding operations for Lookit data',
@@ -1769,3 +1819,30 @@ Partial updates:
 				exportPath = os.path.join(exportDir, exp.expId + '_' + childId + '_' + shortKey + '_' + privacy + '.mp4')
 				print exportPath
 				sp.call(['cp', mp4Path, exportPath])
+
+	elif args.action == 'test':
+		sessKey = 'lookit.session58cc039ec0d9d70097f26220s.597624adc0d9d70099d21377'
+		(expIdKey, sessId) = paths.parse_session_key(sessKey)
+		sessDirRel = paths.session_video_path(exp.expId, exp.coding[sessKey]['child'], sessId)
+		vidNames = []
+		events = []
+		whichEvents = ['exp-alternation:pauseVideo', 'exp-alternation:unpauseVideo',
+			'exp-alternation:startIntro', 'exp-alternation:startCalibration',
+			'exp-alternation:startTestTrial', 'exp-alternation:enteredFullscreen',
+			'exp-alternation:leftFullscreen', 'exp-alternation:stoppingCapture']
+		for (iVid, vids) in enumerate(exp.coding[sessKey]['videosFound']):
+			vidNames = vidNames + vids
+			for v in vids:
+				events = events + [[e for e in exp.coding[sessKey]['allEventTimings'][iVid] if e['eventType'] in whichEvents and e['streamTime']]]
+			printer.pprint(events)
+
+		#exp.make_mp4s(sessDirRel, vidNames, display=True, trimming=-72, suffix='trimmed',
+		#	replace=True, whichFrames=['alt-trials'], eventsPerVid=events)
+
+		exp.concatenate_session_videos('missing',
+				filter={'withdrawn': [None, False]},
+				display=False,
+				replace=True,
+				skipFunction=settings['concatSkipFunction'],
+				processingFunction=settings['concatProcessFunction'])
+

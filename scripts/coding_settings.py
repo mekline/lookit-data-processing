@@ -139,8 +139,8 @@ standardFields = [	'exit-survey.withdrawal',
 
 # Default list of field ENDINGS to exclude. For each session, any field ENDING
 # in a string in this list will excluded from consent/codesheets.
-standardExclude = [	     'allEventTimings',
-                         'meta.created-by',
+standardExclude = [		 'allEventTimings',
+						 'meta.created-by',
 						 'meta.modified-by',
 						 'meta.modified-on',
 						 'meta.permissions',
@@ -151,7 +151,7 @@ standardExclude = [	     'allEventTimings',
 
 # Default study settings; overridden by any values in settingsByStudy.
 settings = {
-        'onlyMakeConcatIfConsent': False, # Don't concatenate video unless consent field is 'yes'
+		'onlyMakeConcatIfConsent': False, # Don't concatenate video unless consent field is 'yes'
 		'nVideosExp': 0, # Study videos to expect; for summary display only
 		'videoFrameNames': [], # Frame substrings we expect video for; these videos will be trimmed
 		'trimLength': False, #For videos we do trimming of: False (default) not to do any trimming of video file, or a number of seconds, or an event name suffix (string). If a number of seconds is given: positive numbers indicate how much to trim from the START of the video; negative numbers indicate where to start relative to the END of the video (counted from the end of the shortest stream - generally video rather than audio; if the video is shorter than that, the entire video will be kept). If a string is given, then we look for the FIRST occurrence of an even ending in that string during this video and start from that streamTime (or from the start of the video if the event isn't found).
@@ -161,7 +161,8 @@ settings = {
 		'extraCodingFields': [], # Additional fields to add to coding records
 		'codingProcessFunction': None, # Function for additional coding processing - see Experiment.update_coding
 		'concatProcessFunction': None, # Function for additional coding processing after video concatenation - see Experiment.concatenate_session_videos
-		'concatSkipFunction': None # Function to select videos for concatenation - see Experiment.concatenate_session_videos
+		'concatSkipFunction': None, # Function to select videos for concatenation - see Experiment.concatenate_session_videos
+		'eventsToAnnotate': [] # list of event types that should be annotated in bottom left of videos (any events ending in any of these will be annotated)
 	}
 
 # For each study using coding.py, add a dictionary entry with studyId/studyNickname:settings here. settings (defined above) are the default values; anything here overrides those.
@@ -184,16 +185,30 @@ settingsByStudy = {
 				},
 			'codingProcessFunction': processPhysicsCoding,
 			'concatProcessFunction': processPhysicsConcat,
-			'concatSkipFunction': skipIfEndedEarly
+			'concatSkipFunction': skipIfEndedEarly,
+			'eventsToAnnotate': ['exp-physics:startIntro',
+				'exp-physics:startTestVideo',
+				'exp-physics:enteredFullscreen',
+				'exp-physics:pauseVideo',
+				'exp-physics:leftFullscreen',
+				'exp-physics:startAlternateVideo']
 		},
 		'geometry': {
 			'onlyMakeConcatIfConsent': False,
 			'nVideosExp': 4,
 			'videoFrameNames': ['alt-trials'],
-			'trimLength': ':startCalibration',
+			'trimLength': -72,
 			'excludeFields': ['eventTimings'] + standardExclude,
 			'studyFields': ['uniqueEventsOrdered'],
-			'includeFields': standardFields
+			'includeFields': standardFields,
+			'eventsToAnnotate': ['exp-alternation:pauseVideo',
+				'exp-alternation:unpauseVideo',
+				'exp-alternation:startIntro',
+				'exp-alternation:startCalibration',
+				'exp-alternation:startTestTrial',
+				'exp-alternation:enteredFullscreen',
+				'exp-alternation:leftFullscreen',
+				'exp-alternation:stoppingCapture']
 		}
 	}
 
