@@ -15,6 +15,9 @@ import pprint
 import re
 import sys
 import requests
+import conf
+from utils import printer, backup_and_save
+import lookitpaths as paths
 
 # Prepackaged defaults for convenience when distributing this script to users
 JAMDB_SERVER_URL = 'https://staging-metadata.osf.io'
@@ -159,7 +162,7 @@ def update_session_data(experimentId, display=False):
 	backup_and_save(paths.session_filename(experimentId), exp)
 	if display:
 		printer.pprint(exp)
-	print "Synced session data for experiment: {}".format(experimentId)
+	print("Synced session data for experiment: {}".format(experimentId))
 
 def update_account_data():
 	'''Get current account data from the server and save to the account file'''
