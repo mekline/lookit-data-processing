@@ -150,12 +150,17 @@ def update_session_data(experimentId, display=False):
 
 # TODO: in coding.py, need to remove authentication and just do feedback
 # TODO: clean up all experiment, session IDs (short/long form). Now have session IDs '70001813-076d-4cdc-a982-148e2d2a395c' instead  of "lookit.session583c892ec0d9d70082123d94s.583c8cc0c0d9d70081123d9e"
-# TODO: deal with new names in attributes: 'exp_data', 'global_event_timings'
-# TODO: deal with lack of study ID in attributes
+# TODO: deal with new names in attributes: 'exp_data', 'global_event_timings'; within exp_data, event_timings, event_type, stream_time, video_id, currently_highlighted
+# TODO: deal with lack of study ID in attributes (["attributes"]["experimentId"])
 # TODO: branch of lookit for new site code, then just switch between
 
 if __name__ == '__main__':
     print("testing")
     client = ExperimenterClient()
-    printer.pprint( client.set_session_feedback( {'id': "4f2b6eba-3523-4e4c-a3dc-312284bd9d51"}, "silly comment"))
-    update_session_data('515c064a-4938-4f0d-b773-8ae84264ee84', display=True)
+    #printer.pprint( client.set_session_feedback( {'id': "4f2b6eba-3523-4e4c-a3dc-312284bd9d51"}, "silly comment"))
+    #update_session_data('515c064a-4938-4f0d-b773-8ae84264ee84', display=True)
+    users = client.fetch_collection_records('responses')
+    printer.pprint(users)
+    print(len(users))
+
+    printer.pprint(['{} {} {}'.format(u['attributes']['given_name'], u['attributes']['family_name'], u['attributes']['nickname']) for u in users])    #client.session.get('https://staging-lookit.cos.io/api/v1/demographics/').json()['data'])
