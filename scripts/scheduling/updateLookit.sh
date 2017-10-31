@@ -15,11 +15,15 @@ frameworkpython coding.py fetchconsentsheet --coder Kim --study geometry
 frameworkpython coding.py updateaccounts --study geometry
 frameworkpython announce_geometry.py --emails all
 
+frameworkpython experimenter.py download session58cc039ec0d9d70097f26220s --out ~/lookitcoding/coding/geometry.json
+
 aws s3 cp /Users/kms/lookitcoding/coding/58cc039ec0d9d70097f26220_Kim.csv s3://lookitgeometry/csv/$now/ --grants read=emailaddress=babylab2@g.harvard.edu full=emailaddress=lookit@mit.edu
 
 aws s3 cp /Users/kms/lookitcoding/coding/accountsprod_58cc039ec0d9d70097f26220.csv s3://lookitgeometry/csv/$now/ --grants read=emailaddress=babylab2@g.harvard.edu full=emailaddress=lookit@mit.edu
 
 aws s3 cp /Users/kms/lookitcoding/coding/58cc039ec0d9d70097f26220_Kim.csv s3://lookitgeometry/csv/ --grants read=emailaddress=babylab2@g.harvard.edu full=emailaddress=lookit@mit.edu
+
+aws s3 cp /Users/kms/lookitcoding/coding/geometry.json s3://lookitgeometry/csv/ --grants read=emailaddress=babylab2@g.harvard.edu full=emailaddress=lookit@mit.edu
 
 aws s3 cp /Users/kms/lookitcoding/coding/accountsprod_58cc039ec0d9d70097f26220.csv s3://lookitgeometry/csv/ --grants read=emailaddress=babylab2@g.harvard.edu full=emailaddress=lookit@mit.edu
 
