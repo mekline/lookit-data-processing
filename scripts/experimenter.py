@@ -163,6 +163,7 @@ def update_session_data(experimentId, display=False):
 	if display:
 		printer.pprint(exp)
 	print("Synced session data for experiment: {}".format(experimentId))
+	return exp
 
 def update_account_data():
 	'''Get current account data from the server and save to the account file'''

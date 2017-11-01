@@ -2,8 +2,8 @@ import sysconfig
 import os
 import errno
 import pickle
-from experimenter import ExperimenterClient, update_account_data, \
-	update_session_data
+from experimenter_multilab import ExperimenterClient, update_account_data, \
+	update_session_data, user_from_child
 from sendgrid_client import EmailPreferences, SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, \
 	flatten_dict, backup, backup_and_save_dict, display_unique_counts
@@ -398,28 +398,20 @@ class Experiment(object):
 		'''
 		cls.load_account_data() # since this may be called without initializing an instance
 
-		# Get SendGrid object & unsubscribe group for notifications
-		sg = SendGrid()
-		unsubgroups = {}
-		for (groupName, group) in sg.groups().items():
-			unsubgroups[groupName] = sg.unsubscribes_for(group)
-
 		accs = []
 		headers = set()
 		allheaders = set()
 		for (userid, acc) in cls.accounts.items():
 			thisAcc = acc['attributes']
-			thisAcc['meta.created-on'] = acc['meta']['created-on']
+			# TODO: restore once we have timestamp info for accounts
+			# thisAcc['meta.created-on'] = acc['meta']['created-on']
 			thisAcc['username'] = userid
-			profiles = thisAcc['profiles']
-			del thisAcc['profiles']
-			del thisAcc['password']
-			for (groupName, unsubscribedList) in unsubgroups.items():
-				thisAcc['okayToSend.' + groupName] = not (thisAcc.get('email', '') in unsubscribedList)
+			profiles = thisAcc['children']
+			del thisAcc['children']
 			headers = headers | set(thisAcc.keys())
 			iCh = 0
 			if profiles:
-				for pr in profiles:
+				for (childID, pr) in profiles.items():
 					for (k,v) in pr.items():
 						thisAcc['child' + str(iCh) + '.' + k] = v
 					iCh += 1
@@ -429,10 +421,8 @@ class Experiment(object):
 			accs.append(thisAcc)
 			allheaders = allheaders | set(thisAcc.keys())
 
-
 		# Order headers in the file: initial list, then regular, then child-profile
-		initialHeaders = [u'username', u'meta.created-on', u'email',
-						  u'okayToSend.personalCommunication']
+		initialHeaders = [u'username'] # TODO: add back u'meta.created-on',
 		childHeaders = allheaders - headers
 		headers = list(headers - set(initialHeaders))
 		headers.sort()
@@ -442,13 +432,14 @@ class Experiment(object):
 		headerList = [h.encode('utf-8') for h in headerList]
 
 		# Order accounts based on date created
-		accs.sort(key=lambda b: b['meta.created-on'])
+		# TODO: restore once we have timestamp info for accounts
+		# accs.sort(key=lambda b: b['meta.created-on'])
 
 		# Filter if needed to show only participants for this study
 		if not expId=='all':
 			thisExp = Experiment(expId)
-			thisExpUsers = [sess['attributes']['profileId'].split('.')[0] for sess in thisExp.sessions]
-
+			printer.pprint(thisExp.sessions)
+			thisExpUsers = [user_from_child(sess['relationships']['child']['links']['related']) for	 sess in thisExp.sessions]
 			accs = [acc for acc in accs if acc['username'] in thisExpUsers]
 
 		# Back up any existing accounts csv file by the same name, & save
@@ -1056,11 +1047,11 @@ class Experiment(object):
 			child: identifier for child (within username)
 
 		processingFunction (optional): study-specific function that edits a coding
-			record based on experiment data. processingFunction(codingRecord, expData)
+			record based on experiment data. processingFunction(codingRecord, exp_data)
 			should return an edited coding record given:
 				codingRecord: a value in the Experiment.coding dictionary
 
-				expData: corresponding session['attributes']['expData'] field for this session;
+				exp_data: corresponding session['attributes'][''] field for this session;
 					dictionary of frameId: frameData pairs.
 
 		Saves new coding file & backs up any old one.
@@ -1088,49 +1079,50 @@ class Experiment(object):
 
 		for iSess in range(len(self.sessions)):
 			sessId = self.sessions[iSess]['id']
-			expData = self.sessions[iSess]['attributes']['expData']
+			exp_data = self.sessions[iSess]['attributes']['exp_data']
 
 			# Get list of video files expected & unique events
 			self.coding[sessId]['videosExpected'] = []
 			self.coding[sessId]['uniqueEventsOrdered'] = []
 			self.coding[sessId]['allEventTimings'] = []
-			for (frameId, frameData) in expData.iteritems():
-				if 'videoId' in frameData.keys():
-					self.coding[sessId]['videosExpected'].append(frameData['videoId'])
-					allEvents = [e['eventType'] for e in frameData['eventTimings']]
+			for (frameId, frameData) in exp_data.iteritems():
+				if 'video_id' in frameData.keys():
+					self.coding[sessId]['videosExpected'].append(frameData['video_id'])
+					allEvents = [e['event_type'] for e in frameData['event_timings']]
 					allEventsDeDup = []
 					for e in allEvents:
 						if e not in allEventsDeDup:
 							allEventsDeDup.append(e)
 					self.coding[sessId]['uniqueEventsOrdered'].append(allEventsDeDup)
-					self.coding[sessId]['allEventTimings'].append(frameData['eventTimings'])
+					self.coding[sessId]['allEventTimings'].append(frameData['event_timings'])
 
 			# Processing based on events - study-specific
 			if processingFunction:
-				self.coding[sessId] = processingFunction(self.coding[sessId], expData)
+				self.coding[sessId] = processingFunction(self.coding[sessId], exp_data)
 
 			withdrawSegment = 'exit-survey'
 			exitbirthdate = []
-			for (k,v) in expData.items():
+			for (k,v) in exp_data.items():
 				if k[-len(withdrawSegment):] == withdrawSegment:
 					if 'withdrawal' in v.keys():
 						self.coding[sessId]['withdrawn'] = v['withdrawal']
-					if 'birthDate' in v.keys():
-						exitbirthdate = v['birthDate']
+					if 'birth_date' in v.keys():
+						exitbirthdate = v['birth_date']
 
 			session = self.sessions[iSess]
-			testdate = session['meta']['created-on']
+
 
 			# Get the (registered) birthdate
-			profile = session['attributes']['profileId']
-			(username, child) = profile.split('.')
-			acc = self.accounts[username]
-			childData = [pr for pr in acc['attributes']['profiles'] if pr['profileId']==profile]
-			birthdate = childData[0]['birthday'] if len(childData) else None
-			self.coding[sessId]['profileId'] = profile
+			(child, study) = paths.get_context_from_session(sessId, session)
+			user = user_from_child(child)
+			acc = self.accounts[user]
+			childData = acc['attributes']['children'][child]
+			birthdate = childData['birthday']
+			self.coding[sessId]['profileId'] = user
 			self.coding[sessId]['child'] = child
 
 			# Compute ages based on registered and exit birthdate
+			testdate = session['meta']['created-on']
 			testdate = datetime.datetime.strptime(testdate[:10], '%Y-%m-%d')
 
 			if not(birthdate == None):
@@ -1669,7 +1661,7 @@ Partial updates:
 			   'updatevcode': ['study'],
 			   'export': ['study'],
 			   'updatevideodata': ['study'],
-			   'test': ['study']}
+			   'tests': ['study']}
 
 	# Parse command-line arguments
 	parser = argparse.ArgumentParser(description='Coding operations for Lookit data',
@@ -1803,12 +1795,12 @@ Partial updates:
 			if sessCoding['consent'] == 'yes' and not sessCoding['withdrawn']:
 				sessData = exp.find_session(exp.sessions, sessKey)
 
-				for frameName in sessData['attributes']['expData'].keys():
+				for frameName in sessData['attributes']['exp_data'].keys():
 					if '-exit-survey' in frameName:
 						exitSurveyName = frameName
 						break
 
-				privacy = 'private' if not(sessData['attributes']['completed']) else sessData['attributes']['expData'][exitSurveyName]['useOfMedia']
+				privacy = 'private' if not(sessData['attributes']['completed']) else sessData['attributes']['exp_data'][exitSurveyName]['useOfMedia']
 				childId = sessData['attributes']['profileId'][-5:]
 				print (sessKey, privacy, childId)
 				shortKey = paths.parse_session_key(sessKey)[1]
@@ -1820,29 +1812,5 @@ Partial updates:
 				print exportPath
 				sp.call(['cp', mp4Path, exportPath])
 
-	elif args.action == 'test':
-		sessKey = 'lookit.session58cc039ec0d9d70097f26220s.597624adc0d9d70099d21377'
-		(expIdKey, sessId) = paths.parse_session_key(sessKey)
-		sessDirRel = paths.session_video_path(exp.expId, exp.coding[sessKey]['child'], sessId)
-		vidNames = []
-		events = []
-		whichEvents = ['exp-alternation:pauseVideo', 'exp-alternation:unpauseVideo',
-			'exp-alternation:startIntro', 'exp-alternation:startCalibration',
-			'exp-alternation:startTestTrial', 'exp-alternation:enteredFullscreen',
-			'exp-alternation:leftFullscreen', 'exp-alternation:stoppingCapture']
-		for (iVid, vids) in enumerate(exp.coding[sessKey]['videosFound']):
-			vidNames = vidNames + vids
-			for v in vids:
-				events = events + [[e for e in exp.coding[sessKey]['allEventTimings'][iVid] if e['eventType'] in whichEvents and e['streamTime']]]
-			printer.pprint(events)
-
-		#exp.make_mp4s(sessDirRel, vidNames, display=True, trimming=-72, suffix='trimmed',
-		#	replace=True, whichFrames=['alt-trials'], eventsPerVid=events)
-
-		exp.concatenate_session_videos('missing',
-				filter={'withdrawn': [None, False]},
-				display=False,
-				replace=True,
-				skipFunction=settings['concatSkipFunction'],
-				processingFunction=settings['concatProcessFunction'])
-
+	elif args.action == 'tests':
+		pass

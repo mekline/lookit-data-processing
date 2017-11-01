@@ -1,5 +1,4 @@
 import os
-from experimenter import ExperimenterClient
 from utils import indent, printer
 import subprocess as sp
 import lookitpaths as paths
