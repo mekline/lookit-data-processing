@@ -1031,6 +1031,7 @@ class Experiment(object):
 				'ageRegistration': -1,
 				'ageExitsurvey': -1,
 				'videosExpected': [],
+				'nVideosExpected': 0,
 				'videosFound': [],
 				'allcoders': [],
 				'expectedDuration': None,
