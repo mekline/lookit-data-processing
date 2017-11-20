@@ -131,7 +131,6 @@ def session_video_path(expId, child, sessId):
 	'''Return relative path within SESSION_DIR for a given session for this experiment, childID, & session ID.'''
 	return os.path.join(expId, child + '_' + sessId)
 
-
 def get_collection_from_url(url): # TODO: DOC
 	return url.strip('/').split('/')[-1]
 

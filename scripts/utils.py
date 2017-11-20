@@ -108,5 +108,3 @@ def display_unique_counts(vals):
 
     for v in uniqueVals:
         print '\t{}\t{}'.format(vals.count(v), v)
-
-
