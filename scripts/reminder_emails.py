@@ -13,7 +13,6 @@ def get_username(profileId):
 def get_email(username):
 	return exp.accounts[username]['attributes']['email']
 
-
 def getFeedbackToSend(allSessions, child):
 
 	# Get list of feedback that's been given on any sessions
@@ -75,16 +74,6 @@ def generate_email(allSessions, child, message, nCompleted, justFeedback=False):
 
 # Email timing
 emailsScheduled = {
-#	  'tried2': {
-#		  'success': False,
-#		  'days': 2,
-#		  'subject': '',
-#		  'message': "It's been a few days since you tried to participate!"},
-#	  'tried7': {
-#		  'success': False,
-#		  'days': 7,
-#		  'subject': '',
-#		  'message': "Last week you tried to participate!"},
 	'started2': {
 		'success': True,
 		'days': 2,
@@ -204,7 +193,6 @@ if __name__ == '__main__':
 
 			# Have we already sent this reminder to this child? - *with no new session since then*?
 			alreadySent = any([(emailName == e['emailName']) and e['dateSent'] > lastSession for e in exp.email.get(child, [])])
-			{'actualDaysPast': 2.351352673622685, 'dateSent': datetime.datetime(2017, 9, 26, 6, 58, 21, 792803), 'success': True, 'daysPastToSend': 2, 'emailName': 'started2', 'feedbackKeys': [], 'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit a few days ago with your child! "}
 
 			recipient = get_email(get_username(child))
 
