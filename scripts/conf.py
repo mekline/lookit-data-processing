@@ -13,9 +13,6 @@ load_dotenv(dotenv_path)
 VERSION=(args.config or default_env).split('-')[-1]
 
 OSF_ACCESS_TOKEN = os.environ.get('OSF_ACCESS_TOKEN')
-JAM_NAMESPACE = os.environ.get('JAMDB_NAMESPACE')
-JAM_HOST = os.environ.get('JAMDB_URL')
-# Used for SENDGRID_CLIENT script. Some Jam scripts may not use this key.
 SENDGRID_KEY = os.environ.get('SENDGRID_KEY')
 LOOKIT_ACCESS_TOKEN = os.environ.get('LOOKIT_ACCESS_TOKEN')
 LOOKIT_HOST = os.environ.get('LOOKIT_URL')

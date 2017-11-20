@@ -2,6 +2,8 @@
 
 ## Configuration
 
+### TODO: document new config steps.
+
 ### Generate a token
 You will need to generate a personal access token on the OSF to run this script. Visit:
 
@@ -19,23 +21,37 @@ to do this.
 Create a new file name .env in this directory. It should look like:
 
 ```
-OSF_ACCESS_TOKEN=<your-staging-access-token>
-JAMDB_URL=https://staging-metadata.osf.io
-JAMDB_NAMESPACE=experimenter
-```
+OSF_ACCESS_TOKEN=<your-osf-token>
+LOOKIT_ACCESS_TOKEN=<your-lookit-token>
 
-or
+OSF_CLIENT_ID=<application_client_id>
+OSF_SCOPE=osf.users.all_read
+OSF_URL=https://accounts.osf.io
 
-```
-OSF_ACCESS_TOKEN=<your-access-token>
+SENDGRID_KEY=<your-sendgrid-acct-key>
+
+WOWZA_PHP='{"minRecordTime":1,"showMenu":"false","showTimer":"false","enableBlinkingRec":1,"skipInitialScreen":1,"recordAgain":"false","showSoundBar":"false","hideDeviceSettingsButtons":1,"connectionstring":"rtmps://lookit-streaming.mit.edu/hdfvr/_lookit_"}'
+WOWZA_ASP='{"showMenu":"false","loopbackMic":"true","skipInitialScreen":1,"showSoundBar":"false","snapshotEnable":"false"}'
+
 JAMDB_URL=https://metadata.osf.io
 JAMDB_NAMESPACE=lookit
+JAM_URL=https://metadata.osf.io
+JAM_NAMESPACE=lookit
+LOOKIT_URL=https://lookit.mit.edu
+
+BASE_DIR='/Users/kms/lookitcodingmultilab/'
+VIDEO_DIR='video'
+EXPORT_DIR='export'
+SESSION_DIR='sessions'
+DATA_DIR='data'
+CODING_DIR='coding'
+FFMPEG_PATH='/usr/local/bin/ffmpeg'
 ```
 
 Each the scripts accept an argument to point to a specific .env file (e.g. '.env-stage' or '.env-prod'). For example:
 
 ```bash
-python client.py -c .env-stage
+python coding.py -config .env-stage
 ```
 
 ## Install
@@ -44,32 +60,6 @@ python client.py -c .env-stage
 2. `pip install -r requirements.txt`
 
 # Included Code
-
-## client.py
-
-This file mostly contains some examples and utilites for interacting with the JamDB API.
-
-## sendgrid_client.py
-
-This file gives some examples of using the sendgrid Python client to interact with SendGrid's suppression groups and send emails to users. 
-You can add the`SENDGRID_KEY` setting to your .env to avoid having to pass an `apikey` argument to the sendgrid_client.SendGrid constructor.
-
-## email_migrated_users.py
-
-This script fetches all of the users with a non-null value of `migratedFrom` attribute and issues a password reset request for them. Usage:
-`python email_migrated_users.py -DR true|false -D true|false -V 0|1|2`
-
-where:
-
-	*`-DR` specifies whether this is a 'dry-run' or not. Setting this flag true (default) will make the script only log who password requests are sent to (not actually sending emails). Set this false to actaully send emails.
-	
-	*`-D` specifies whether or not to use debug mode. Debug mode means if an unexpected server response is seen an IPDB shell is opened to inspect the program state.
-	
-	*`-V` specifies verbositiy. Use integers 0-2 to pick a logging level (0=NOTSET, 1=INFO, 2=DEBUG)
-	
-
-scripts: coding workflow
-(https://github.com/CenterForOpenScience/lookit/tree/develop/scripts)
 
 ## coding.py
 
