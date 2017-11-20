@@ -100,18 +100,14 @@ def skipIfEndedEarly(vidData, codeRecord):
 	return [vid for vid in vidData if not codeRecord['endedEarly'][vid[1]]]
 
 # List of current coder names. coding.py will only create/commit coding for coders on this list. Removing an inactive coder will not affect existing data.
-CODERS = ['Jessica', 'Kim', 'Training', 'Realtime', 'Alice']
+CODERS = ['Kim', 'Coder1']
 
 # Allow usage of study 'nicknames' when calling coding.py or reminder_emails.py
-studyNicknames = {'physics': '583c892ec0d9d70082123d94',
-				  'test': '57adc3373de08a003fb12aad',
-				  'pilot': '57dae6f73de08a0056fb4165',
-				  'prodpilot':'57bc591dc0d9d70055f775db',
-				  'staging-geometry': '58a769913de08a0040ead68b',
-				  'geometry': '58cc039ec0d9d70097f26220'}
+studyNicknames = {'physics': 'cfddb63f-12e9-4e62-abd1-47534d6c4dd2',
+				  'geometry': 'c7001e3a-cfc5-4054-a8e0-0f5e520950ab'}
 
-# Don't show/count these profile IDs when making coding spreadsheets
-ignoreProfiles = ['kim2.smtS6', 'kim2.HVv94', 'bostoncollege.uJG4X', 'sam.pOE5w', 'abought.hqReV']
+# Don't show/count these user IDs when making coding spreadsheets
+ignoreProfiles = []
 
 # Default list of fields endings to include in coding sheets, beyond basic
 # headers. For each session, any field ENDING in a string in this list will
@@ -119,7 +115,7 @@ ignoreProfiles = ['kim2.smtS6', 'kim2.HVv94', 'bostoncollege.uJG4X', 'sam.pOE5w'
 # corresponding data stored under this partial name, so they should
 # be unique endings within sessions. (Using just the ending allows
 # for variation in which segment the field is associated with.)
-standardFields = [	'exit-survey.withdrawal',
+standardFields = [	     'exit-survey.withdrawal',
 						 'exit-survey.useOfMedia',
 						 'exit-survey.databraryShare',
 						 'exit-survey.feedback',
@@ -140,14 +136,8 @@ standardFields = [	'exit-survey.withdrawal',
 # Default list of field ENDINGS to exclude. For each session, any field ENDING
 # in a string in this list will excluded from consent/codesheets.
 standardExclude = [		 'allEventTimings',
-						 'meta.created-by',
-						 'meta.modified-by',
-						 'meta.modified-on',
-						 'meta.permissions',
-						 'relationships.history.links.related',
-						 'relationships.history.links.self',
-						 'attributes.permissions',
-						 'attributes.experimentVersion']
+						 '.links.related',
+						 'type']
 
 # Default study settings; overridden by any values in settingsByStudy.
 settings = {
@@ -186,12 +176,7 @@ settingsByStudy = {
 			'codingProcessFunction': processPhysicsCoding,
 			'concatProcessFunction': processPhysicsConcat,
 			'concatSkipFunction': skipIfEndedEarly,
-			'eventsToAnnotate': ['exp-physics:startIntro',
-				'exp-physics:startTestVideo',
-				'exp-physics:enteredFullscreen',
-				'exp-physics:pauseVideo',
-				'exp-physics:leftFullscreen',
-				'exp-physics:startAlternateVideo']
+			'eventsToAnnotate': []
 		},
 		'geometry': {
 			'onlyMakeConcatIfConsent': False,
@@ -211,5 +196,3 @@ settingsByStudy = {
 				'exp-alternation:stoppingCapture']
 		}
 	}
-
-settingsByStudy['prodpilot'] = settingsByStudy['physics']
