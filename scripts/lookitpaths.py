@@ -73,7 +73,7 @@ def parse_session_key(sessKey):
 	#assert expId[-1] == 's'
 	#expId = expId[:-1]
 	#return (expId, sessId)
-	return (null, sessKey)
+	return (None, sessKey)
 
 def parse_expId(expId): # TODO
 	'''parse an experiment id of the form *.ACTUALID'''
@@ -134,12 +134,8 @@ def session_video_path(expId, child, sessId):
 def get_collection_from_url(url): # TODO: DOC
 	return url.strip('/').split('/')[-1]
 
-def get_context_from_session(sessId, sessData): # TODO: DOC
-	printer.pprint(sessData)
+def get_context_from_session(sessData): # TODO: DOC
 	rels = sessData['relationships']
 	child = get_collection_from_url(rels['child']['links']['related'])
 	study = get_collection_from_url(rels['study']['links']['related'])
-	return (child, study)
-
-#def get_timestamp_from_session(sessId):
-
+	return {'child': child, 'study': study}

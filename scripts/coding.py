@@ -405,13 +405,14 @@ class Experiment(object):
 			thisAcc = acc['attributes']
 			# TODO: restore once we have timestamp info for accounts
 			# thisAcc['meta.created-on'] = acc['meta']['created-on']
-			thisAcc['username'] = userid
+			thisAcc['uuid'] = userid
 			profiles = thisAcc['children']
 			del thisAcc['children']
 			headers = headers | set(thisAcc.keys())
 			iCh = 0
 			if profiles:
 				for (childID, pr) in profiles.items():
+					thisAcc['child' + str(iCh) + '.uuid'] = childID
 					for (k,v) in pr.items():
 						thisAcc['child' + str(iCh) + '.' + k] = v
 					iCh += 1
@@ -422,7 +423,7 @@ class Experiment(object):
 			allheaders = allheaders | set(thisAcc.keys())
 
 		# Order headers in the file: initial list, then regular, then child-profile
-		initialHeaders = [u'username'] # TODO: add back u'meta.created-on',
+		initialHeaders = [u'uuid', u'date_created']
 		childHeaders = allheaders - headers
 		headers = list(headers - set(initialHeaders))
 		headers.sort()
@@ -432,15 +433,13 @@ class Experiment(object):
 		headerList = [h.encode('utf-8') for h in headerList]
 
 		# Order accounts based on date created
-		# TODO: restore once we have timestamp info for accounts
-		# accs.sort(key=lambda b: b['meta.created-on'])
+		accs.sort(key=lambda b: b['date_created'])
 
 		# Filter if needed to show only participants for this study
 		if not expId=='all':
 			thisExp = Experiment(expId)
-			printer.pprint(thisExp.sessions)
 			thisExpUsers = [user_from_child(sess['relationships']['child']['links']['related']) for	 sess in thisExp.sessions]
-			accs = [acc for acc in accs if acc['username'] in thisExpUsers]
+			accs = [acc for acc in accs if acc['uuid'] in thisExpUsers]
 
 		# Back up any existing accounts csv file by the same name, & save
 		accountsheetPath = paths.accountsheet_filename(expId)
@@ -1113,7 +1112,9 @@ class Experiment(object):
 
 
 			# Get the (registered) birthdate
-			(child, study) = paths.get_context_from_session(sessId, session)
+			context = paths.get_context_from_session(session)
+			child = context['child']
+			study = context['study']
 			user = user_from_child(child)
 			acc = self.accounts[user]
 			childData = acc['attributes']['children'][child]
@@ -1122,7 +1123,7 @@ class Experiment(object):
 			self.coding[sessId]['child'] = child
 
 			# Compute ages based on registered and exit birthdate
-			testdate = session['meta']['created-on']
+			testdate = session['attributes']['created_on']
 			testdate = datetime.datetime.strptime(testdate[:10], '%Y-%m-%d')
 
 			if not(birthdate == None):
@@ -1197,32 +1198,32 @@ class Experiment(object):
 		codingList = []
 		headers = set() # Keep track of all headers
 
+		client = ExperimenterClient()
+
 		for (key,val) in self.coding.items():
 			# Get session information for this coding session
 			sess = self.find_session(self.sessions, key)
 
 			# Combine coding & session data
+			origSess = sess
 			val = flatten_dict(val)
 			sess = flatten_dict(sess)
 			val.update(sess)
 
 			# Find which account/child this session is associated with
-			profile = val['attributes.profileId']
-			pieces = profile.split('.')
-			username = pieces[0]
-			child = pieces[1]
-			val['username'] = username
-			val['child'] = child
+			context = paths.get_context_from_session(origSess)
+			childId = context['child']
+			userId = user_from_child(childId)
+			val['user'] = userId
+			val['child'] = childId
 
 			# Get the associated account data and add it to the session
-			acc = self.accounts[username]
-			childData = [pr for pr in acc['attributes']['profiles'] if pr['profileId']==profile]
+			acc = self.accounts[userId]
+			childData = client.fetch_child(childId)['attributes']
 			childDataLabeled = {}
-			if len(childData):
-				for (k,v) in childData[0].items():
+			if childData:
+				for (k,v) in childData.items():
 					childDataLabeled['child.' + k] = v
-			else:
-				childDataLabeled['child.profileId'] = profile
 			val.update(childDataLabeled)
 
 			# Look for fields that end in any of the suffixes in includeFields.
@@ -1241,7 +1242,7 @@ class Experiment(object):
 					if field[-len(fieldEnd):] == fieldEnd:
 						del val[field]
 
-			val['shortId'] = paths.parse_session_key(key)[1]
+			val['uuid'] = paths.parse_session_key(key)[1]
 
 			# Add any new headers from this session
 			headers = headers | set(val.keys())
@@ -1250,10 +1251,8 @@ class Experiment(object):
 
 		# Organize the headers we actually want to put in the file - headerStart will come
 		# first, then alphabetized other headers if we're using them
-		headerStart = ['shortId', 'meta.created-on', 'child.profileId', 'username', 'child',
-			'child.firstName', 'child.gender', 'child.additionalInformation', 'ageRegistration', 'ageExitsurvey',
-			'withdrawn', 'consent', 'consentnotes', 'usable', 'feedback',
-			 'allcoders']
+		headerStart = ['uuid', 'attributes.created_on', 'user', 'child',
+			'child.given_name', 'child.gender', 'child.additional_information', 'ageRegistration', 'ageExitsurvey', 'withdrawn', 'consent', 'consentnotes', 'usable', 'feedback', 'allcoders']
 
 		# Insert this and other coders' data here if using
 		if coderName == 'all':
@@ -1287,12 +1286,14 @@ class Experiment(object):
 			headerList = headerStart
 
 		if ignoreProfiles:
-			codingList = [sess for sess in codingList if sess['child.profileId'] not in ignoreProfiles]
+			codingList = [sess for sess in codingList if sess['user'] not in ignoreProfiles]
+
 
 		# Filter to show only data that should go in sheet
 		for (key, vals) in filter.items():
 			codingList = [sess for sess in codingList if (key in sess.keys() and sess[key] in vals) or
 				(key not in sess.keys() and None in vals)]
+		print(codingList)
 
 		# Reencode anything in unicode
 		for record in codingList:
@@ -1300,7 +1301,7 @@ class Experiment(object):
 				if type(record[k]) is unicode:
 					record[k] = record[k].encode('utf-8')
 
-		codingList.sort(key=lambda b: b['meta.created-on'])
+		codingList.sort(key=lambda b: b['attributes.created_on'])
 
 		# Back up any existing coding file by the same name & save
 		codesheetPath = paths.codesheet_filename(self.expId, coderName)
@@ -1309,11 +1310,11 @@ class Experiment(object):
 		# Display a quick summary of the data
 
 		# 1. How many unique participants & how many total records?
-		profileIds = [sess['child.profileId'] for sess in codingList]
+		profileIds = [sess['child'] for sess in codingList]
 		print "Number of participants: {} unique ({} total records)".format(len(list(set(profileIds))), len(codingList))
 
 		# 2. How many have completed consent at all?
-		hasVideo = [sess['child.profileId'] for sess in codingList if sess['nVideosExpected'] > 0]
+		hasVideo = [sess['child'] for sess in codingList if sess['nVideosExpected'] > 0]
 		print "Completed consent: {} participants ({} records)".format(len(list(set(hasVideo))), len(hasVideo))
 		for sess in codingList:
 			vidsFound = [v for outer in sess['videosFound'] for v in outer]
@@ -1323,22 +1324,22 @@ class Experiment(object):
 
 		# 3. How many have at least one valid consent?
 		print "Valid consent: {} participants ({} records)".format(
-			len(list(set([sess['child.profileId'] for sess in consentSess]))),
+			len(list(set([sess['child'] for sess in consentSess]))),
 			len(consentSess))
 		print "\trecords: no study videos {}, some study videos {}, entire study {} ({} unique)".format(
 			len([1 for sess in consentSess if sess['nStudyVideo'] == 0]),
 			len([1 for sess in consentSess if 0 < sess['nStudyVideo'] < studySettings['nVideosExp']]),
 			len([1 for sess in consentSess if sess['nStudyVideo'] >= studySettings['nVideosExp']]),
-			len(list(set([sess['child.profileId'] for sess in consentSess if sess['nStudyVideo'] >= studySettings['nVideosExp']]))))
+			len(list(set([sess['child'] for sess in consentSess if sess['nStudyVideo'] >= studySettings['nVideosExp']]))))
 
 		print "Usability (for {} valid consent + some study video records):".format(len([1 for sess in consentSess if sess['nStudyVideo'] > 0]))
 		display_unique_counts([sess['usable'] for sess in consentSess if sess['nStudyVideo'] > 0])
 
 		print "Number of usable sessions per participant:"
-		display_unique_counts([sess['child.profileId'] for sess in consentSess if sess['usable'] == 'yes'])
+		display_unique_counts([sess['child'] for sess in consentSess if sess['usable'] == 'yes'])
 
 		print "Number of total sessions per participant:"
-		display_unique_counts([sess['child.profileId'] for sess in consentSess if sess['consent'] == 'yes'])
+		display_unique_counts([sess['child'] for sess in consentSess if sess['consent'] == 'yes'])
 
 		print "Privacy: data from {} records with consent. \n\twithdrawn {}, private {}, scientific {}, public {}".format(
 			len([sess for sess in consentSess if 'exit-survey.withdrawal' in sess.keys()]),
@@ -1354,7 +1355,7 @@ class Experiment(object):
 
 		# 4. How many participants have NO valid consent?
 		print "No valid consent: {} participants ({} invalid consent records total)".format(
-			len(list(set([sess['child.profileId'] for sess in nonconsentSess]) - set([sess['child.profileId'] for sess in consentSess]))),
+			len(list(set([sess['child'] for sess in nonconsentSess]) - set([sess['child'] for sess in consentSess]))),
 			len(nonconsentSess))
 
 		print "Nonconsent values:"
