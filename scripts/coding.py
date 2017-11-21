@@ -910,6 +910,9 @@ class Experiment(object):
 		# Only process data that passes filter
 		sessionKeys = self.filter_keys(sessionsToProcess, filter)
 
+		# Only process sessions for this experiment that we have coding data for
+		sessionKeys = list(set(sessionKeys) & set(self.coding.keys()))
+
 		sessionsAffected = self.make_mp4s_for_study(sessionsToProcess=sessionKeys, display=display,
 			trimming=self.studySettings['trimLength'], suffix='trimmed',
 			whichFrames=self.studySettings['videoFrameNames'],
@@ -1388,7 +1391,7 @@ class Experiment(object):
 		with open(codesheetPath, 'rU') as csvfile:
 			reader = csv.DictReader(csvfile)
 			for row in reader:
-				id = paths.make_session_key(exp.expId, row['shortId'])
+				id = paths.make_session_key(exp.expId, row['uuid'])
 				if id in self.coding.keys(): # Match to a sessionKey in the coding dict.
 					# Go through each expected coder-specific field, e.g.
 					# coderComments
@@ -1466,7 +1469,7 @@ class Experiment(object):
 		with open(codesheetPath, 'rU') as csvfile:
 			reader = csv.DictReader(csvfile)
 			for row in reader:
-				id = paths.make_session_key(exp.expId, row['shortId'])
+				id = paths.make_session_key(exp.expId, row['uuid'])
 				if id in self.coding.keys(): # Match to a sessionKey in the coding dict.
 					for field in commitFields:
 						if field not in row.keys():
