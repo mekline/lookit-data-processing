@@ -582,7 +582,7 @@ class Experiment(object):
 			if expId != self.expId:
 				continue
 
-			# Don't enter videos from the experimenter site, since we don't have
+			# Don't enter videos from previewing, since we don't have
 			# corresponding session/coding info
 			if sessId == 'PREVIEW_DATA_DISREGARD':
 				if display:
@@ -619,7 +619,6 @@ class Experiment(object):
 
 				# Add basic attributes
 				thisVideo['shortname'] = shortname
-				print shortname # TODO: remove
 				thisVideo['sessionKey'] = key
 				thisVideo['expId'] = expId
 
@@ -759,15 +758,15 @@ class Experiment(object):
 		# Only process data that passes filter
 		sessionKeys = self.filter_keys(sessionsToProcess, filter)
 
+		# Only process sessions for this experiment that we have coding data for
+		sessionKeys = list(set(sessionKeys) & set(self.coding.keys()))
+
 		sessionsAffected = []
 
 		# Process each session...
 		for sessKey in sessionKeys:
 			# Process the sessKey and check this is the right experiment
 			(expIdKey, sessId) = paths.parse_session_key(sessKey)
-			if not expIdKey == self.expId:
-				print "Skipping session not for this ID: {}".format(sessKey)
-				continue
 
 			# Which videos do we expect? Skip if none.
 			shortNames = self.coding[sessKey]['videosExpected']
@@ -925,9 +924,6 @@ class Experiment(object):
 
 			# Process the sessKey and check this is the right experiment
 			(expIdKey, sessId) = paths.parse_session_key(sessKey)
-			if not expIdKey == self.expId:
-				print "Skipping session not for this ID: {}".format(sessKey)
-				continue
 
 			if display:
 				print 'Session: ', sessKey
@@ -1092,15 +1088,15 @@ class Experiment(object):
 			self.coding[sessId]['uniqueEventsOrdered'] = []
 			self.coding[sessId]['allEventTimings'] = []
 			for (frameId, frameData) in exp_data.iteritems():
-				if 'video_id' in frameData.keys():
-					self.coding[sessId]['videosExpected'].append(frameData['video_id'])
-					allEvents = [e['event_type'] for e in frameData['event_timings']]
+				if 'videoId' in frameData.keys():
+					self.coding[sessId]['videosExpected'].append(frameData['videoId'])
+					allEvents = [e['eventType'] for e in frameData['eventTimings']]
 					allEventsDeDup = []
 					for e in allEvents:
 						if e not in allEventsDeDup:
 							allEventsDeDup.append(e)
 					self.coding[sessId]['uniqueEventsOrdered'].append(allEventsDeDup)
-					self.coding[sessId]['allEventTimings'].append(frameData['event_timings'])
+					self.coding[sessId]['allEventTimings'].append(frameData['eventTimings'])
 
 			# Processing based on events - study-specific
 			if processingFunction:
@@ -1300,7 +1296,6 @@ class Experiment(object):
 		for (key, vals) in filter.items():
 			codingList = [sess for sess in codingList if (key in sess.keys() and sess[key] in vals) or
 				(key not in sess.keys() and None in vals)]
-		print(codingList)
 
 		# Reencode anything in unicode
 		for record in codingList:
