@@ -3,7 +3,7 @@ import os
 import errno
 import pickle
 from experimenter import ExperimenterClient, update_account_data, \
-	update_session_data, user_from_child
+	update_session_data, user_from_child, get_all_feedback
 from sendgrid_client import EmailPreferences, SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, \
 	flatten_dict, backup, backup_and_save_dict, display_unique_counts
@@ -1499,21 +1499,27 @@ class Experiment(object):
 		self.update_saved_sessions()
 
 		# Set up connection to JamDB
-		client = ExperimenterClient.authenticate(conf.OSF_ACCESS_TOKEN,
-			base_url=conf.JAM_HOST,
-			namespace=conf.JAM_NAMESPACE)
+		client = ExperimenterClient()
+
+		allExistingFeedback = get_all_feedback()
 
 		# For each session, look at old and new feedback; update if needed
 		for sessKey in self.coding.keys():
 
 			thisSession = self.find_session(self.sessions, sessKey)
-			existingFeedback = thisSession['attributes']['feedback']
+			existingFeedback = allExistingFeedback.get(sessKey, {})
 
 			newFeedback = self.coding[sessKey]['feedback']
 
-			if newFeedback != existingFeedback:
-				print 'Updating feedback for session {}. Existing: {}, new: {}'.format(sessKey, existingFeedback, newFeedback)
-				client.set_session_feedback({'id': sessKey}, newFeedback)
+			if not existingFeedback and newFeedback:
+				print 'Adding feedback for session {}. New: {}'.format(sessKey, newFeedback)
+				client.add_session_feedback({'id': sessKey}, newFeedback)
+				continue
+
+			existingComment = existingFeedback.get('comment', '')
+			if newFeedback != existingComment:
+				print 'Updating feedback for session {}. Existing: {}, new: {}'.format(sessKey, existingComment, newFeedback)
+				client.update_feedback(existingFeedback['id'], newFeedback)
 
 		print "Sent updated feedback to server for exp {}".format(self.expId)
 

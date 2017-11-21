@@ -72,7 +72,7 @@ class ExperimenterClient(object):
 			hasMore = respLink is not None
 		return data
 
-	def set_session_feedback(self, session, feedback):
+	def add_session_feedback(self, session, feedback):
 		"""Add session feedback.
 		session: dict, {'id': SESSIONID}
 		feedback: string
@@ -113,6 +113,49 @@ class ExperimenterClient(object):
 			headers = {'Content-type': "application/vnd.api+json"},
 			json = feedbackdata
 		).json()['data']
+
+	def update_feedback(self, feedbackID, feedback):
+		"""Update feedback.
+		feedbackID: string (uuid)
+		feedback: string
+
+		if successful, returns dict with structure:
+		{
+			'attributes': {'comment': feedback},
+			'id': [feedback ID, new],
+			'links': {'self': [feedback URL]},
+			'relationships': {
+				'researcher': { 'links': { 'related': [researcher URL]}},
+				'response':	  { 'links': { 'related': [response URL]}},
+			'type': 'feedback'
+		}
+		"""
+
+		url = self._url_for_collection('feedback') + feedbackID + '/'
+
+		feedbackdata = {
+			"data": {
+				"attributes": {
+					 "comment": feedback
+				},
+			   "type": "feedback",
+			   "id": feedbackID
+			}
+		}
+
+		return self.session.patch(
+			url,
+			headers = {'Content-type': "application/vnd.api+json"},
+			json = feedbackdata
+		).json()['data']
+
+
+
+def get_all_feedback(): # TODO: DOC
+    client = ExperimenterClient()
+    feedback = client.fetch_collection_records('feedback')
+    allFeedback = {paths.get_collection_from_url(fb['relationships']['response']['links']['related']) : {'id': fb['id'], 'comment': fb['attributes']['comment']} for fb in feedback}
+    return allFeedback
 
 def update_session_data(experimentId, display=False):
 	'''Get session data from the server for this experiment ID and save'''
