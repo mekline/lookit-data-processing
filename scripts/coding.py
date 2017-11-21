@@ -41,7 +41,6 @@ class Experiment(object):
 	# updated. If an existing codesheet is committed before coding is updated OR a
 	# new coder sheet is created, a warning will be displayed that an expected field is
 	# missing.
-	# TODO: allow setting this more flexibly
 	coderFields = ['coderComments']
 	videoData = {}
 	accounts = {}
@@ -1775,20 +1774,15 @@ Partial updates:
 			reprocess=False, resetPaths=False, display=False)
 		assert len(unmatched) == 0
 		exp.update_videos_found()
-		if not settings['onlyMakeConcatIfConsent']:
-			exp.concatenate_session_videos('missing',
-				filter={'withdrawn': [None, False]},
-				display=False,
-				replace=False,
-				skipFunction=settings['concatSkipFunction'],
-				processingFunction=settings['concatProcessFunction'])
-		else:
-			exp.concatenate_session_videos('missing',
-				filter={'consent':['yes'], 'withdrawn':[None, False]},
-				display=False,
-				replace=False,
-				skipFunction=settings['concatSkipFunction'],
-				processingFunction=settings['concatProcessFunction'])
+		filter = {'withdrawn': [None, False]}
+		if settings['onlyMakeConcatIfConsent']:
+			filter['consent'] = ['yes']
+		exp.concatenate_session_videos('missing',
+			filter=filter,
+			display=False,
+			replace=False,
+			skipFunction=settings['concatSkipFunction'],
+			processingFunction=settings['concatProcessFunction'])
 		print '\nUpdate complete'
 
 	elif args.action == 'updatevcode':
