@@ -403,12 +403,18 @@ class Experiment(object):
 		allheaders = set()
 		for (userid, acc) in cls.accounts.items():
 			thisAcc = acc['attributes']
-			# TODO: restore once we have timestamp info for accounts
-			# thisAcc['meta.created-on'] = acc['meta']['created-on']
 			thisAcc['uuid'] = userid
+
 			profiles = thisAcc['children']
 			del thisAcc['children']
+
 			headers = headers | set(thisAcc.keys())
+
+			demo = thisAcc['demographics']
+			del thisAcc['demographics']
+			for (k, v) in demo.items():
+				thisAcc['demographics.' + k] = v
+
 			iCh = 0
 			if profiles:
 				for (childID, pr) in profiles.items():

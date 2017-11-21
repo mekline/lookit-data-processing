@@ -123,21 +123,27 @@ def update_session_data(experimentId, display=False):
 	backup_and_save(paths.session_filename(experimentId), exp)
 	if display:
 		printer.pprint(exp)
-	return exp
 	print("Synced session data for experiment: {}".format(experimentId))
 
-# TODO: Add demographic data
-def update_account_data():
+
+def update_account_data(): # TODO: doc
 	client = ExperimenterClient()
 
 	accountData = client.fetch_collection_records('users')
 	allAccounts = {acc[u'id']: acc for acc in accountData}
 
 	for (id, acc) in allAccounts.iteritems():
+
 		children = client.fetch_collection_records(acc['relationships']['children']['links']['related'])
 		childDict = {child['id']: child['attributes'] for child in children}
+
+		demographics = client.fetch_collection_records(acc['relationships']['demographics']['links']['related'])
+		demographics.sort(key=lambda d:d['attributes']['date_created'])
+
+		acc['attributes']['demographics'] = demographics[-1]['attributes'] if demographics else {}
 		acc['attributes']['children'] = childDict
 		allAccounts[id] = acc
+
 	print('Account data download complete. Found {} records'.format(len(accountData)))
 	backup_and_save(paths.ACCOUNT_FILENAME, allAccounts)
 
