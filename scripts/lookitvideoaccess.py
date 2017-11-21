@@ -4,9 +4,10 @@ import subprocess as sp
 import lookitpaths as paths
 from utils import backup_and_save
 import conf
+import experimenter
 
 def sync_S3(pull=False):
-	'''Download any new or modified video files from S3.
+	'''Download any new or modified video files from S3 for studies we can access.
 
 	pull: if true, also pull videos from wowza to S3 first.
 
@@ -15,8 +16,19 @@ def sync_S3(pull=False):
 		pull_from_wowza()
 		print('Pulled videos from Wowza')
 
+    # Get a list of studies we have access to via Lookit API..
+    # TODO: allow passing a study argument to fetch videos from just one study
+	client = experimenter.ExperimenterClient()
+	studies = client.fetch_collection_records('studies')
+	studyIds = [s['id'] for s in studies]
+	# Create a list of include options to add to the aws sync call to
+	# get only video from these studies
+	includeStudiesCommand = sum([['--include', '*_' + ID + '_*'] for ID in studyIds], [])
+
 	origVideos = paths.get_videolist()
-	sp.check_call(['aws', 's3', 'sync', 's3://mitLookit', paths.VIDEO_DIR, '--only-show-errors', '--metadata-directive', 'COPY'])
+	awsCommand = ['aws', 's3', 'sync', 's3://mitLookit', paths.VIDEO_DIR, '--only-show-errors', '--metadata-directive', 'COPY', '--exclude', '*'] + includeStudiesCommand
+	sp.check_call(awsCommand)
+
 	allVideos = paths.get_videolist()
 	newVideos = list(set(allVideos)-set(origVideos))
 	print "Downloaded {} videos:".format(len(newVideos))
