@@ -1743,6 +1743,11 @@ Partial updates:
 		print 'Exporting for ' + whichStudy
 		Experiment.export_accounts(expId=whichStudy)
 
+	elif args.action == 'exportaccounts':
+		whichStudy = args.study if args.study else 'all'
+		print 'Exporting for ' + whichStudy
+		Experiment.export_accounts(expId=whichStudy)
+
 	elif args.action == 'getvideos':
 		print 'Syncing videos with server...'
 		newVideos = sync_S3(pull=True)
@@ -1807,7 +1812,9 @@ Partial updates:
 						break
 
 				privacy = 'private' if not(sessData['attributes']['completed']) else sessData['attributes']['exp_data'][exitSurveyName]['useOfMedia']
-				childId = sessData['attributes']['profileId'][-5:]
+				print sessData['attributes'].keys()
+				context = paths.get_context_from_session(sessData)
+				childId = context['child']
 				print (sessKey, privacy, childId)
 				shortKey = paths.parse_session_key(sessKey)[1]
 				mp4Path = os.path.join(paths.SESSION_DIR, paths.session_video_path(exp.expId, sessCoding['child'], shortKey), exp.expId + '_' + shortKey + '.mp4')
