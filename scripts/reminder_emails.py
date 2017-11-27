@@ -1,43 +1,41 @@
 from sendgrid_client import EmailPreferences, SendGrid
 from coding import *
 from utils import printer
-from experimenter import update_account_data
+from experimenter import update_account_data, user_from_child, get_all_feedback
 import datetime
 import numpy as np
+import lookitpaths as paths
 
 '''Reminder emails for the Lookit physics study. Can also use as starting point to set up reminders for other studies.'''
 
-def get_username(profileId):
-	return profileId.split('.')[0]
+def get_email(user):
+	return exp.accounts[user]['attributes']['username']
 
-def get_email(username):
-	return exp.accounts[username]['attributes']['email']
-
-
-def getFeedbackToSend(allSessions, child):
+def getFeedbackToSend(allFeedback, theseSessions, child):
 
 	# Get list of feedback that's been given on any sessions
-	allFeedback = [ {'sessionId': sess['id'],
-				   'feedback': sess['attributes']['feedback'],
-				   'sessDate': datetime.datetime.strftime(datetime.datetime.strptime(sess['meta']['created-on'], '%Y-%m-%dT%H:%M:%S.%f'), '%B %d'),
-				   'progress': len([segment for segment in sess['attributes']['expData'].keys() if 'pref-phys-videos' in segment])} \
-				  for sess in allSessions if len(sess['attributes']['feedback'])]
+	theseFeedback = [ {
+						'sessionId': sess['id'],
+						'feedback': allFeedback[sess['id']]['comment'],
+						'sessDate': datetime.datetime.strftime(datetime.datetime.strptime(sess['attributes']['created_on'], '%Y-%m-%dT%H:%M:%S.%fZ'), '%B %d'),
+						'progress': len([segment for segment in sess['attributes']['exp_data'].keys() if 'pref-phys-videos' in segment])
+					}
+					for sess in theseSessions if sess['id'] in allFeedback.keys()]
 
 	# But only send feedback that hasn't been sent in previous emails
-	feedbackToSend = [f for f in allFeedback if not any([f['sessionId'] in e['feedbackKeys'] for e in exp.email.get(child, [])])]
+	feedbackToSend = [f for f in theseFeedback if not any([f['sessionId'] in e['feedbackKeys'] for e in exp.email.get(child, [])])]
 
 	return feedbackToSend
 
-def generate_email(allSessions, child, message, nCompleted, justFeedback=False):
-	feedbackToSend = getFeedbackToSend(allSessions, child)
+def generate_email(allFeedback, allSessions, child, message, nCompleted, justFeedback=False):
+	feedbackToSend = getFeedbackToSend(allFeedback, allSessions, child)
 
 	# Get username, email address, & names to use in email generation
-	participant = get_username(child)
+	participant = user_from_child(child)
 	acc =  exp.accounts[participant]
-	name = acc['attributes']['name']
-	childProfiles = acc['attributes']['profiles']
-	childNames = [prof['firstName'] for prof in childProfiles if prof['profileId'] == child]
-	childName = childNames[0] if len(childNames) else 'your child'
+	name = acc['attributes']['nickname']
+	childProfile = acc['attributes']['children'][child]
+	childName = childProfile.get('given_name', 'your child')
 
 	# Generate email text to send
 	body = 'Hi ' + (name if name else participant) + ',<br><br>'
@@ -48,9 +46,9 @@ def generate_email(allSessions, child, message, nCompleted, justFeedback=False):
 
 
 	if len(feedbackToSend):
-		body += "Here's some new feedback from the research team on your recent sessions: "
+		body += "Here's some new feedback from the research team on your recent sessions: <br><br>"
 	for feedback in feedbackToSend:
-		body += '	 ' + feedback['sessDate'] + ' ('
+		body += ' * ' + feedback['sessDate'] + ' ('
 		if feedback['progress'] >= 24:
 			body += 'complete): '
 		else:
@@ -75,16 +73,6 @@ def generate_email(allSessions, child, message, nCompleted, justFeedback=False):
 
 # Email timing
 emailsScheduled = {
-#	  'tried2': {
-#		  'success': False,
-#		  'days': 2,
-#		  'subject': '',
-#		  'message': "It's been a few days since you tried to participate!"},
-#	  'tried7': {
-#		  'success': False,
-#		  'days': 7,
-#		  'subject': '',
-#		  'message': "Last week you tried to participate!"},
 	'started2': {
 		'success': True,
 		'days': 2,
@@ -120,22 +108,21 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	study = coding_settings.studyNicknames.get(args.study, args.study)
 
-
-	update_account_data()
+	#update_account_data()
 	exp = Experiment(study)
 	exp.update_saved_sessions()
+	accounts = Experiment.load_account_data()
+	allFeedback = get_all_feedback()
 
-	# Get list of all participants
-	children = list(set([sess['attributes']['profileId'] for sess in exp.sessions])) # full profile ID, e.g. kim2.zwmst
+	# Get list of all unique participants
 
-	print("Sending reminder emails. All accounts participating in this study:")
-	print(", ".join(list(set([get_username(child) for child in children]))))
+	children = list(set([paths.get_context_from_session(sess)['child'] for sess in exp.sessions]))
+
+	print("Sending reminder emails. All children participating in this study:")
+	print(", ".join(children))
 
 	# Get SendGrid object & unsubscribe group for notifications
 	sg = SendGrid()
-	groups = sg.groups()
-	group = groups['nextSession']
-	groupId = group['id']
 
 	# Date/time to use for determining whether to send email yet
 	td = datetime.datetime.today()
@@ -145,20 +132,20 @@ if __name__ == '__main__':
 		print "***********	" + child
 
 		# Get list of all sessions completed by this child
-		allSessions = [sess for sess in exp.sessions if sess['attributes']['profileId'] == child]
+		allSessions = [sess for sess in exp.sessions if paths.get_context_from_session(sess)['child'] == child]
 
 		# Sort by time completed
-		allSessions = sorted(allSessions, key=lambda sess:datetime.datetime.strptime(sess['meta']['created-on'], '%Y-%m-%dT%H:%M:%S.%f'))
+		allSessions = sorted(allSessions, key=lambda sess:datetime.datetime.strptime(sess['attributes']['created_on'], '%Y-%m-%dT%H:%M:%S.%fZ'))
 
 		# Figure out how many "real" sessions to count & when last was.
 
 		# 1. Require at least one pref-phys-videos segment
-		theseSessions = [sess for sess in allSessions if any(['pref-phys-videos' in segment for segment in sess['attributes']['expData'].keys()])]
+		theseSessions = [sess for sess in allSessions if any(['pref-phys-videos' in segment for segment in sess['attributes']['exp_data'].keys()])]
 
 		# 2. Don't include sessions within 8 hrs of a previous session
 		anyTooClose = True
 		while anyTooClose:
-			sessDatetimes = [datetime.datetime.strptime(sess['meta']['created-on'], '%Y-%m-%dT%H:%M:%S.%f') for sess in theseSessions]
+			sessDatetimes = [datetime.datetime.strptime(sess['attributes']['created_on'], '%Y-%m-%dT%H:%M:%S.%fZ') for sess in theseSessions]
 			daysSinceSession = [ float((td - sd).total_seconds())/86400 for sd in sessDatetimes]
 
 			dayDiffs = np.subtract(daysSinceSession[:-1], daysSinceSession[1:])
@@ -171,7 +158,7 @@ if __name__ == '__main__':
 		# A. Has only unsuccessfully tried to participate, FIRST trial was N days ago...
 		anySuccess = len(theseSessions) > 0
 		if not anySuccess:
-			firstSessionDate = datetime.datetime.strptime(allSessions[0]['meta']['created-on'], '%Y-%m-%dT%H:%M:%S.%f')
+			firstSessionDate = datetime.datetime.strptime(allSessions[0]['attributes']['created_on'], '%Y-%m-%dT%H:%M:%S.%fZ')
 			sincePrev = float((td - firstSessionDate).total_seconds())/86400
 
 		# B. Has successfully participated at least once; LAST successful trial was N days ago...
@@ -184,7 +171,7 @@ if __name__ == '__main__':
 		sendEmail = len(eligible) > 0 and len(theseSessions) < idealSessions and sincePrev < maxDaysSinceLast
 
 		# Also send an email if we	have feedback to send, even if it hasn't been long enough to trigger a reminder
-		feedbackToSend = getFeedbackToSend(allSessions, child)
+		feedbackToSend = getFeedbackToSend(allFeedback, allSessions, child)
 		justFeedback = not sendEmail and len(feedbackToSend)
 		if justFeedback and args.feedback:
 			eligible = [('thanks', {
@@ -201,20 +188,22 @@ if __name__ == '__main__':
 
 			# Have we already sent this reminder to this child?
 			alreadySent = emailName in [e['emailName'] for e in exp.email.get(child, [])]
-			recipient = get_email(get_username(child))
+
+			user = user_from_child(child)
+			recipient = get_email(user)
+			acc = accounts[user]
 
 			if (not alreadySent) or emailName == 'thanks':
 
-				(body, feedbackToSend) = generate_email(allSessions, child, message, len(theseSessions), justFeedback=justFeedback)
+				(body, feedbackToSend) = generate_email(allFeedback, allSessions, child, message, len(theseSessions), justFeedback=justFeedback)
 
-				if recipient in args.emails or 'all' in args.emails:
+				if (recipient in args.emails or 'all' in args.emails) and acc['attributes']['email_next_session']:
 					print "Actually sending email:"
 					print (recipient, body)
 					status = sg.send_email_to(
 						recipient,
 						emailDesc['subject'],
-						body,
-						group_id=groupId
+						body
 					)
 					if status == 200:
 						# Record in list of emails sent to this child
@@ -237,7 +226,7 @@ if __name__ == '__main__':
 				print "Has successfully participated {} times; last session was {} days ago.".format(len(theseSessions), sincePrev)
 
 			print 'Recipient is unsubscribed from this list: {}'.format(
-				recipient in sg.unsubscribes_for(group))
+				not acc['attributes']['email_next_session'])
 
 			if sendEmail:
 				print 'Time to send email ({})'.format(emailName)

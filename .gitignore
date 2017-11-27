@@ -39,3 +39,4 @@ migration/output/*
 *.pyc
 scripts/*.json
 updateECCL.sh
+geometryemaildata.py

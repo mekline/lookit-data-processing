@@ -4,7 +4,6 @@ import json
 
 import conf
 
-
 class EmailPreferences(object):
 
     ASM_MAPPING = {
@@ -66,6 +65,8 @@ class SendGrid(object):
         return None
 
     def send_email_to(self, email, subject, body, group_id=None, plaintext=None):
+
+        body += "<br><br>You can update your email settings or unsubscribe here: <a href='https://lookit.mit.edu/account/email/'>https://lookit.mit.edu/account/email/</a><br>"
 
         if plaintext == None:
             plaintext = self.make_plaintext(body)
