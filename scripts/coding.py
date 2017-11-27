@@ -26,6 +26,12 @@ import coding_settings
 
 import physics_analysis
 
+# TODO:
+# - Documentation throughout
+# - sessKey vs. sessId, long expID vs. short
+# - clear up cases where we use API during analysis - should be able to use
+# local lookups.
+
 class Experiment(object):
 	'''Represent a Lookit experiment with stored session, coding, & video data.'''
 
@@ -430,7 +436,8 @@ class Experiment(object):
 		# Order headers in the file: initial list, then regular, then child-profile
 		initialHeaders = [u'uuid', u'date_created']
 		childHeaders = allheaders - headers
-		headers = list(headers - set(initialHeaders))
+		# Never show username in exported account sheet, even if we have access to it
+		headers = list(headers - set(initialHeaders) - set(['username']))
 		headers.sort()
 		childHeaders = list(childHeaders)
 		childHeaders.sort()
@@ -1665,6 +1672,7 @@ Partial updates:
 			   'commitconsentsheet': ['coder', 'study'],
 			   'sendfeedback': ['study'],
 			   'updateaccounts': [],
+			   'exportaccounts': [],
 			   'getvideos': [],
 			   'updatesessions': ['study'],
 			   'processvideo': ['study'],
@@ -1769,15 +1777,15 @@ Partial updates:
 	elif args.action == 'update':
 
 		print '\nStarting Lookit update, {:%Y-%m-%d %H:%M:%S}\n'.format(datetime.datetime.now())
-		update_account_data()
-		Experiment.export_accounts()
+		#update_account_data()
+		#Experiment.export_accounts()
 		exp.accounts = exp.load_account_data()
 		newVideos = sync_S3(pull=True)
 		exp.update_saved_sessions()
 		exp.update_coding(display=False, processingFunction=settings['codingProcessFunction'])
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(
 			reprocess=False, resetPaths=False, display=False)
-		assert len(unmatched) == 0
+		#assert len(unmatched) == 0
 		exp.update_videos_found()
 		filter = {'withdrawn': [None, False]}
 		if settings['onlyMakeConcatIfConsent']:
