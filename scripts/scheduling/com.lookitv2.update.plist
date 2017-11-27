@@ -7,11 +7,11 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/kms/lookit/scripts/updateLookit.sh</string>
+    <string>/Users/kms/lookitanalysis/scripts/updateLookit.sh</string>
   </array>
 
   	<key>WorkingDirectory</key>
-	<string>/Users/kms/lookit/scripts/</string>
+	<string>/Users/kms/lookitanalysis/scripts/</string>
 
 
   <key>StartCalendarInterval</key>
@@ -26,9 +26,9 @@
   <true/>
 
   <key>StandardErrorPath</key>
-  <string>/Users/kms/lookit/scripts/autoSync.err</string>
+  <string>/Users/kms/lookitanalysis/scripts/autoSync.err</string>
 
   <key>StandardOutPath</key>
-  <string>/Users/kms/lookit/scripts/autoSync.out</string>
+  <string>/Users/kms/lookitanalysis/scripts/autoSync.out</string>
 </dict>
 </plist>
