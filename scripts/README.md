@@ -33,10 +33,6 @@ SENDGRID_KEY=<your-sendgrid-acct-key>
 WOWZA_PHP='{"minRecordTime":1,"showMenu":"false","showTimer":"false","enableBlinkingRec":1,"skipInitialScreen":1,"recordAgain":"false","showSoundBar":"false","hideDeviceSettingsButtons":1,"connectionstring":"rtmps://lookit-streaming.mit.edu/hdfvr/_lookit_"}'
 WOWZA_ASP='{"showMenu":"false","loopbackMic":"true","skipInitialScreen":1,"showSoundBar":"false","snapshotEnable":"false"}'
 
-JAMDB_URL=https://metadata.osf.io
-JAMDB_NAMESPACE=lookit
-JAM_URL=https://metadata.osf.io
-JAM_NAMESPACE=lookit
 LOOKIT_URL=https://lookit.mit.edu
 
 BASE_DIR='/Users/kms/lookitcodingmultilab/'
@@ -71,10 +67,13 @@ For instructions on how to use coding.py, type
 	python coding.py --help
 from this directory.
 
-### Initial installation so client.py can work:
+### Installation
 
 - Get token
-- Install pyenv (https://github.com/yyuu/pyenv), due to issues with regular python. Follow all instructions there, using homebrew. (Kim saw error "The Python zlib extension was not compiled. Missing the zlib? Please consult to the Wiki page to fix the problem. https://github.com/yyuu/pyenv/wiki/Common-build-problems. Solution: Needed to use `CFLAGS="-I$(xcrun --show-sdk-path)/usr/include" pyenv install -v 2.7.11` to install.)
+
+- Install pyenv (https://github.com/yyuu/pyenv)
+
+- Install python 2.7.x using pyenv, e.g. pyenv install 2.7.11
 
 - Install virtualenv: `[sudo] pip install virtualenv`
 
@@ -84,7 +83,8 @@ from this directory.
 	  source venv/bin/activate
 	  pip install -r requirements.txt
 
-- For framework version, separately:
+- If using matplotlib, make a separate virtualenv:
+
 ```
 	brew install python --framework
 	virtualenv -p /usr/local/Cellar/python/2.7.12_1/bin/python2.7 fwenv
@@ -121,32 +121,6 @@ pip install scipy
 
 Now to run anything that requires matplotlib, use frameworkpython in place of python.
 
-
-### To start using:
-
-- Create a file .env in this directory like this, substituting in a reasonable base location for the video/batch/session/data/coding directories.
-
-```
-	OSF_ACCESS_TOKEN=<OSF ACCESS TOKEN HERE!>
-
-	OSF_CLIENT_ID=<application_client_id>
-	OSF_SCOPE=osf.users.all_read
-	OSF_URL=https://staging-accounts.osf.io
-
-	WOWZA_PHP='{}'
-	WOWZA_ASP='{}'
-
-	JAMDB_URL=https://staging-metadata.osf.io
-	JAMDB_NAMESPACE=experimenter
-
-	VIDEO_DIR='/Users/kms/lookitcoding/video'
-	BATCH_DIR='/Users/kms/lookitcoding/batches'
-	SESSION_DIR='/Users/kms/lookitcoding/sessions'
-	DATA_DIR='/Users/kms/lookitcoding/data'
-	CODING_DIR='/Users/kms/lookitcoding/coding'
-	FFMPEG_PATH='/usr/local/bin/ffmpeg'
-```
-
 - Install AWS command-line tools: see    http://docs.aws.amazon.com/cli/latest/userguide/installing.html
     
     `sudo pip install awscli`
@@ -174,25 +148,6 @@ Now to run anything that requires matplotlib, use frameworkpython in place of py
 - (I have also now set up a weekly job that just sends the feedback-only emails as needed)
 
 
-### Setting up for data analysis if you want to use ipython
-
-- Install MacPorts.
-
-- Outside of the venv, set up numpy/scipy/matplotlib/ipython stack:
-
-    `sudo port install py27-numpy py27-scipy py27-matplotlib py27-ipython +notebook py27-pandas py27-sympy py27-nose`
-
-    (follow additional warnings/instructions during install)
-
-- Get pip for the version of python used by ipython:
-download get-pip.py from https://packaging.python.org/installing/
-`sudo python2.7 get-pip.py`
-
-- Install packages on this version as needed with this pip:
-sudo python2.7 -m pip install requests
-sudo python2.7 -m pip install -U python-dotenv
-
-
 ### Local data storage overview 
 
 
@@ -210,50 +165,7 @@ Coding: dict with sessionKey as keys, values are dicts with structure:
 - videosExpected: list of video filenames expected, based on session data
 - videosFound: list of video filenames actually found; list of lists corresponding to videosExpected
 
-Accounts: dict with usernames as keys; example of value:
-
-```json
-
-u'samchrisnger': {	 
-    u'attributes': {	
-        u'demographicsAdditionalComments': None,
-		u'demographicsAge': None,
-        u'demographicsAnnualIncome': None,
-        u'demographicsCanScheduleAnAppointment': None,
-        u'demographicsEducationLevel': None,
-        u'demographicsGender': None,
-        u'demographicsLanguagesSpokenAtHome': u'',
-        u'demographicsNumberOfBooks': None,
-        u'demographicsNumberOfChildren': u'0',
-        u'demographicsNumberOfGuardians': None,
-        u'demographicsNumberOfGuardiansExplanation': None,
-        u'demographicsRaceIdentification': None,
-        u'demographicsSpouseEducationLevel': None,
-        u'demographicsWillingToBeContactedForSimilarStudies': None,
-        u'email': u's.chrisinger@gmail.com',
-        u'emailPreferencesNewStudies': False,
-        u'emailPreferencesResearcherQuestions': False,
-        u'emailPreferencesResultsPublished': False,
-        u'mustResetPassword': False,
-        u'password': u'$2b$12$eEGfB9n.ToKtSDnEVBjkeurXSt/Lj308jHFguNBM3QuhZa1.la1Ga',
-        u'profiles': [	 {	 u'ageAtBirth': u'Over 24 Weeks',
-                             u'birthday': u'2015-11-13T05:00:00.000Z',
-                             u'firstName': u'Sam',
-                             u'gender': u'Male',
-                             u'profileId': u'samchrisnger.pnazo'}],
-        u'username': u'samchrisnger'
-     },
-     u'id': u'experimenter.accounts.samchrisnger',
-     u'meta': {	  u'created-by': u'jam-experimenter:accounts-samchrisnger',
-                  u'created-on': u'2016-03-17T15:21:30.792581',
-                  u'modified-by': u'jam-experimenter:accounts-samchrisnger',
-                  u'modified-on': u'2016-03-17T15:36:36.355045',
-                  u'permissions': u'ADMIN'
-     }
-    }
-
-```
-
+Accounts: dict with user uuids as keys; example of value:
 
 Sessions: array of dicts each with the following structure (directly from server):
 - Attributes
@@ -293,6 +205,3 @@ Videos: keys are filenames (.flv)
 email: keys are profileIds (e.g. kim2.zlkjs), values are lists of emails sent regarding that child's participation in this study.
 
 Note: suffix is 'whole' or 'trimmed'; these fields are created when updating video data, although others could also be added.
-
-
-

@@ -24,8 +24,6 @@ import argparse
 import unittest
 import coding_settings
 
-import physics_analysis
-
 # TODO:
 # - Documentation throughout
 # - sessKey vs. sessId, long expID vs. short
@@ -1798,6 +1796,7 @@ Partial updates:
 			processingFunction=settings['concatProcessFunction'])
 		print '\nUpdate complete'
 
+    # TODO: set up basic analysis, v2
 	elif args.action == 'updatevcode':
 		physics_analysis.read_vcode_coding(exp, filter={'consent':['yes'], 'withdrawn':[None, False]})
 		physics_analysis.summarize_results(exp)
