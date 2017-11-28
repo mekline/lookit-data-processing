@@ -65,7 +65,7 @@ def get_video_details(vidName, whichAttr, fullpath=False):
         if attr == 'duration':
             returnVal = float(ffprobeOutput['format']['duration'])
         elif attr == 'bitrate':
-            returnVal = float(ffprobeOutput['format']['bit_rate'])
+            returnVal = float(ffprobeOutput['format'].get('bit_rate', 0))
         elif attr == 'starttime':
             returnVal = float(ffprobeOutput['format']['start_time'])
         # Attributes that require a video/audio stream...
