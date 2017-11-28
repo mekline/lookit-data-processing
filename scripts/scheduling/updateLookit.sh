@@ -3,7 +3,7 @@ say "Updating Lookit version 2 studies and sending reminder emails"
 
 now=$(date +"%m_%d_%Y")
 timestamp=$(date +"%Y_%m_%d_%H_%M_%S")
-mv /Users/kms/lookit/scripts/logs/autoSync.out /Users/kms/lookit/scripts/logs/autoSync_$timestamp.out
+mv /Users/kms/lookitanalysis/scripts/logs/autoSync.out /Users/kms/lookitanalysis/scripts/logs/autoSync_$timestamp.out
 
 frameworkpython coding.py updateaccounts
 frameworkpython coding.py update --study physics

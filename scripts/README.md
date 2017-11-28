@@ -4,7 +4,7 @@
 
 ### TODO: document new config steps.
 
-### Generate a token
+### Generate OSF token
 You will need to generate a personal access token on the OSF to run this script. Visit:
 
 - [https://staging.osf.io/settings/tokens/](https://staging.osf.io/settings/tokens/)  _or_
@@ -15,6 +15,9 @@ to do this.
 ![example](https://raw.githubusercontent.com/CenterForOpenScience/lookit/develop/scripts/pat-example.png)
 
 **Make sure to save this token's value! You will not be able to retrieve it again.**
+
+### Obtain Lookit token
+You will also need a Lookit token, generated via the Lookit admin interface.
 
 ### Create a .env
 
@@ -50,26 +53,9 @@ Each the scripts accept an argument to point to a specific .env file (e.g. '.env
 python coding.py -config .env-stage
 ```
 
-## Install
-
-1. Create a virtualenvironment using a python 2.7.X executable
-2. `pip install -r requirements.txt`
-
-# Included Code
-
-## coding.py
-
-To use the coding functions, first navigate to this directory (scripts) by opening the
-Terminal program and typing cd [path to scripts], e.g.
-cd /Volumes/NovelToy2/CurrentProjects/Lookit/scripts/
-
-For instructions on how to use coding.py, type
-	python coding.py --help
-from this directory.
-
 ### Installation
 
-- Get token
+- Clone this repo
 
 - Install pyenv (https://github.com/yyuu/pyenv)
 
@@ -77,11 +63,14 @@ from this directory.
 
 - Install virtualenv: `[sudo] pip install virtualenv`
 
-- Create virtualenv in scripts dir
+- Create virtualenv in scripts dir & install requirements
 
 	  virtualenv -p ~/.pyenv/versions/2.7.11/bin/python2.7 venv
 	  source venv/bin/activate
 	  pip install -r requirements.txt
+	  
+- Install ffmpeg (note: this is not isolated along with python dependencies!):
+brew options ffmpeg, then install w/ as many options as possible (except chromaprint). with-freetype is definitely required; not sure of all others.
 
 - If using matplotlib, make a separate virtualenv:
 
@@ -132,6 +121,14 @@ Now to run anything that requires matplotlib, use frameworkpython in place of py
 
 - `source venv/bin/activate` in order to get into the virtual environment; then can call python scripts.
 
+- To use the coding functions, first navigate to this directory (scripts) by opening the
+Terminal program and typing cd [path to scripts], e.g.
+cd /Volumes/NovelToy2/CurrentProjects/Lookit/scripts/
+
+For instructions on how to use coding.py, type
+	python coding.py --help
+from this directory.
+
 ### Setting up automation, on OSX:
 
 - Edit the .plist file to use the correct path to updateLookit.sh (in this directory), to set the working directory to this directory, and to use .err/.out files in this directory. (Replace /Users/kms/lookitkim/scripts/ with this directory wherever you see it.)
@@ -141,15 +138,7 @@ Now to run anything that requires matplotlib, use frameworkpython in place of py
 - You can stop using launchctl unload ~/Library/LaunchAgents/com.lookit.update.plist.
 - You can see the output and any errors in autoSync.err and autoSync.out.
 
-- To start also sending emails, will need to add the line
-	python reminder_emails.py --study physics --emails all
-	to updateLookit.sh
-
-- (I have also now set up a weekly job that just sends the feedback-only emails as needed)
-
-
 ### Local data storage overview 
-
 
 .env file defines:
 - Video directory (where raw videos live)
