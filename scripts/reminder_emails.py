@@ -44,7 +44,7 @@ def generate_email(allSessions, child, message, nCompleted, justFeedback=False):
 	if justFeedback:
 		body += message + "<br> "
 	else:
-		body += message + "This study will be one of the first to look in detail not just at infants' abilities collectively, but at individual differences in their expectations and styles of responding. But to do that, we need families to keep coming back so we can gather enough data from each child.<br><br>Our goal--unprecedented in cognitive development research--is to observe as many participants as possible over at least " + str(idealSessions) + " sessions each. Will you and " + childName + " <a href='https://lookit.mit.edu' target=_blank>come back to Lookit</a> to help out? We're ready if you are, and you can participate any time that's convenient for you!<br><br> "
+		body += message + "This study will be one of the first to look in detail not just at infants' abilities collectively, but at individual differences in their expectations and styles of responding. But to do that, we need families to keep coming back so we can gather enough data from each child.<br><br>Our goal--unprecedented in cognitive development research--is to observe as many participants as possible over at least " + str(idealSessions) + " sessions each. Will you and " + childName + " <a href='https://lookit.cos.io' target=_blank>come back to Lookit</a> to help out? We're ready if you are, and you can participate any time that's convenient for you!<br><br>Note: because of recent changes to the site, we're asking that you return to lookit.cos.io (linked above) rather than the updated lookit.mit.edu to complete any further sessions.<br><br>"
 
 
 	if len(feedbackToSend):
@@ -106,7 +106,7 @@ emailsScheduled = {
 		'subject': "It's been a few weeks since your last 'Your baby the physicist' session - ready to come back?",
 		'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit with your child! "}}
 
-idealSessions = 15
+idealSessions = 12
 maxDaysSinceLast = 60
 
 if __name__ == '__main__':
@@ -155,14 +155,14 @@ if __name__ == '__main__':
 		# 1. Require at least one pref-phys-videos segment
 		theseSessions = [sess for sess in allSessions if any(['pref-phys-videos' in segment for segment in sess['attributes']['expData'].keys()])]
 
-		# 2. Don't include sessions within 8 hrs of a previous session
+		# 2. Don't include sessions within 6 hrs of a previous session
 		anyTooClose = True
 		while anyTooClose:
 			sessDatetimes = [datetime.datetime.strptime(sess['meta']['created-on'], '%Y-%m-%dT%H:%M:%S.%f') for sess in theseSessions]
 			daysSinceSession = [ float((td - sd).total_seconds())/86400 for sd in sessDatetimes]
 
 			dayDiffs = np.subtract(daysSinceSession[:-1], daysSinceSession[1:])
-			tooClose = [i for i, diff in enumerate(dayDiffs) if diff < 1./3]
+			tooClose = [i for i, diff in enumerate(dayDiffs) if diff < 1./4]
 			anyTooClose = len(tooClose) > 0
 
 			if anyTooClose:
@@ -177,6 +177,9 @@ if __name__ == '__main__':
 		# B. Has successfully participated at least once; LAST successful trial was N days ago...
 		else:
 			sincePrev = daysSinceSession[-1]
+
+		sessDatetimes = [datetime.datetime.strptime(sess['meta']['created-on'], '%Y-%m-%dT%H:%M:%S.%f') for sess in theseSessions]
+		lastSession = max(sessDatetimes) if sessDatetimes else 0
 
 		# Has it been long enough to send each scheduled email?
 		eligible = sorted([(emailName, emailDesc) for (emailName, emailDesc) in emailsScheduled.items() if sincePrev > emailDesc['days'] and anySuccess == emailDesc['success']], key=lambda e:e[1]['days'])
@@ -199,8 +202,10 @@ if __name__ == '__main__':
 			(emailName, emailDesc) = eligible[-1] # send most-recently triggered
 			message = emailDesc['message']
 
-			# Have we already sent this reminder to this child?
-			alreadySent = emailName in [e['emailName'] for e in exp.email.get(child, [])]
+			# Have we already sent this reminder to this child? - *with no new session since then*?
+			alreadySent = any([(emailName == e['emailName']) and e['dateSent'] > lastSession for e in exp.email.get(child, [])])
+			{'actualDaysPast': 2.351352673622685, 'dateSent': datetime.datetime(2017, 9, 26, 6, 58, 21, 792803), 'success': True, 'daysPastToSend': 2, 'emailName': 'started2', 'feedbackKeys': [], 'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit a few days ago with your child! "}
+
 			recipient = get_email(get_username(child))
 
 			if (not alreadySent) or emailName == 'thanks':
