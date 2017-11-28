@@ -630,7 +630,7 @@ class Experiment(object):
 				# Add framerate/etc. info if needed
 				if reprocess or not alreadyHaveRecord:
 					(nFrames, dur, bitRate) = videoutils.get_video_details(vidName, ['nframes', 'duration', 'bitrate'])
-					thisVideo['framerate'] = nFrames/dur
+					thisVideo['framerate'] = nFrames/dur if dur else 0
 					thisVideo['duration'] = dur
 					thisVideo['bitRate'] = bitRate
 
