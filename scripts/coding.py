@@ -311,7 +311,7 @@ class Experiment(object):
 			if videoOnlyDur > 0:
 				print "Making {} mp4 starting at time {} for vid: {}".format(suffix, trimming[iVid] if doTrimming else '0', vid)
 
-				# Make audio-only file
+				# Make audio-only file. Pad audio so it's definitely longer than video (later we use the shortest stream)
 				filterComplexAudio = '[0:a]' + trimStrAudio + 'asetpts=PTS-STARTPTS,apad=pad_len=100000'
 				audioPath = os.path.join(sessionDir, vid[:-4] + '_audio.m4a')
 				sp.call([paths.FFMPEG, '-i', vidPath, '-vn', '-filter_complex', filterComplexAudio, '-c:a', 'libfdk_aac', '-loglevel', cls.loglevel, audioPath])
@@ -324,7 +324,7 @@ class Experiment(object):
 					sp.call([paths.FFMPEG, '-i', noAudioPath,  '-i', audioPath, '-c:v', 'copy', '-c:a', 'copy', '-shortest', '-loglevel', cls.loglevel, mergedPath])
 
 				# Check the duration of the newly created clip
-				(dur, startTime) = videoutils.get_video_details(mergedPath, ['duration', 'starttime'],	fullpath=True)
+				(dur, startTime) = videoutils.get_video_details(mergedPath, ['vidduration', 'starttime'],	fullpath=True)
 
 				# Save the (relative) path to the mp4 and its duration
 				vidData[vid] = {}
