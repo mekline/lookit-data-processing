@@ -55,7 +55,7 @@ def generate_email(allFeedback, allSessions, child, message, nCompleted, justFee
 			body += str(feedback['progress']) + ' of 24 videos): '
 		body += '"' + feedback['feedback'] + '"<br><br>'
 
-	body += 'Our records indicate that you have already completed ' + str(nCompleted) + ' of the 15 sessions'
+	body += 'Our records indicate that you have already completed ' + str(nCompleted) + ' of the 12 sessions'
 	if (idealSessions+1)/2 < nCompleted < (idealSessions - 4):
 		body += ' (more than halfway done)!'
 	elif (idealSessions - 4) <= nCompleted < idealSessions:
