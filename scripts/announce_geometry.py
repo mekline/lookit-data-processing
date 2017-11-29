@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # Get SendGrid object & unsubscribe group for notifications
     sg = SendGrid()
 
-    logfilename = '/Users/kms/lookit/scripts/logs/sentgeometryannouncement.txt'
+    logfilename = '/Users/kms/lookit-v2/scripts/logs/sentgeometryannouncement.txt'
 
     with open(logfilename) as f:
         alreadySent = f.readlines()

@@ -3,15 +3,15 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.kms.launchtest</string>
+  <string>com.lookitv2.updatev2</string>
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/kms/lookitanalysis/scripts/updateLookit.sh</string>
+    <string>/Users/kms/lookit-v2/scripts/scheduling/updateLookit.sh</string>
   </array>
 
   	<key>WorkingDirectory</key>
-	<string>/Users/kms/lookitanalysis/scripts/</string>
+	<string>/Users/kms/lookit-v2/scripts/</string>
 
 
   <key>StartCalendarInterval</key>
@@ -26,9 +26,9 @@
   <true/>
 
   <key>StandardErrorPath</key>
-  <string>/Users/kms/lookitanalysis/scripts/autoSync.err</string>
+  <string>/Users/kms/lookit-v2/scripts/autoSync.err</string>
 
   <key>StandardOutPath</key>
-  <string>/Users/kms/lookitanalysis/scripts/autoSync.out</string>
+  <string>/Users/kms/lookit-v2/scripts/autoSync.out</string>
 </dict>
 </plist>
