@@ -327,7 +327,7 @@ class Experiment(object):
 					sp.call([paths.FFMPEG, '-i', noAudioPath,  '-i', audioPath, '-c:v', 'copy', '-c:a', 'copy', '-shortest', '-loglevel', cls.loglevel, mergedPath])
 
 				# Check the duration of the newly created clip
-				(dur, startTime) = videoutils.get_video_details(mergedPath, ['duration', 'starttime'],	fullpath=True)
+				(dur, startTime) = videoutils.get_video_details(mergedPath, ['vidduration', 'starttime'],	fullpath=True)
 
 				# Save the (relative) path to the mp4 and its duration
 				vidData[vid] = {}
@@ -629,7 +629,7 @@ class Experiment(object):
 				# Add framerate/etc. info if needed
 				if reprocess or not alreadyHaveRecord:
 					(nFrames, dur, bitRate) = videoutils.get_video_details(vidName, ['nframes', 'duration', 'bitrate'])
-					thisVideo['framerate'] = nFrames/dur
+					thisVideo['framerate'] = nFrames/dur if dur else 0
 					thisVideo['duration'] = dur
 					thisVideo['bitRate'] = bitRate
 

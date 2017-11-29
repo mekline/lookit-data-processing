@@ -94,7 +94,7 @@ emailsScheduled = {
 		'subject': "It's been a few weeks since your last 'Your baby the physicist' session - ready to come back?",
 		'message': "Thank you so much for participating in the study 'Your baby the physicist' on Lookit with your child! "}}
 
-idealSessions = 15
+idealSessions = 12
 maxDaysSinceLast = 60
 
 if __name__ == '__main__':
@@ -142,14 +142,14 @@ if __name__ == '__main__':
 		# 1. Require at least one pref-phys-videos segment
 		theseSessions = [sess for sess in allSessions if any(['pref-phys-videos' in segment for segment in sess['attributes']['exp_data'].keys()])]
 
-		# 2. Don't include sessions within 8 hrs of a previous session
+		# 2. Don't include sessions within 6 hrs of a previous session
 		anyTooClose = True
 		while anyTooClose:
 			sessDatetimes = [datetime.datetime.strptime(sess['attributes']['created_on'], '%Y-%m-%dT%H:%M:%S.%fZ') for sess in theseSessions]
 			daysSinceSession = [ float((td - sd).total_seconds())/86400 for sd in sessDatetimes]
 
 			dayDiffs = np.subtract(daysSinceSession[:-1], daysSinceSession[1:])
-			tooClose = [i for i, diff in enumerate(dayDiffs) if diff < 1./3]
+			tooClose = [i for i, diff in enumerate(dayDiffs) if diff < 1./4]
 			anyTooClose = len(tooClose) > 0
 
 			if anyTooClose:
@@ -164,6 +164,9 @@ if __name__ == '__main__':
 		# B. Has successfully participated at least once; LAST successful trial was N days ago...
 		else:
 			sincePrev = daysSinceSession[-1]
+
+		sessDatetimes = [datetime.datetime.strptime(sess['attributes']['created_on'], '%Y-%m-%dT%H:%M:%S.%fZ') for sess in theseSessions]
+		lastSession = max(sessDatetimes) if sessDatetimes else 0
 
 		# Has it been long enough to send each scheduled email?
 		eligible = sorted([(emailName, emailDesc) for (emailName, emailDesc) in emailsScheduled.items() if sincePrev > emailDesc['days'] and anySuccess == emailDesc['success']], key=lambda e:e[1]['days'])
@@ -186,8 +189,9 @@ if __name__ == '__main__':
 			(emailName, emailDesc) = eligible[-1] # send most-recently triggered
 			message = emailDesc['message']
 
-			# Have we already sent this reminder to this child?
-			alreadySent = emailName in [e['emailName'] for e in exp.email.get(child, [])]
+			# Have we already sent this reminder to this child? - *with no new session since then*?
+			alreadySent = any([(emailName == e['emailName']) and e['dateSent'] > lastSession for e in exp.email.get(child, [])])
+
 
 			user = user_from_child(child)
 			recipient = get_email(user)
