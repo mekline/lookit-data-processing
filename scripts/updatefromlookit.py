@@ -8,6 +8,7 @@ import lookitpaths as paths
 from utils import backup_and_save
 import conf
 import pickle
+import coding_settings
 
 def sync_S3(pull=False):
 	'''Download any new or modified video files from S3.
@@ -20,7 +21,10 @@ def sync_S3(pull=False):
 		print('Pulled videos from Wowza')
 
 	origVideos = paths.get_videolist()
-	sp.check_call(['aws', 's3', 'sync', 's3://mitLookit', paths.VIDEO_DIR, '--only-show-errors', '--metadata-directive', 'COPY'])
+	studyIds = coding_settings.studyNicknames.values()
+	includeStudiesCommand = sum([['--include', '*_' + ID + '_*'] for ID in studyIds], [])
+	awsCommand = ['aws', 's3', 'sync', 's3://mitLookit', paths.VIDEO_DIR, '--only-show-errors', '--metadata-directive', 'COPY', '--exclude', '*'] + includeStudiesCommand
+	sp.check_call(awsCommand)
 	allVideos = paths.get_videolist()
 	newVideos = list(set(allVideos)-set(origVideos))
 	print "Downloaded {} videos:".format(len(newVideos))
