@@ -31,6 +31,7 @@ class SendGrid(object):
             apikey or conf.SENDGRID_KEY
         )
         self.from_addr = from_addr or 'Lookit team <lookit@mit.edu>'
+        self.bcc_addr = 'lookit-sent@mit.edu'
 
     def groups(self):
         res = self.sg.client.asm.groups.get()
@@ -72,6 +73,8 @@ class SendGrid(object):
             plaintext = self.make_plaintext(body)
         message = sendgrid.Mail()
         message.add_to(email)
+        # TODO: add_to_name
+        message.add_bcc(self.bcc_addr)
         message.set_subject(subject)
         message.set_html(body)
         message.set_text(plaintext)
