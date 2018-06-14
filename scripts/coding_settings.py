@@ -104,7 +104,9 @@ CODERS = ['Kim', 'Coder1']
 
 # Allow usage of study 'nicknames' when calling coding.py or reminder_emails.py
 studyNicknames = {'physics': 'cfddb63f-12e9-4e62-abd1-47534d6c4dd2',
-				  'geometry': 'c7001e3a-cfc5-4054-a8e0-0f5e520950ab'}
+				  'geometry': 'c7001e3a-cfc5-4054-a8e0-0f5e520950ab',
+				  'politeness': 'b40b6731-2fec-4df4-a12f-d38c7be3015e',
+				  'flurps': '1e9157cd-b898-4098-9429-a599720d0c0a'}
 
 # Don't show/count these user IDs when making coding spreadsheets
 ignoreProfiles = []
@@ -141,7 +143,7 @@ standardExclude = [		 'allEventTimings',
 
 # Default study settings; overridden by any values in settingsByStudy.
 settings = {
-		'onlyMakeConcatIfConsent': False, # Don't concatenate video unless consent field is 'yes'
+		'onlyMakeConcatIfConsent': True, # Don't concatenate video unless consent field is 'yes'
 		'nVideosExp': 0, # Study videos to expect; for summary display only
 		'videoFrameNames': [], # Frame substrings we expect video for; these videos will be trimmed
 		'trimLength': False, #For videos we do trimming of: False (default) not to do any trimming of video file, or a number of seconds, or an event name suffix (string). If a number of seconds is given: positive numbers indicate how much to trim from the START of the video; negative numbers indicate where to start relative to the END of the video (counted from the end of the shortest stream - generally video rather than audio; if the video is shorter than that, the entire video will be kept). If a string is given, then we look for the FIRST occurrence of an even ending in that string during this video and start from that streamTime (or from the start of the video if the event isn't found).
