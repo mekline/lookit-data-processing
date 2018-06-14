@@ -2,24 +2,24 @@
 
 ### Installation (OSX directions)
 
-- Clone this repo. You can fork it to keep track of your own changes on github if you want, and submit PRs to this repo.
+1. Clone this repo. You can fork it to keep track of your own changes on github if you want, and submit PRs to this repo.
 
-- Install pyenv (https://github.com/yyuu/pyenv)
+2. Install pyenv (https://github.com/yyuu/pyenv)
 
-- Install python 2.7.x using pyenv, e.g. pyenv install 2.7.11
+3. Install python 2.7.x using pyenv, e.g. pyenv install 2.7.11
 
-- Install virtualenv: `[sudo] pip install virtualenv`
+4. Install virtualenv: `[sudo] pip install virtualenv`
 
-- Create virtualenv in scripts dir & install requirements
+5. Create virtualenv in scripts dir & install requirements
 
 	  virtualenv -p ~/.pyenv/versions/2.7.11/bin/python2.7 venv
 	  source venv/bin/activate
 	  pip install -r requirements.txt
 	  
-- Install ffmpeg (note: this is not isolated along with python dependencies, this will be systemwide):
+6. Install ffmpeg (note: this is not isolated along with python dependencies, this will be systemwide):
 brew options ffmpeg, then install w/ as many options as possible (except chromaprint). with-freetype is definitely required; not sure of all others.
 
-- If using matplotlib for anything, make a separate virtualenv to do that because you'll need a framework version of python:
+7. (OPTIONAL) IF using matplotlib for anything (you don't need to except if you're making plots of looking time data in python!), make a separate virtualenv to do that because you'll need a framework version of python:
 
 ```
 	brew install python --framework
@@ -55,9 +55,9 @@ pip install matplotlib
 pip install scipy
 ```
 
-Now to run anything that requires matplotlib, use frameworkpython in place of python.
+Now to run anything that requires matplotlib, you just use frameworkpython in place of python.
 
-- Install AWS command-line tools: see    http://docs.aws.amazon.com/cli/latest/userguide/installing.html
+8. Install AWS command-line tools: see http://docs.aws.amazon.com/cli/latest/userguide/installing.html
     
     `sudo pip install awscli`
 
@@ -145,6 +145,9 @@ from this directory.
 
 ### Local data storage overview 
 
+Warning: these may not be up-to-date. Would recommend loading the actual pickled files
+and exploring a little to update.
+
 .env file defines:
 - Video directory (where raw videos live)
 - Batch video directory (where batched videos live)
@@ -191,6 +194,6 @@ Videos: keys are filenames (.flv)
 - mp4Path_[suffix] - relative, from SESSION_DIR. '' if not created yet.
 - mp4Dur_[suffix] - duration of the mp4 in seconds; -1 if not created yet; 0 if could not be created.
 
-email: keys are profileIds (e.g. kim2.zlkjs), values are lists of emails sent regarding that child's participation in this study.
+email: keys are profileIds (e.g. kim2.zlkjs OR in new version uuids), values are lists of emails sent regarding that child's participation in this study.
 
 Note: suffix is 'whole' or 'trimmed'; these fields are created when updating video data, although others could also be added.
