@@ -3,7 +3,7 @@ import os
 import errno
 import pickle
 from experimenter import ExperimenterClient, update_account_data, \
-	update_session_data, user_from_child, get_all_feedback
+	update_session_data, user_from_child, get_all_feedback, update_child_data
 from sendgrid_client import EmailPreferences, SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, \
 	flatten_dict, backup, backup_and_save_dict, display_unique_counts
@@ -23,6 +23,7 @@ import string
 import argparse
 import unittest
 import coding_settings
+import math
 
 # TODO:
 # - Documentation throughout
@@ -128,6 +129,17 @@ class Experiment(object):
 			accountData = {}
 		cls.accounts = accountData
 		return accountData
+
+	@classmethod
+	def load_child_data(cls):
+		'''Return saved child data, or empty dict if none saved.'''
+		if os.path.exists(paths.CHILD_FILENAME):
+			with open(paths.CHILD_FILENAME,'rb') as f:
+				childData = pickle.load(f)
+		else:
+			childData = {}
+		cls.children = childData
+		return childData
 
 	@classmethod
 	def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='',
@@ -386,7 +398,7 @@ class Experiment(object):
 		return vidDur
 
 	@classmethod
-	def export_accounts(cls, expId='all'):
+	def export_accounts(cls, expId='all', showUsername=False):
 		'''Create a .csv sheet showing all account data.
 
 		All fields except password and profiles will be included. Instead of the list of child
@@ -434,8 +446,11 @@ class Experiment(object):
 		# Order headers in the file: initial list, then regular, then child-profile
 		initialHeaders = [u'uuid', u'date_created']
 		childHeaders = allheaders - headers
-		# Never show username in exported account sheet, even if we have access to it
-		headers = list(headers - set(initialHeaders) - set(['username']))
+		# Generally hide username in exported account sheet, even if we have access to it
+		if showUsername:
+		    headers = list(headers - set(initialHeaders))
+		else:
+		    headers = list(headers - set(initialHeaders) - set(['username']))
 		headers.sort()
 		childHeaders = list(childHeaders)
 		childHeaders.sort()
@@ -454,6 +469,70 @@ class Experiment(object):
 		# Back up any existing accounts csv file by the same name, & save
 		accountsheetPath = paths.accountsheet_filename(expId)
 		backup_and_save_dict(accountsheetPath, accs, headerList)
+
+	@classmethod
+	def export_children(cls):
+		'''Create a .csv sheet showing all child data, including demographics, for reporting aggregates'''
+		cls.load_child_data() # since this may be called without initializing an instance
+		cls.load_account_data()
+
+		children = []
+		headers = set()
+
+		for (childid, ch) in cls.children.items():
+			thisAcc = ch['attributes']
+			print childid
+			thisAcc['uuid'] = childid
+			if 'birthday' in thisAcc.keys() and thisAcc['birthday']:
+				birthdate = datetime.datetime.strptime(thisAcc['birthday'][:10], '%Y-%m-%d')
+				thisAcc['age_months'] = float((datetime.datetime.today() - birthdate).days) * 12.0/365
+
+			parent = [account for (userid, account) in cls.accounts.items() if childid in account['attributes'].get('children', {}).keys() ]
+			demo = parent[0]['attributes']['demographics'] if parent else {}
+			thisAcc.update(demo)
+
+			for k in thisAcc.keys():
+				if type(thisAcc[k]) is unicode:
+					thisAcc[k] = thisAcc[k].encode('utf-8')
+
+			headers = headers | set(thisAcc.keys())
+			children.append(thisAcc)
+
+		# Order headers in the file: initial list, then child-profile
+		initialHeaders = [u'uuid']
+		headers = list(headers - set(initialHeaders))
+		headerList = initialHeaders + headers
+		headerList = [h.encode('utf-8') for h in headerList]
+
+		# Order accounts based on pk (short ID)
+		children.sort(key=lambda b: b['pk'])
+
+		# Back up any existing accounts csv file by the same name, & save
+		childsheetPath = paths.childsheet_filename()
+		backup_and_save_dict(childsheetPath, children, headerList)
+
+		# Display a rough summary
+		print('Total N: {}'.format(len(children)))
+		print('Number of books:')
+		display_unique_counts([child.get('number_of_books', '') for child in children])
+		print('Family income:')
+		display_unique_counts([child.get('former_lookit_annual_income', '') for child in children])
+		print('Education:')
+		display_unique_counts([child.get('education_level', '') for child in children])
+		print('Number of parents:')
+		display_unique_counts([child.get('number_of_guardians', '') for child in children])
+		print('Age in years')
+		display_unique_counts([math.floor(child.get('age_months', -1)/12) for child in children])
+		print('Parent age')
+		display_unique_counts([child.get('age', '') for child in children])
+		print('Race')
+		display_unique_counts([' / '.join(child.get('race_identification', [])) for child in children])
+		for race_str in ['black', 'white', 'asian', 'other', 'hawaiian-pac-isl', 'mideast-naf', 'hisp', 'native']:
+		    print('{}: {}'.format(race_str, len([child for child in children if race_str in child.get('race_identification', [])])))
+
+		print('Gestational age at birth')
+		display_unique_counts([child.get('age_at_birth', '') for child in children])
+
 
 	def __init__(self, expId, settings={}):
 		'''Create experiment object to represent Lookit experiment id.
@@ -505,6 +584,7 @@ class Experiment(object):
 		self.videoData = self.load_video_data()
 		self.accounts = self.load_account_data()
 		self.email = self.load_email_data(expId)
+		self.children = self.load_child_data()
 		self.studySettings = settings # TODO: assert required keys included
 		print 'initialized study {}'.format(expId)
 
@@ -1516,14 +1596,14 @@ class Experiment(object):
 			thisSession = self.find_session(self.sessions, sessKey)
 			existingFeedback = allExistingFeedback.get(sessKey, {})
 
-			newFeedback = self.coding[sessKey]['feedback']
+			newFeedback = self.coding[sessKey]['feedback'].strip().encode('utf-8')
 
 			if not existingFeedback and newFeedback:
 				print 'Adding feedback for session {}. New: {}'.format(sessKey, newFeedback)
 				client.add_session_feedback({'id': sessKey}, newFeedback)
 				continue
 
-			existingComment = existingFeedback.get('comment', '')
+			existingComment = existingFeedback.get('comment', '').strip().encode('utf-8')
 			if newFeedback != existingComment:
 				print 'Updating feedback for session {}. Existing: {}, new: {}'.format(sessKey, existingComment, newFeedback)
 				client.update_feedback(existingFeedback['id'], newFeedback)
@@ -1678,7 +1758,9 @@ Partial updates:
 			   'updatevcode': ['study'],
 			   'export': ['study'],
 			   'updatevideodata': ['study'],
-			   'tests': ['study']}
+			   'tests': ['study'],
+			   'childages': [],
+			   'updatechilddata': []}
 
 	# Parse command-line arguments
 	parser = argparse.ArgumentParser(description='Coding operations for Lookit data',
@@ -1751,8 +1833,10 @@ Partial updates:
 
 	elif args.action == 'exportaccounts':
 		whichStudy = args.study if args.study else 'all'
+		showUsernameFor = ['physics', 'politeness', 'flurps']
+		showUsername = args.study in [coding_settings.studyNicknames.get(s, s) for s in showUsernameFor]
 		print 'Exporting for ' + whichStudy
-		Experiment.export_accounts(expId=whichStudy)
+		Experiment.export_accounts(expId=whichStudy, showUsername=showUsername)
 
 	elif args.action == 'getvideos':
 		print 'Syncing videos with server...'
@@ -1796,7 +1880,7 @@ Partial updates:
 			processingFunction=settings['concatProcessFunction'])
 		print '\nUpdate complete'
 
-    # TODO: set up basic analysis, v2
+	# TODO: set up basic analysis, v2
 	elif args.action == 'updatevcode':
 		physics_analysis.read_vcode_coding(exp, filter={'consent':['yes'], 'withdrawn':[None, False]})
 		physics_analysis.summarize_results(exp)
@@ -1824,13 +1908,29 @@ Partial updates:
 				childId = context['child']
 				print (sessKey, privacy, childId)
 				shortKey = paths.parse_session_key(sessKey)[1]
-				mp4Path = os.path.join(paths.SESSION_DIR, paths.session_video_path(exp.expId, sessCoding['child'], shortKey), exp.expId + '_' + shortKey + '.mp4')
+				processedVidsPath = os.path.join(paths.SESSION_DIR, paths.session_video_path(exp.expId, sessCoding['child'], shortKey))
+				mp4Path = os.path.join(processedVidsPath, exp.expId + '_' + shortKey + '.mp4')
 				print mp4Path
 				exportDir = os.path.join(paths.EXPORT_DIR, exp.expId)
 				make_sure_path_exists(exportDir)
 				exportPath = os.path.join(exportDir, exp.expId + '_' + childId + '_' + shortKey + '_' + privacy + '.mp4')
 				print exportPath
 				sp.call(['cp', mp4Path, exportPath])
+
+				# also export for making collages in physics study
+				if any(['_10-pref-phys-videos_' in name for name in os.listdir(processedVidsPath)]):
+					make_sure_path_exists(os.path.join(exportDir, exp.expId + '_' + childId))
+					fname = [fname for fname in	 os.listdir(processedVidsPath) if '_10-pref-phys-videos_' in fname][0]
+					sp.call(['cp',
+						os.path.join(processedVidsPath, fname),
+						os.path.join(exportDir, exp.expId + '_' + childId, exp.expId + '_' + childId + '_' + shortKey + '_vid10_' + privacy + '.mp4')])
+
+	elif args.action == 'updatechilddata':
+		update_child_data()
+		Experiment.export_children()
+
+	elif args.action == 'childages':
+	    Experiment.export_children()
 
 	elif args.action == 'tests':
 		pass

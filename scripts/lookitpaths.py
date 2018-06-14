@@ -23,6 +23,7 @@ make_sure_path_exists(EXPORT_DIR)
 
 VIDEO_FILENAME = os.path.join(DATA_DIR, 'video_data.bin')
 ACCOUNT_FILENAME = os.path.join(DATA_DIR, 'accounts' + conf.VERSION + '.bin')
+CHILD_FILENAME = os.path.join(DATA_DIR, 'children' + conf.VERSION + '.bin')
 
 def session_filename(expId):
 	'''Return full path to the session data filename for experiment expId'''
@@ -54,6 +55,10 @@ def accountsheet_filename(expId='all'):
 		return os.path.join(CODING_DIR, 'accounts' + conf.VERSION + '.csv')
 	else:
 		return os.path.join(CODING_DIR, 'accounts' + conf.VERSION + '_' + expId + '.csv')
+
+def childsheet_filename():
+	'''Return full path to the .csv children file'''
+	return os.path.join(CODING_DIR, 'children' + conf.VERSION + '.csv')
 
 def make_session_key(expId, sessId):
 	#if conf.VERSION == 'prod':

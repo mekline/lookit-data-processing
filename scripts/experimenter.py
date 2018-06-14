@@ -168,6 +168,14 @@ def update_session_data(experimentId, display=False):
 		printer.pprint(exp)
 	print("Synced session data for experiment: {}".format(experimentId))
 
+def update_child_data():
+	client = ExperimenterClient()
+
+	childData = client.fetch_collection_records('children')
+	allChildren = {acc[u'id']: acc for acc in childData}
+
+	print('Child data download complete. Found {} records'.format(len(childData)))
+	backup_and_save(paths.CHILD_FILENAME, allChildren)
 
 def update_account_data(): # TODO: doc
 	client = ExperimenterClient()
