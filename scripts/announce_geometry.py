@@ -62,6 +62,9 @@ if __name__ == '__main__':
         # Make sure they have not already participated
         recruitChildren = [child for child in recruitChildren if child['id'] not in geomSubjects and child['former_lookit_profile_id'].split('.')[0] not in oldSiteSubjects]
 
+        # Make sure child profile not deleted
+        recruitChildren = [child for child in recruitChildren if not child['deleted']]
+
         nRecruit += len(recruitChildren)
 
         if len(recruitChildren):
@@ -72,7 +75,7 @@ if __name__ == '__main__':
             subject = 'New study for ' + ' and '.join(childNames) + ' on Lookit!'
 
             body = 'Hi ' + (name if name else uname) + ',<br><br>'
-            body += "We're writing to invite " + ' and '.join(childNames) + " to participate in the new study 'Baby Euclid' on Lookit! This study for 7-month-olds (6 1/2 to 7 1/2 months) looks at babies' perception of shapes: we're interested in whether infants pick up on features essential to Euclidean geometry, like relative lengths and angles, even across changes in a shape's size and orientation. <br><br> In this 10-minute study, your baby watches short videos of two changing streams of triangles, one on each side of the screen. On one side, the triangles will be changing in shape and size, and on the other side, they will be changing in size alone. We measure how long your baby looks at each of the two streams of triangles to see which changes he or she finds more noticeable and interesting.            <br><br> To learn more or get started, visit <a href='https://lookit.mit.edu/studies/58cc039ec0d9d70097f26220' target=_blank>the study</a> on Lookit!<br><br>Happy experimenting! <br><br>The Lookit team<br><br><hr>"
+            body += "We're writing to invite " + ' and '.join(childNames) + " to participate in the new study 'Baby Euclid' on Lookit! This study for 7-month-olds (6 1/2 to 7 1/2 months) looks at babies' perception of shapes: we're interested in whether infants pick up on features essential to Euclidean geometry, like relative lengths and angles, even across changes in a shape's size and orientation. <br><br> In this 10-minute study, your baby watches short videos of two changing streams of triangles, one on each side of the screen. On one side, the triangles will be changing in shape and size, and on the other side, they will be changing in size alone. We measure how long your baby looks at each of the two streams of triangles to see which changes he or she finds more noticeable and interesting.            <br><br> To learn more or get started, visit <a href='https://lookit.mit.edu/studies/c7001e3a-cfc5-4054-a8e0-0f5e520950ab/' target=_blank>the study</a> on Lookit!<br><br>Happy experimenting! <br><br>The Lookit team<br><br><hr>"
 
             if recipient in args.emails or 'all' in args.emails:
                 print recipient

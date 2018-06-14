@@ -5,6 +5,7 @@ from experimenter import update_account_data, user_from_child, get_all_feedback
 import datetime
 import numpy as np
 import lookitpaths as paths
+import donotsend
 
 '''Reminder emails for the Lookit physics study. Can also use as starting point to set up reminders for other studies.'''
 
@@ -121,6 +122,9 @@ if __name__ == '__main__':
 	print("Sending reminder emails. All children participating in this study:")
 	print(", ".join(children))
 
+	print("Not sending emails to these users:")
+	print(", ".join(donotsend.users))
+
 	# Get SendGrid object & unsubscribe group for notifications
 	sg = SendGrid()
 
@@ -197,7 +201,11 @@ if __name__ == '__main__':
 			recipient = get_email(user)
 			acc = accounts[user]
 
-			if (not alreadySent) or emailName == 'thanks':
+			if user in donotsend.users:
+			    print("Skipping email for user on donotsend list: {}".format(user))
+			    continue
+
+			if ((not alreadySent) or emailName == 'thanks') and user not in donotsend.users:
 
 				(body, feedbackToSend) = generate_email(allFeedback, allSessions, child, message, len(theseSessions), justFeedback=justFeedback)
 
