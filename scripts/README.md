@@ -197,5 +197,3 @@ Videos: keys are filenames (.flv)
 email: keys are profileIds (e.g. kim2.zlkjs OR in new version uuids), values are lists of emails sent regarding that child's participation in this study.
 
 Note: suffix is 'whole' or 'trimmed'; these fields are created when updating video data, although others could also be added.
-
-test commit
