@@ -144,14 +144,14 @@ class Experiment(object):
 	@classmethod
 	def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='',
 		replace=False, whichFrames=[], eventsPerVid=[]):
-		''' Convert flvs in VIDEO_DIR to mp4s organized in SESSION_DIR for a
+		''' Convert videos in VIDEO_DIR to mp4s organized in SESSION_DIR for a
 		particular session
 
 			sessDirRel: relative path to session directory where mp4s
 				should be saved. mp4s will be created in
 				paths.SESSION_DIR/sessDirRel.
 
-			vidNames: list of video names (flv filenames within
+			vidNames: list of video names (raw video filenames within
 				VIDEO_DIR, also keys into videoData) to convert
 
 			display: whether to display information about progress
@@ -168,7 +168,7 @@ class Experiment(object):
 				clip.
 
 			suffix: string to append to the mp4 filenames (they'll be
-				named as their originating flv filenames, plus
+				named as their originating video filenames, plus
 				"_[suffix]") and to the fields 'mp4Path_[suffix]' and
 				'mp4Dur_[suffix]' in videoData. Default ''.
 
@@ -192,7 +192,7 @@ class Experiment(object):
 				pairs beyond streamTime & timestamp.
 
 			To make the mp4, we first create video-only and
-				audio-only files from the original flv file. Then we
+				audio-only files from the original raw video file. Then we
 				put them together and delete the temporary files. The
 				final mp4 has a duration equal to the length of the
 				video stream (technically it has a duration equal to
@@ -208,7 +208,7 @@ class Experiment(object):
 
 			mp4s have a text label in the top left that shows
 				[segment]_[session]_[timestamp and randomstring] from
-				the original flv name.
+				the original raw video name.
 
 			Returns a dictionary with keys = vidNames. Each value is
 				a dict with the following fields: 'mp4Dur_[suffix]':
@@ -247,7 +247,7 @@ class Experiment(object):
 		# Keep track of whether we
 		madeAnyFiles = False
 
-		# Convert each flv clip to mp4 & get durations
+		# Convert each raw clip to mp4 & get durations
 		for (iVid, vid) in enumerate(vidNames):
 			vidPath = os.path.join(paths.VIDEO_DIR, vid)
 
@@ -773,14 +773,14 @@ class Experiment(object):
 
 	def make_mp4s_for_study(self, sessionsToProcess='missing', filter={}, display=False,
 		trimming=False, suffix='', whichFrames=[], whichEventsDisplay=[]):
-		'''Convert flvs to mp4s for sessions in a particular study.
+		'''Convert raw videos to processed mp4s for sessions in a particular study.
 
 		expId: experiment id, string (ex.: 574db6fa3de08a005bb8f844)
 
 		sessionsToProcess: 'missing', 'all', or a list of session keys (as
 			used to index into coding). 'missing' creates mp4s only if they
 			don't already exist (both video file and entry in videoData).
-			'all' creates mp4s for all session flvs, even if they already
+			'all' creates new mp4s for all session flvs/mp4s, even if they already
 			exist.
 
 		filter: dictionary of codingKey:[value1, value2, ...] pairs that should be required
@@ -807,7 +807,7 @@ class Experiment(object):
 			event isn't found).
 
 		suffix: string to append to the mp4 filenames (they'll be named as
-			their originating flv filenames, plus "_[suffix]") and to the
+			their originating flv/mp4 filenames, plus "_[suffix]") and to the
 			fields 'mp4Path_[suffix]' and 'mp4Dur_[suffix]' in videoData.
 			Default ''. As used by make_mp4s.
 
@@ -894,7 +894,7 @@ class Experiment(object):
 			sessionDir = os.path.join(paths.SESSION_DIR, sessDirRel)
 			make_sure_path_exists(sessionDir)
 
-			# Convert each flv clip to mp4 & get durations
+			# Convert each clip to mp4 & get durations
 
 			if display:
 				print 'Session: ', sessId

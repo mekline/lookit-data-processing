@@ -183,7 +183,7 @@ Sessions: array of dicts each with the following structure (directly from server
     - created-on
 - id (=sessionKey)
 
-Videos: keys are filenames (.flv)
+Videos: keys are filenames (.flv/.mp4)
 - shortName - subset of video name as used by sessions
 - framerate
 - duration
