@@ -21,28 +21,40 @@ def processPhysicsCoding(codingRecord, expData):
 	codingRecord['showedAlternate'] = []
 	codingRecord['endedEarly'] = []
 	codingRecord['videosShown'] = []
+
+	def eventsContain(eNameFrag, eventNames):
+	    return any([eNameFrag in name for name in eventNames])
+
 	for (frameId, frameData) in expData.iteritems():
 		if 'videoId' in frameData.keys() and not frameId=='32-32-pref-phys-videos':
 			if 'pref-phys-videos' in frameId:
 
 				# Check events: was the video paused?
 				events = [e['eventType'] for e in frameData['eventTimings']]
-				showAlternate = 'exp-physics:startAlternateVideo' in events
+				showAlternate = eventsContain('startAlternateVideo', events)
+
+				if events:
+				    eventPrefix = events[0].split(':')[0] # 'exp-physics' or 'exp-video-physics' depending on recorder
+				else:
+				    eventPrefix = 'exp-physics' # doesn't matter, no events anyway, just define it to avoid errors
 
 				# Was the alternate video also paused, if applicable?
 				# TODO: once we have an F1 event, add this as a way the study could be ended early
 				# Ended early if we never saw either test or alternate video (check
 				# for alternate b/c of rare case where due to lots of pausing only
 				# alternate is shown)
-				endedEarly = 'exp-physics:startTestVideo' not in events and 'exp-physics:startAlternateVideo' not in events
+				# Just check for startTestVideo/startAlternateVideo in event name,
+				# as events are now exp-video-physics:EVENTNAME instead of exp-physics:EVENTNAME
+				# in line with all other frames
+				endedEarly = not(eventsContain('startTestVideo', events)) and not(eventsContain('startAlternateVideo', events))
 				# Check that the alternate video wasn't paused
 				if showAlternate:
-					lastAlternateEvent = len(events) - events[::-1].index('exp-physics:startAlternateVideo') - 1
-					endedEarly = endedEarly or ('exp-physics:pauseVideo' in events[lastAlternateEvent:])
+					lastAlternateEvent = len(events) - events[::-1].index(eventPrefix + ':startAlternateVideo') - 1
+					endedEarly = endedEarly or ('pauseVideo' in events[lastAlternateEvent:])
 				# Check we didn't pause test video, but never get to alternate (e.g. F1)
-				if not endedEarly and 'exp-physics:pauseVideo' in events and 'exp-physics:startTestVideo' in events:
-					lastPause = len(events) - events[::-1].index('exp-physics:pauseVideo') - 1
-					firstTest = events.index('exp-physics:startTestVideo')
+				if not endedEarly and eventsContain('pauseVideo', events) and eventsContain('startTestVideo', events):
+					lastPause = len(events) - events[::-1].index(eventPrefix + ':pauseVideo') - 1
+					firstTest = events.index(eventPrefix + ':startTestVideo')
 					endedEarly = endedEarly or (lastPause > firstTest and not showAlternate)
 
 				# Which video file was actually shown?
