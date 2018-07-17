@@ -12,7 +12,7 @@ import subprocess as sp
 import sys
 import videoutils
 import vcode
-from warnings import warn
+import warnings
 import datetime
 import lookitpaths as paths
 import conf
@@ -30,6 +30,12 @@ import math
 # - sessKey vs. sessId, long expID vs. short
 # - clear up cases where we use API during analysis - should be able to use
 # local lookups.
+
+# See https://stackoverflow.com/a/26256592: cleaning up warning display
+# Force warnings.warn() to omit the source code line in the message
+formatwarning_orig = warnings.formatwarning
+warnings.formatwarning = lambda message, category, filename, lineno, line=None: \
+    formatwarning_orig(message, category, filename, lineno, line='')
 
 class Experiment(object):
 	'''Represent a Lookit experiment with stored session, coding, & video data.'''
@@ -276,7 +282,7 @@ class Experiment(object):
 			# Check that we actually have any video data in the original
 			height, origDur = videoutils.get_video_details(vid, ['height', 'duration'])
 			if height == 0:
-				warn('No video data for file {}'.format(vid))
+				warnings.warn('No video data for file {}'.format(vid))
 				continue
 
 			trimStrVideo = ''
@@ -765,7 +771,7 @@ class Experiment(object):
 			    # we now store the timestamp + random segment in the shortname
 				theseVideos = [k for (k,v) in self.videoData.items() if (v['shortname'] in short) ]
 				if len(theseVideos) == 0:
-					warn('update_videos_found: Expected video not found for {}'.format(short))
+					warnings.warn('update_videos_found: Expected video not found for {} on {}'.format(short, self.find_session(self.sessions, sessKey)['attributes']['created_on']))
 				self.coding[sessKey]['videosFound'].append(theseVideos)
 
 			self.coding[sessKey]['nVideosFound'] = len([vList for vList in self.coding[sessKey]['videosFound'] if len(vList) > 0])
@@ -868,7 +874,7 @@ class Experiment(object):
 				vidNames = vidNames + vids
 
 				if len(vids) > 1:
-					warn('Multiple videos found!') # TODO: expand warning
+					warnings.warn('Multiple videos found!') # TODO: expand warning
 
 				# Also make a list of all events per video that match an event type in
 				# whichEvents
@@ -881,7 +887,7 @@ class Experiment(object):
 				if type(trimming) == str:
 					theseEventTimes = [e['streamTime'] for e in self.coding[sessKey]['allEventTimings'][iVid] if e['eventType'].endswith(trimming)]
 					if not theseEventTimes:
-						warn('No event found to use for trimming') # TODO: expand warning
+						warnings.warn('No event found to use for trimming') # TODO: expand warning
 						trimmingList = trimmingList + [False] * len(vids)
 					else:
 						trimmingList = trimmingList + [min(theseEventTimes)] * len(vids)
@@ -1059,7 +1065,7 @@ class Experiment(object):
 													  (vid[3] and len(self.videoData[vid[0]]['mp4Path_whole']))]
 
 			if len(vidData) == 0:
-				warn('No video data for session {}'.format(sessKey))
+				warnings.warn('No video data for session {}'.format(sessKey))
 				continue
 
 			expDur = 0
@@ -1084,7 +1090,7 @@ class Experiment(object):
 			# Warn if we're too far off (more than one video frame at 30fps) on
 			# the total duration
 			if abs(expDur - vidDur) > 1./30:
-				warn('Predicted {}, actual {}'.format(expDur, vidDur))
+				warnings.warn('Predicted {}, actual {}'.format(expDur, vidDur))
 
 			if processingFunction:
 				self.coding[sessKey] = processingFunction(self.coding[sessKey], vidData)
@@ -1490,7 +1496,7 @@ class Experiment(object):
 							# addition--can manipulate thisCoderFields.
 							fieldParts = field.split('.')
 							if len(fieldParts) != 2:
-								warn('Bad coder field name {}, should be of the form GeneralField.CoderName'.format(field))
+								warnings.warn('Bad coder field name {}, should be of the form GeneralField.CoderName'.format(field))
 								continue
 							genField, coderField = fieldParts
 
@@ -1505,7 +1511,7 @@ class Experiment(object):
 								print('Updating field {} in session {}: "{}" ->	 "{}"'.format(field, id, self.coding[id][genField][coderField], row[field]))
 								self.coding[id][genField][coderField] = row[field]
 						else:
-							warn('Missing expected row header in coding CSV: {}'.format(field))
+							warnings.warn('Missing expected row header in coding CSV: {}'.format(field))
 
 					# Separately process coded field and adjust allcoder accordingly
 					if 'coded' in row.keys():
@@ -1521,11 +1527,11 @@ class Experiment(object):
 						else:
 							raise ValueError('Unexpected value for whether coding is done for session {} (should be yes or no): {}\nNot changing coding mark.'.format(id, coded))
 					else:
-						warn('Missing expected row header "coded" in coding CSV')
+						warnings.warn('Missing expected row header "coded" in coding CSV')
 
 
 				else: # Couldn't find this sessionKey in the coding dict.
-					warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
+					warnings.warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
 
 		# Actually save coding
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
@@ -1568,7 +1574,7 @@ class Experiment(object):
 						self.coding[id][field] = row[field]
 
 				else: # Couldn't find this sessionKey in the coding dict.
-					warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
+					warnings.warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
 
 		# Actually save coding
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
