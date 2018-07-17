@@ -761,7 +761,9 @@ class Experiment(object):
 			# Which videos match the expected patterns? Keep track & save the list.
 			self.coding[sessKey]['videosFound'] = []
 			for (iShort, short) in enumerate(shortNames):
-				theseVideos = [k for (k,v) in self.videoData.items() if (v['shortname']==short) ]
+			    # Relax to v['shortname'] in short rather than v['shortname'] == short because
+			    # we now store the timestamp + random segment in the shortname
+				theseVideos = [k for (k,v) in self.videoData.items() if (v['shortname'] in short) ]
 				if len(theseVideos) == 0:
 					warn('update_videos_found: Expected video not found for {}'.format(short))
 				self.coding[sessKey]['videosFound'].append(theseVideos)
