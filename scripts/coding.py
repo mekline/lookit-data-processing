@@ -12,11 +12,11 @@ import subprocess as sp
 import sys
 import videoutils
 import vcode
-from warnings import warn
+import warnings
 import datetime
 import lookitpaths as paths
 import conf
-from lookitvideoaccess import sync_S3, pull_from_wowza
+from lookitvideoaccess import sync_S3
 import csv
 import random
 import string
@@ -30,6 +30,12 @@ import math
 # - sessKey vs. sessId, long expID vs. short
 # - clear up cases where we use API during analysis - should be able to use
 # local lookups.
+
+# See https://stackoverflow.com/a/26256592: cleaning up warning display
+# Force warnings.warn() to omit the source code line in the message
+formatwarning_orig = warnings.formatwarning
+warnings.formatwarning = lambda message, category, filename, lineno, line=None: \
+    formatwarning_orig(message, category, filename, lineno, line='')
 
 class Experiment(object):
 	'''Represent a Lookit experiment with stored session, coding, & video data.'''
@@ -144,14 +150,14 @@ class Experiment(object):
 	@classmethod
 	def make_mp4s(cls, sessDirRel, vidNames, display=False, trimming=False, suffix='',
 		replace=False, whichFrames=[], eventsPerVid=[]):
-		''' Convert flvs in VIDEO_DIR to mp4s organized in SESSION_DIR for a
+		''' Convert videos in VIDEO_DIR to mp4s organized in SESSION_DIR for a
 		particular session
 
 			sessDirRel: relative path to session directory where mp4s
 				should be saved. mp4s will be created in
 				paths.SESSION_DIR/sessDirRel.
 
-			vidNames: list of video names (flv filenames within
+			vidNames: list of video names (raw video filenames within
 				VIDEO_DIR, also keys into videoData) to convert
 
 			display: whether to display information about progress
@@ -168,7 +174,7 @@ class Experiment(object):
 				clip.
 
 			suffix: string to append to the mp4 filenames (they'll be
-				named as their originating flv filenames, plus
+				named as their originating video filenames, plus
 				"_[suffix]") and to the fields 'mp4Path_[suffix]' and
 				'mp4Dur_[suffix]' in videoData. Default ''.
 
@@ -192,7 +198,7 @@ class Experiment(object):
 				pairs beyond streamTime & timestamp.
 
 			To make the mp4, we first create video-only and
-				audio-only files from the original flv file. Then we
+				audio-only files from the original raw video file. Then we
 				put them together and delete the temporary files. The
 				final mp4 has a duration equal to the length of the
 				video stream (technically it has a duration equal to
@@ -208,7 +214,7 @@ class Experiment(object):
 
 			mp4s have a text label in the top left that shows
 				[segment]_[session]_[timestamp and randomstring] from
-				the original flv name.
+				the original raw video name.
 
 			Returns a dictionary with keys = vidNames. Each value is
 				a dict with the following fields: 'mp4Dur_[suffix]':
@@ -247,7 +253,7 @@ class Experiment(object):
 		# Keep track of whether we
 		madeAnyFiles = False
 
-		# Convert each flv clip to mp4 & get durations
+		# Convert each raw clip to mp4 & get durations
 		for (iVid, vid) in enumerate(vidNames):
 			vidPath = os.path.join(paths.VIDEO_DIR, vid)
 
@@ -276,7 +282,7 @@ class Experiment(object):
 			# Check that we actually have any video data in the original
 			height, origDur = videoutils.get_video_details(vid, ['height', 'duration'])
 			if height == 0:
-				warn('No video data for file {}'.format(vid))
+				warnings.warn('No video data for file {}'.format(vid))
 				continue
 
 			trimStrVideo = ''
@@ -761,9 +767,11 @@ class Experiment(object):
 			# Which videos match the expected patterns? Keep track & save the list.
 			self.coding[sessKey]['videosFound'] = []
 			for (iShort, short) in enumerate(shortNames):
-				theseVideos = [k for (k,v) in self.videoData.items() if (v['shortname']==short) ]
+			    # Relax to v['shortname'] in short rather than v['shortname'] == short because
+			    # we now store the timestamp + random segment in the shortname
+				theseVideos = [k for (k,v) in self.videoData.items() if (v['shortname'] in short) ]
 				if len(theseVideos) == 0:
-					warn('update_videos_found: Expected video not found for {}'.format(short))
+					warnings.warn('update_videos_found: Expected video not found for {} on {}'.format(short, self.find_session(self.sessions, sessKey)['attributes']['created_on']))
 				self.coding[sessKey]['videosFound'].append(theseVideos)
 
 			self.coding[sessKey]['nVideosFound'] = len([vList for vList in self.coding[sessKey]['videosFound'] if len(vList) > 0])
@@ -773,14 +781,14 @@ class Experiment(object):
 
 	def make_mp4s_for_study(self, sessionsToProcess='missing', filter={}, display=False,
 		trimming=False, suffix='', whichFrames=[], whichEventsDisplay=[]):
-		'''Convert flvs to mp4s for sessions in a particular study.
+		'''Convert raw videos to processed mp4s for sessions in a particular study.
 
 		expId: experiment id, string (ex.: 574db6fa3de08a005bb8f844)
 
 		sessionsToProcess: 'missing', 'all', or a list of session keys (as
 			used to index into coding). 'missing' creates mp4s only if they
 			don't already exist (both video file and entry in videoData).
-			'all' creates mp4s for all session flvs, even if they already
+			'all' creates new mp4s for all session flvs/mp4s, even if they already
 			exist.
 
 		filter: dictionary of codingKey:[value1, value2, ...] pairs that should be required
@@ -807,7 +815,7 @@ class Experiment(object):
 			event isn't found).
 
 		suffix: string to append to the mp4 filenames (they'll be named as
-			their originating flv filenames, plus "_[suffix]") and to the
+			their originating flv/mp4 filenames, plus "_[suffix]") and to the
 			fields 'mp4Path_[suffix]' and 'mp4Dur_[suffix]' in videoData.
 			Default ''. As used by make_mp4s.
 
@@ -866,7 +874,7 @@ class Experiment(object):
 				vidNames = vidNames + vids
 
 				if len(vids) > 1:
-					warn('Multiple videos found!') # TODO: expand warning
+					warnings.warn('Multiple videos found!') # TODO: expand warning
 
 				# Also make a list of all events per video that match an event type in
 				# whichEvents
@@ -879,7 +887,7 @@ class Experiment(object):
 				if type(trimming) == str:
 					theseEventTimes = [e['streamTime'] for e in self.coding[sessKey]['allEventTimings'][iVid] if e['eventType'].endswith(trimming)]
 					if not theseEventTimes:
-						warn('No event found to use for trimming') # TODO: expand warning
+						warnings.warn('No event found to use for trimming') # TODO: expand warning
 						trimmingList = trimmingList + [False] * len(vids)
 					else:
 						trimmingList = trimmingList + [min(theseEventTimes)] * len(vids)
@@ -894,7 +902,7 @@ class Experiment(object):
 			sessionDir = os.path.join(paths.SESSION_DIR, sessDirRel)
 			make_sure_path_exists(sessionDir)
 
-			# Convert each flv clip to mp4 & get durations
+			# Convert each clip to mp4 & get durations
 
 			if display:
 				print 'Session: ', sessId
@@ -1057,7 +1065,7 @@ class Experiment(object):
 													  (vid[3] and len(self.videoData[vid[0]]['mp4Path_whole']))]
 
 			if len(vidData) == 0:
-				warn('No video data for session {}'.format(sessKey))
+				warnings.warn('No video data for session {}'.format(sessKey))
 				continue
 
 			expDur = 0
@@ -1082,7 +1090,7 @@ class Experiment(object):
 			# Warn if we're too far off (more than one video frame at 30fps) on
 			# the total duration
 			if abs(expDur - vidDur) > 1./30:
-				warn('Predicted {}, actual {}'.format(expDur, vidDur))
+				warnings.warn('Predicted {}, actual {}'.format(expDur, vidDur))
 
 			if processingFunction:
 				self.coding[sessKey] = processingFunction(self.coding[sessKey], vidData)
@@ -1488,7 +1496,7 @@ class Experiment(object):
 							# addition--can manipulate thisCoderFields.
 							fieldParts = field.split('.')
 							if len(fieldParts) != 2:
-								warn('Bad coder field name {}, should be of the form GeneralField.CoderName'.format(field))
+								warnings.warn('Bad coder field name {}, should be of the form GeneralField.CoderName'.format(field))
 								continue
 							genField, coderField = fieldParts
 
@@ -1503,7 +1511,7 @@ class Experiment(object):
 								print('Updating field {} in session {}: "{}" ->	 "{}"'.format(field, id, self.coding[id][genField][coderField], row[field]))
 								self.coding[id][genField][coderField] = row[field]
 						else:
-							warn('Missing expected row header in coding CSV: {}'.format(field))
+							warnings.warn('Missing expected row header in coding CSV: {}'.format(field))
 
 					# Separately process coded field and adjust allcoder accordingly
 					if 'coded' in row.keys():
@@ -1519,11 +1527,11 @@ class Experiment(object):
 						else:
 							raise ValueError('Unexpected value for whether coding is done for session {} (should be yes or no): {}\nNot changing coding mark.'.format(id, coded))
 					else:
-						warn('Missing expected row header "coded" in coding CSV')
+						warnings.warn('Missing expected row header "coded" in coding CSV')
 
 
 				else: # Couldn't find this sessionKey in the coding dict.
-					warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
+					warnings.warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
 
 		# Actually save coding
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
@@ -1566,7 +1574,7 @@ class Experiment(object):
 						self.coding[id][field] = row[field]
 
 				else: # Couldn't find this sessionKey in the coding dict.
-					warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
+					warnings.warn('ID found in coding CSV but not in coding file, ignoring: {}'.format(id))
 
 		# Actually save coding
 		backup_and_save(paths.coding_filename(self.expId), self.coding)
@@ -1724,8 +1732,7 @@ Partial updates:
 	To get updated videos for all studies:
 		python coding.py getvideos
 
-		This fetches videos only from the S3 bucket, pulling from wowza to get any very new
-		data, and puts them in the video directory directly.
+		This fetches videos only from the S3 bucket and puts them in the video directory directly.
 
 	To get updated session data:
 		python coding.py updatesessions --study STUDY
@@ -1840,7 +1847,7 @@ Partial updates:
 
 	elif args.action == 'getvideos':
 		print 'Syncing videos with server...'
-		newVideos = sync_S3(pull=True)
+		newVideos = sync_S3()
 
 	elif args.action == 'updatesessions':
 		print 'Updating session and coding data...'
@@ -1862,7 +1869,7 @@ Partial updates:
 		#update_account_data()
 		#Experiment.export_accounts()
 		exp.accounts = exp.load_account_data()
-		newVideos = sync_S3(pull=True)
+		newVideos = sync_S3()
 		exp.update_saved_sessions()
 		exp.update_coding(display=False, processingFunction=settings['codingProcessFunction'])
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(
