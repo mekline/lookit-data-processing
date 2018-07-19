@@ -94,14 +94,7 @@ Create a new file name .env in the current directory (where this README is). It 
 OSF_ACCESS_TOKEN=<your-osf-token>
 LOOKIT_ACCESS_TOKEN=<your-lookit-token>
 
-OSF_CLIENT_ID=<application_client_id>
-OSF_SCOPE=osf.users.all_read
-OSF_URL=https://accounts.osf.io
-
 SENDGRID_KEY=<your-sendgrid-acct-key>
-
-WOWZA_PHP='{"minRecordTime":1,"showMenu":"false","showTimer":"false","enableBlinkingRec":1,"skipInitialScreen":1,"recordAgain":"false","showSoundBar":"false","hideDeviceSettingsButtons":1,"connectionstring":"rtmps://lookit-streaming.mit.edu/hdfvr/_lookit_"}'
-WOWZA_ASP='{"showMenu":"false","loopbackMic":"true","skipInitialScreen":1,"showSoundBar":"false","snapshotEnable":"false"}'
 
 LOOKIT_URL=https://lookit.mit.edu
 
