@@ -6,15 +6,10 @@ from utils import backup_and_save
 import conf
 import experimenter
 
-def sync_S3(pull=False):
+def sync_S3():
 	'''Download any new or modified video files from S3 for studies we can access.
 
-	pull: if true, also pull videos from wowza to S3 first.
-
 	This only gets the video files; details are not stored in the video database.'''
-	if pull:
-		pull_from_wowza()
-		print('Pulled videos from Wowza')
 
     # Get a list of studies we have access to via Lookit API..
     # TODO: allow passing a study argument to fetch videos from just one study
@@ -35,8 +30,8 @@ def sync_S3(pull=False):
 	print(indent(printer.pformat(newVideos), 4))
 	return newVideos
 
-def pull_from_wowza():
-	'''Sync wowza data with S3 so we get up-to-date data from S3'''
-	thisDir = os.path.dirname(os.path.realpath(__file__))
-	sp.call(['ssh', '-i', os.path.join(thisDir, 'lookit2016.pem'), 'ec2-user@lookit-streaming.mit.edu', 'aws', 's3', 'sync', '/home/ec2-user/content', 's3://mitLookit'])
+#def pull_from_wowza():
+#	'''Sync wowza data with S3 so we get up-to-date data from S3'''
+#	thisDir = os.path.dirname(os.path.realpath(__file__))
+#	sp.call(['ssh', '-i', os.path.join(thisDir, 'lookit2016.pem'), 'ec2-user@lookit-streaming.mit.edu', 'aws', 's3', 'sync', '/home/ec2-user/content', 's3://mitLookit'])
 

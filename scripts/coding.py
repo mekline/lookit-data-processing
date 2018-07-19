@@ -16,7 +16,7 @@ import warnings
 import datetime
 import lookitpaths as paths
 import conf
-from lookitvideoaccess import sync_S3, pull_from_wowza
+from lookitvideoaccess import sync_S3
 import csv
 import random
 import string
@@ -1732,8 +1732,7 @@ Partial updates:
 	To get updated videos for all studies:
 		python coding.py getvideos
 
-		This fetches videos only from the S3 bucket, pulling from wowza to get any very new
-		data, and puts them in the video directory directly.
+		This fetches videos only from the S3 bucket and puts them in the video directory directly.
 
 	To get updated session data:
 		python coding.py updatesessions --study STUDY
@@ -1848,7 +1847,7 @@ Partial updates:
 
 	elif args.action == 'getvideos':
 		print 'Syncing videos with server...'
-		newVideos = sync_S3(pull=True)
+		newVideos = sync_S3()
 
 	elif args.action == 'updatesessions':
 		print 'Updating session and coding data...'
@@ -1870,7 +1869,7 @@ Partial updates:
 		#update_account_data()
 		#Experiment.export_accounts()
 		exp.accounts = exp.load_account_data()
-		newVideos = sync_S3(pull=True)
+		newVideos = sync_S3()
 		exp.update_saved_sessions()
 		exp.update_coding(display=False, processingFunction=settings['codingProcessFunction'])
 		sessionsAffected, improperFilenames, unmatched = exp.update_video_data(
