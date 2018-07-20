@@ -3,7 +3,7 @@ import os
 import errno
 import pickle
 from experimenter import ExperimenterClient, update_account_data, \
-	update_session_data, user_from_child, get_all_feedback, update_child_data
+	update_session_data, user_from_child, get_all_feedback, update_child_data, fetch_single_account
 from sendgrid_client import EmailPreferences, SendGrid
 from utils import make_sure_path_exists, indent, timestamp, printer, backup_and_save, \
 	flatten_dict, backup, backup_and_save_dict, display_unique_counts
@@ -1214,7 +1214,14 @@ class Experiment(object):
 			child = context['child']
 			study = context['study']
 			user = user_from_child(child)
-			acc = self.accounts[user]
+			try:
+				acc = self.accounts[user]
+			except KeyError:
+				input = raw_input("User {} not found in local store. If this might just be a new user, we can try fetching their data. Fetch from server? y/[n]") or "n"
+				if input.strip() == 'y':
+					acc = fetch_single_account(user)
+				else:
+					raise
 			childData = acc['attributes']['children'][child]
 			birthdate = childData['birthday']
 			self.coding[sessId]['profileId'] = user
