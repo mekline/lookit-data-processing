@@ -55,7 +55,7 @@ class ExperimenterClient(object):
 	def fetch_user(self, userId):
 		userUrl = self._url_for_collection('users') + userId + '/'
 		userData = self.fetch_single_record(userUrl)
-		return childData
+		return userData
 
 	def fetch_collection_records(self, collection):
 		"""Fetch all records that are a member of the specified collection"""
