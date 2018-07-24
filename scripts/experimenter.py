@@ -52,6 +52,11 @@ class ExperimenterClient(object):
 		childData = self.fetch_single_record(childUrl)
 		return childData
 
+	def fetch_user(self, userId):
+		userUrl = self._url_for_collection('users') + userId + '/'
+		userData = self.fetch_single_record(userUrl)
+		return userData
+
 	def fetch_collection_records(self, collection):
 		"""Fetch all records that are a member of the specified collection"""
 		if collection.startswith('https://'):
@@ -152,10 +157,10 @@ class ExperimenterClient(object):
 
 
 def get_all_feedback(): # TODO: DOC
-    client = ExperimenterClient()
-    feedback = client.fetch_collection_records('feedback')
-    allFeedback = {paths.get_collection_from_url(fb['relationships']['response']['links']['related']) : {'id': fb['id'], 'comment': fb['attributes']['comment']} for fb in feedback}
-    return allFeedback
+	client = ExperimenterClient()
+	feedback = client.fetch_collection_records('feedback')
+	allFeedback = {paths.get_collection_from_url(fb['relationships']['response']['links']['related']) : {'id': fb['id'], 'comment': fb['attributes']['comment']} for fb in feedback}
+	return allFeedback
 
 def update_session_data(experimentId, display=False):
 	'''Get session data from the server for this experiment ID and save'''
@@ -184,19 +189,18 @@ def update_account_data(): # TODO: doc
 	allAccounts = {acc[u'id']: acc for acc in accountData}
 
 	for (id, acc) in allAccounts.iteritems():
-
-		children = client.fetch_collection_records(acc['relationships']['children']['links']['related'])
-		childDict = {child['id']: child['attributes'] for child in children}
-
-		demographics = client.fetch_collection_records(acc['relationships']['demographics']['links']['related'])
-		demographics.sort(key=lambda d:d['attributes']['date_created'])
-
-		acc['attributes']['demographics'] = demographics[-1]['attributes'] if demographics else {}
-		acc['attributes']['children'] = childDict
-		allAccounts[id] = acc
+		allAccounts[id] = expandAccount(acc)
 
 	print('Account data download complete. Found {} records'.format(len(accountData)))
 	backup_and_save(paths.ACCOUNT_FILENAME, allAccounts)
+
+def fetch_single_account(userId): # TODO: doc
+	'''Fetch single account data from server, don't update local storage'''
+	client = ExperimenterClient()
+
+	accountData = client.fetch_user(userId)
+
+	return expandAccount(accountData)
 
 def user_from_child(childId): # TODO: DOC
 	client = ExperimenterClient()
@@ -207,6 +211,19 @@ def user_from_child(childId): # TODO: DOC
 	childRecord = client.fetch_single_record(url)
 	user = paths.get_collection_from_url(childRecord['relationships']['user']['links']['related'])
 	return user
+
+
+def expandAccount(acc):
+	'''Add to a user account dict information about children and demographics'''
+	children = client.fetch_collection_records(acc['relationships']['children']['links']['related'])
+	childDict = {child['id']: child['attributes'] for child in children}
+
+	demographics = client.fetch_collection_records(acc['relationships']['demographics']['links']['related'])
+	demographics.sort(key=lambda d:d['attributes']['date_created'])
+
+	acc['attributes']['demographics'] = demographics[-1]['attributes'] if demographics else {}
+	acc['attributes']['children'] = childDict
+	return acc
 
 if __name__ == '__main__':
 	print("testing")
