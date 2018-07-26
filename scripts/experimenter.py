@@ -215,6 +215,7 @@ def user_from_child(childId): # TODO: DOC
 
 def expandAccount(acc):
 	'''Add to a user account dict information about children and demographics'''
+	client = ExperimenterClient()
 	children = client.fetch_collection_records(acc['relationships']['children']['links']['related'])
 	childDict = {child['id']: child['attributes'] for child in children}
 

@@ -1217,7 +1217,7 @@ class Experiment(object):
 			try:
 				acc = self.accounts[user]
 			except KeyError:
-				input = raw_input("User {} not found in local store. If this might just be a new user, we can try fetching their data. Fetch from server? y/[n]") or "n"
+				input = raw_input("User {} not found in local store. If this might just be a new user, we can try fetching their data. Fetch from server? y/[n]".format(user)) or "n"
 				if input.strip() == 'y':
 					acc = fetch_single_account(user)
 				else:
