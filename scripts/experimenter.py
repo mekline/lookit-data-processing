@@ -113,11 +113,15 @@ class ExperimenterClient(object):
 			}
 		}
 
-		return self.session.post(
+		response = self.session.post(
 			url,
 			headers = {'Content-type': "application/vnd.api+json"},
 			json = feedbackdata
-		).json()['data']
+		)
+
+		printer.pprint(response)
+
+		return response.json()['data']
 
 	def update_feedback(self, feedbackID, feedback):
 		"""Update feedback.
