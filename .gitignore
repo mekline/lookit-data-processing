@@ -40,3 +40,7 @@ migration/output/*
 scripts/*.json
 updateECCL.sh
 geometryemaildata.py
+
+# Apple stupidity
+.DS_Store
+**/.DS_Store

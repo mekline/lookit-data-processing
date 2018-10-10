@@ -28,7 +28,7 @@ It also contains other useful scripts for dealing with video data from lookit, i
 
 3. Install python 2.7.x using pyenv, e.g. pyenv install 2.7.11
 
-4. Install virtualenv: `[sudo] pip install virtualenv`
+4. Install virtualenv: `[sudo] pip install virtualenv` (You may need to install pip first)
 
 5. cd into the `scripts/` dir of the repo (where this very README file is located) & install requirements
 
@@ -84,7 +84,9 @@ brew install ffmpeg \
 
 7. Install AWS command-line tools: see http://docs.aws.amazon.com/cli/latest/userguide/installing.html
     
-    `sudo pip install awscli`
+    `sudo pip install awscli --ignore-installed six`
+
+(The ignore-installed part prevents pip from fighting with some packages that now come preinstalled on macs)
 
 ## Configuration
 
