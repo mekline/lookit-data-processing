@@ -112,10 +112,11 @@ def skipIfEndedEarly(vidData, codeRecord):
 	return [vid for vid in vidData if not codeRecord['endedEarly'][vid[1]]]
 
 # List of current coder names. coding.py will only create/commit coding for coders on this list. Removing an inactive coder will not affect existing data.
-CODERS = ['Kim', 'Coder1', 'Melissa']
+CODERS = ['Kim', 'Coder1', 'Melissa', 'Training', 'Khaled']
 
 # Allow usage of study 'nicknames' when calling coding.py or reminder_emails.py
 studyNicknames = {'physics': 'cfddb63f-12e9-4e62-abd1-47534d6c4dd2',
+				  'physics-pilot': '57bc591dc0d9d70055f775db',
 				  'geometry': 'c7001e3a-cfc5-4054-a8e0-0f5e520950ab',
 				  'politeness': 'b40b6731-2fec-4df4-a12f-d38c7be3015e',
 				  'flurps': '1e9157cd-b898-4098-9429-a599720d0c0a'}
