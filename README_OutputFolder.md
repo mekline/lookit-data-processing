@@ -1,8 +1,10 @@
 # README - Put a copy of this in BASE_DIR folder too for easy access
 
-This is a folder for computers and robots, and the primary place that video for Lookit is stored and processed. Humans should do very little *editing* here, except for in the `consent_and_coding/` CSV spreadsheets. This is also a folder for safe data storage - raw video (of all privacy settings) is downloaded to local storage here; be very careful with anything that comes back out of this directory. 
+This readme is stored with lookit-data-processing but should also be copied to the BASE_DIR specified in the scripts/.env_prod file. 
 
-The folder is populated and updated using the scripting in `Lookit/lookit-data-processing`. This readme should be copied both here and in lookit-data-processing. An example of how this folder could look following downloading/coding videos for the physics pilot/early subjects is available in `Lookit/Kim Import/lookitcodingv1` and `Lookit/Kim Import/lookitcodingv2`
+The BASE_DIR folder is populated and updated using the scripting in `Lookit/lookit-data-processing`. An example of how this folder could look following downloading/coding videos for the physics pilot/early subjects is available in `Lookit/Kim Import/lookitcodingv1` and `Lookit/Kim Import/lookitcodingv2`
+
+This is a folder for computers and robots, and the primary place that video for Lookit is stored and processed. Humans should do very little *editing* here, except for in the `consent_and_coding/` CSV spreadsheets. This is also a folder for safe data storage - raw video (of all privacy settings) and PII is downloaded to local storage here; be very careful with anything that comes back out of this directory. 
 
 ## subfolders
 
