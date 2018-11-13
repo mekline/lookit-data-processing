@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     # --------------- REPLACE THESE ------------------------------------------------------
 
-    usePublicOnly = False # True to select only the 'Public' privacy level clips to
+	usePublicOnly = False # True to select only the 'Public' privacy level clips to
     # include in grids. So if a participant has some private, some scientific, some public
     # clips, you can get a grid that you can share for publicity. If you choose false,
     # all clips will be included, and the resulting grid will have in its filename
@@ -23,11 +23,11 @@ if __name__ == "__main__":
 
     # Directory that contains collections of participant videos to make grids of. Each
     # subdirectory is for one participant.
-	baseDir = '/Users/kms/ECCL/PreferentialPhysics/ParticipantCollections/'
+	baseDir = '/Volumes/LookitVideo/lookit-media/video_export/cfddb63f-12e9-4e62-abd1-47534d6c4dd2/'
 	# Where to put the grids that are created
-	collageDir = '/Users/kms/ECCL/PreferentialPhysics/ParticipantCollages/'
+	collageDir = '/Volumes/LookitVideo/lookit-media/video_export/collages/'
 	# Where to
-	exportDir = '/Users/kms/ECCL/PreferentialPhysics/ParticipantCollages/export/'
+	exportDir = '/Volumes/LookitVideo/lookit-media/video_export/collages/'
 
 	# ------------------------------------------------------------------------------------
 
@@ -38,6 +38,8 @@ if __name__ == "__main__":
 
 	for partDir in participantDirs:
 
+		print(partDir)
+
 		vids = [f for f in os.listdir(partDir) if (not(os.path.isdir(os.path.join(partDir, f))) and f[-4:]=='.mp4')]
 		if usePublicOnly:
 			vids = [f for f in vids if 'public' in f]
@@ -46,12 +48,12 @@ if __name__ == "__main__":
 
 		collageName = os.path.split(partDir)[1] + '_' + privacy
 
-		if len(vids) and '340f7b69-4125-42dc-b632-49a57f379c8a' in collageName:
+		if len(vids) > 4:
 
 			print('Making ' + collageName)
 			print(vids)
 
 			make_collage(partDir, vids, min(4, len(vids)), os.path.join(collageDir, collageName), False, 0)
 
-			print('Exporting compressed')
-			make_mp4(os.path.join(collageDir, collageName + '.mp4'), exportDir, width=min(1920, 480*len(vids)))
+			#print('Exporting compressed')
+			#make_mp4(os.path.join(collageDir, collageName + '.mp4'), exportDir, width=min(1920, 480*len(vids)))
