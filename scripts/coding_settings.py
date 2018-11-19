@@ -176,7 +176,7 @@ settingsByStudy = {
 			'onlyMakeConcatIfConsent': True,
 			'nVideosExp': 24,
 			'videoFrameNames': ['pref-phys-videos'],
-			'trimLength': -20,
+			'trimLength': -24,
 			'excludeFields': standardExclude,
 			'studyFields': ['videosShown', 'showedAlternate', 'endedEarly'],
 			'includeFields': standardFields,
