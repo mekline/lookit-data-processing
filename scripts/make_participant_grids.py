@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     # --------------- REPLACE THESE ------------------------------------------------------
 
-	usePublicOnly = False # True to select only the 'Public' privacy level clips to
+	usePublicOnly = True # True to select only the 'Public' privacy level clips to
     # include in grids. So if a participant has some private, some scientific, some public
     # clips, you can get a grid that you can share for publicity. If you choose false,
     # all clips will be included, and the resulting grid will have in its filename
@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     # Directory that contains collections of participant videos to make grids of. Each
     # subdirectory is for one participant.
-	baseDir = '/Volumes/LookitVideo/lookit-media/video_export/cfddb63f-12e9-4e62-abd1-47534d6c4dd2/'
+	baseDir = '/Volumes/LookitVideo/lookit-media/video_export/to-collage/'
 	# Where to put the grids that are created
 	collageDir = '/Volumes/LookitVideo/lookit-media/video_export/collages/'
 	# Where to
