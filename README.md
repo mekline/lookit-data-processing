@@ -9,7 +9,7 @@ It's an instance of how you can use/access the lookit API, about which read more
 It also contains other useful scripts for dealing with video data from lookit, including VCode functions and example Python analysis  pipeline for a dataset.
 (meaninless git test change)
 
-*NOTE: Remember that the remote is named `coding-workflow-multilab`, so to push any changes, use `git push origin coding-workflow-multilab`*
+*NOTE: Remember that the remote branch you forked is named `coding-workflow-multilab`, so to push any changes, use `git push origin coding-workflow-multilab`*
 ## Installation (OSX directions)
 
 0. Choose a location for the lookit-data-processing repo. This will *not* be the same disk location as the actual video, but it will be where you run the commands from to update the local storage and coding records from. It's good to pick where you really want to put these directories right now because some of the following steps will need to be rerun if you pick up either directory and move it elsewhere. Melissa thinks it's good to have the actual video download location somewhere separate from other project materials, since the PII lives there. Melissa's directory structure looks like this:
