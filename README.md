@@ -166,18 +166,38 @@ cd /Volumes/NovelToy2/CurrentProjects/Lookit/scripts/
 
 > python coding.py update --study physics
    get all the data!
+
+   python coding.py updateaccounts --study physics
+   If there were any new subjects, run this to grab them.
+
 > python coding.py fetchconsentsheet --coder Melissa --study physics 
    get yourself a spreadsheet you can read
-   you may need to first add 'Melissa' to a coder list in codingSettings?
-Then look at the human-readable csv and code consent, save the file
+   you may need to first add YOURNAME to a coder list in codingSettings
+
+Then look at the human-readable csv [`consent_and_coding/cfddb......._YOURNAME.csv`] and code consent, save the file.
+
 > python coding.py commitconsentsheet --coder Melissa --study physics
    saves your csv markings into the pickled-python data store under 'data'
+
 > python coding.py update --study physics
    this is optional, it will run the update again and now that it knows about consent it'll process videos where consent is marked
+   (Melissa almost always does this, so she can write notes that make reference to anything interesting that happened during the entire session)
+
 > python coding.py sendfeedback --study physics 
    sends the stored feedback to the server
 
 
+
+> python coding.py export --study physics
+> python coding.py exportaccounts --study physics
+
+Note that exportaccounts is different from updateaccounts! Running the former results in a spreadsheet that work with Melissa's payment script. 
+
+## Making a collage
+
+For each participant, there is a folder inside lookit_media/video_export/cfddb.../ that contains the whole-session video of each session for that child. Copy this folder into the folder named `to-collage/`. The script is going to make a collage for each participant that has videos in this folder. 
+
+From the scripts folder, `python make_participant_grids.py`. Pay attention to whether the public-only flag is sent, the parents are allowed to get the private sessions! The resulting collage movie (in `collages/`) will have the privacy level (most restrictive of all included levels) appended to the end of the filename regardless. 
 
 ## TOUPDATE - Getting Help
 
