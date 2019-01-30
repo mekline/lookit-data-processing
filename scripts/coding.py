@@ -875,6 +875,7 @@ class Experiment(object):
 
 				if len(vids) > 1:
 					warnings.warn('Multiple videos found!') # TODO: expand warning
+					printer.pprint(vids)
 
 				# Also make a list of all events per video that match an event type in
 				# whichEvents

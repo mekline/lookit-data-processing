@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     # --------------- REPLACE THESE ------------------------------------------------------
 
-	usePublicOnly = True # True to select only the 'Public' privacy level clips to
+	usePublicOnly = False # True to select only the 'Public' privacy level clips to
     # include in grids. So if a participant has some private, some scientific, some public
     # clips, you can get a grid that you can share for publicity. If you choose false,
     # all clips will be included, and the resulting grid will have in its filename
